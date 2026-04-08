@@ -125,16 +125,25 @@ export async function discoverNetworks({ bbox, queryOverpass }) {
         const childName = (child.tags?.name || '').toLowerCase();
 
         // Expand the sub-superroute to check if it's a real network.
-        // ORP has 3 distinct sections (east/west/TCT) → real network.
-        // Greenbelt West has 2 variants of the same trail → organizational split.
-        // Heuristic: 3+ leaf routes = real network.
+        // Sub-superroutes whose children share the parent's name are
+        // organizational splits — sections of one corridor (ORP east/west/TCT).
+        // Flatten them: their leaves become direct members of the grandparent.
+        // Sub-superroutes with distinct child names are real trail networks.
         const leaves = await expandSuperroute(child.id, queryOverpass);
+        const childBaseName = childName.replace(/\s*\(.*?\)\s*$/, '');
+        const allShareName = leaves.every(l => {
+          const leafBase = (l.tags?.name || '').toLowerCase().replace(/\s*\(.*?\)\s*$/, '');
+          return leafBase.startsWith(childBaseName) || childBaseName.startsWith(leafBase);
+        });
 
-        if (leaves.length >= 3) {
+        if (leaves.length >= 3 && !allShareName) {
           promotedIds.add(m.ref);
           console.log(`  Promoting "${child.tags?.name}" to network (distinct child names)`);
         } else {
           childIds.add(m.ref);
+          if (leaves.length >= 3) {
+            console.log(`  Flattening "${child.tags?.name}" (${leaves.length} sections of same corridor)`);
+          }
         }
       }
     }
@@ -189,7 +198,29 @@ export async function discoverNetworks({ bbox, queryOverpass }) {
     console.log(`  Network: ${entry.name} (${unique.length} members)`);
   }
 
-  return networks;
+  // Remove redundant small superroutes that OSM doesn't encode as children.
+  // A superroute with ≤2 members that shares any member with a larger network
+  // is just organizing sections of a path in a larger system — not a real
+  // network. Superroutes with 3+ members are real networks (promoted by the
+  // sub-superroute detection above) and are kept even if they share members.
+  const filtered = [];
+  for (const net of networks) {
+    const memberIds = new Set(net._member_relations);
+    if (memberIds.size <= 2) {
+      const largerNet = networks.find(other =>
+        other !== net &&
+        other._member_relations.length > memberIds.size &&
+        [...memberIds].some(id => other._member_relations.includes(id))
+      );
+      if (largerNet) {
+        console.log(`  Skipping redundant "${net.name}" (${memberIds.size} members) — shares members with "${largerNet.name}"`);
+        continue;
+      }
+    }
+    filtered.push(net);
+  }
+
+  return filtered;
 }
 
 /**

@@ -7,9 +7,23 @@ function isGenericName(name) {
   return NUMERIC_ONLY.test(name) || RELATION_ID.test(name);
 }
 
+/** Total geometry length in metres from _ways (Array<Array<{lat,lon}>>). */
+function totalLengthM(ways) {
+  if (!ways?.length) return 0;
+  let total = 0;
+  for (const way of ways) {
+    for (let i = 1; i < way.length; i++) {
+      const dlat = (way[i].lat - way[i - 1].lat) * 111320;
+      const dlng = (way[i].lon - way[i - 1].lon) * 111320 * Math.cos(way[i].lat * Math.PI / 180);
+      total += Math.sqrt(dlat * dlat + dlng * dlng);
+    }
+  }
+  return total;
+}
+
 /**
  * Pick a name for a cluster of trail entries.
- * Fallback: park name → majority operator → longest non-generic member name.
+ * Fallback: park name → majority operator → longest trail by geometry → longest non-generic name.
  *
  * @param {Array<{ name: string, operator?: string }>} members
  * @param {string | null} parkName — from Overpass containment query
@@ -32,10 +46,16 @@ export function pickClusterName(members, parkName) {
     }
   }
 
-  // Most ways — pick the member with the most OSM ways (most physical presence)
+  // Longest trail by geometry — the member with the most physical presence.
+  // Uses actual distance when geometry has {lat,lon} coords, falls back to
+  // way count when _ways are stubs (e.g. in unit tests).
   const withWays = members.filter(m => m._ways && m._ways.length > 0);
   if (withWays.length > 0) {
-    const best = withWays.reduce((a, b) => (b._ways.length > a._ways.length) ? b : a);
+    const hasRealGeom = withWays.some(m => m._ways[0]?.[0]?.lat !== undefined);
+    const score = hasRealGeom
+      ? (m) => totalLengthM(m._ways)
+      : (m) => m._ways.length;
+    const best = withWays.reduce((a, b) => (score(b) > score(a)) ? b : a);
     if (!isGenericName(best.name)) return best.name;
   }
 

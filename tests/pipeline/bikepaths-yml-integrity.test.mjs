@@ -90,22 +90,22 @@ describe.skipIf(!ymlExists)('TCT segments belong to their local networks', () =>
     expect(greenbelt.members).toContain('trans-canada-trail-bells-cornerswatts-creek');
   });
 
-  it('Trans Canada Trail (Sussex Drive) is a member of Ottawa River Pathway', () => {
+  it('Trans Canada Trail (Sussex Drive) is a member of Capital Pathway (ORP flattened)', () => {
     if (!entries) return;
-    const orp = net('ottawa-river-pathway');
-    expect(orp.members).toContain('trans-canada-trail-sussex-drive');
+    const cp = net('capital-pathway');
+    expect(cp.members).toContain('trans-canada-trail-sussex-drive');
   });
 
-  it('Ottawa River Pathway (Trans Canada Trail) is a member of Ottawa River Pathway', () => {
+  it('Ottawa River Pathway (Trans Canada Trail) is a member of Capital Pathway (ORP flattened)', () => {
     if (!entries) return;
-    const orp = net('ottawa-river-pathway');
-    expect(orp.members).toContain('ottawa-river-pathway-trans-canada-trail');
+    const cp = net('capital-pathway');
+    expect(cp.members).toContain('ottawa-river-pathway-trans-canada-trail');
   });
 
-  it('Trans Canada Trail (Sussex Drive) has member_of ottawa-river-pathway', () => {
+  it('Trans Canada Trail (Sussex Drive) has member_of capital-pathway', () => {
     if (!entries) return;
     const e = entry('trans-canada-trail-sussex-drive');
-    expect(e.member_of).toBe('ottawa-river-pathway');
+    expect(e.member_of).toBe('capital-pathway');
   });
 
   it('Trans Canada Trail (Bells Corners/Watts Creek) has member_of ncc-greenbelt', () => {
@@ -114,10 +114,10 @@ describe.skipIf(!ymlExists)('TCT segments belong to their local networks', () =>
     expect(e.member_of).toBe('ncc-greenbelt');
   });
 
-  it('Ottawa River Pathway (Trans Canada Trail) has member_of ottawa-river-pathway', () => {
+  it('Ottawa River Pathway (Trans Canada Trail) has member_of trans-canada-trail-ottawa-area', () => {
     if (!entries) return;
     const e = entry('ottawa-river-pathway-trans-canada-trail');
-    expect(e.member_of).toBe('ottawa-river-pathway');
+    expect(e.member_of).toBe('trans-canada-trail-ottawa-area');
   });
 });
 

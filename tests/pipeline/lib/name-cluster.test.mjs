@@ -16,9 +16,9 @@ describe('pickClusterName', () => {
     expect(pickClusterName(members, null)).toBe('NCC Trails');
   });
 
-  it('falls back to most-ways member when no park and no operator', () => {
-    // All south march entries have 1 way each, so first non-generic wins
-    expect(pickClusterName(southMarch.entries, null)).toBe('Coconut Tree');
+  it('falls back to longest-geometry member when no park and no operator', () => {
+    // DeerDrop Baypass has the longest geometry (901m) in the fixture
+    expect(pickClusterName(southMarch.entries, null)).toBe('DeerDrop Baypass');
   });
 
   it('uses majority operator, not unanimous', () => {

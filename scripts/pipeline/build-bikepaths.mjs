@@ -140,9 +140,6 @@ function groupByRoadAndProximity(results, proximityM) {
       [g.bbox.east, g.bbox.north],
     ],
     tags: mergeWayTags(g.allTags.map((t, i) => ({ tags: t, id: i }))),
-    _chainCoords: g.chains.flatMap(c =>
-      c.tags.map((_, i) => [c.midpoint.lat, c.midpoint.lon])
-    ),
   }));
 }
 
@@ -1033,8 +1030,21 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 );
 out tags;`;
   const relData = await qo(relQ);
+  const CYCLING_ROUTES = new Set(['bicycle', 'mtb']);
   const osmRelations = relData.elements
     .filter(el => el.tags?.type !== 'superroute') // superroutes are containers, handled by network discovery
+    .filter(el => {
+      // The name-pattern clause (third) catches any type=route with a matching
+      // name, regardless of route tag. Filter out non-cycling relations (hiking,
+      // skiing, piste) that slipped in — they claim ways and block real cycling
+      // entries from becoming standalone.
+      const route = el.tags?.route;
+      if (route && !CYCLING_ROUTES.has(route)) {
+        console.log(`  Skipping non-cycling relation ${el.id} "${el.tags?.name}" (route=${route})`);
+        return false;
+      }
+      return true;
+    })
     .map(el => ({
       id: el.id,
       name: el.tags?.name || `relation-${el.id}`,
@@ -1068,6 +1078,25 @@ out tags;`;
     }
   }
 
+  // Filter out mega-MTB-relations: local MTB relations with many member ways
+  // are aggregations of an entire trail system (e.g. "Sentier vélo de Montagne
+  // - Parc de la Gatineau" with 95 ways). These claim individual named trails'
+  // ways, preventing them from becoming standalone entries. The individual
+  // trails are better discovered as named ways (step 2) and grouped into
+  // networks by park containment.
+  // Exclude long-distance MTB routes (ncn/rcn/ref) — those are touring routes.
+  const MEGA_MTB_THRESHOLD = 50;
+  const megaMtbIds = new Set();
+  for (let i = osmRelations.length - 1; i >= 0; i--) {
+    const r = osmRelations[i];
+    if (r.tags?.route !== 'mtb') continue;
+    if ((r._memberWayIds?.length || 0) <= MEGA_MTB_THRESHOLD) continue;
+    if (r.tags?.network || r.tags?.ref) continue;
+    console.log(`  Skipping mega-MTB relation ${r.id} "${r.name}" (${r._memberWayIds.length} ways)`);
+    megaMtbIds.add(r.id);
+    osmRelations.splice(i, 1);
+  }
+
   // Step 1a-2: Fetch way-level tags for relation members.
   // Route relations typically lack physical tags (highway, surface, width,
   // lit) — those live on the member ways. Aggregate them via majority vote
@@ -1082,7 +1111,7 @@ out tags;`;
     }
     const allWayIds = [...wayIdToRels.keys()];
     if (allWayIds.length > 0) {
-      const wayTagQ = `[out:json][timeout:120];\nway(id:${allWayIds.join(',')});\nout tags;`;
+      const wayTagQ = `[out:json][timeout:120];\nway(id:${allWayIds.join(',')});\nout geom tags;`;
       try {
         const wayTagData = await qo(wayTagQ);
         const waysByRel = new Map();
@@ -1807,6 +1836,31 @@ out geom tags;`;
       allNetSources.push(...routeSystemNets);
     }
 
+    // Merge superroute members into route-system networks when they share
+    // a cycle_network tag. A superroute like CB2 (cycle_network: CA:ON:Ottawa)
+    // is redundant when Ottawa Bikeways already groups by that tag. Merging
+    // ensures members like Laurier (which lack their own cycle_network tag)
+    // get included in Ottawa Bikeways via the superroute's membership.
+    const routeSystemByCN = new Map();
+    for (const net of allNetSources) {
+      if (net.cycle_network && !net.osm_relations) {
+        routeSystemByCN.set(net.cycle_network, net);
+      }
+    }
+    allNetSources = allNetSources.filter(net => {
+      if (!net.osm_relations || !net.cycle_network) return true;
+      const rsNet = routeSystemByCN.get(net.cycle_network);
+      if (!rsNet) return true;
+      const existing = new Set(rsNet._member_relations);
+      for (const relId of net._member_relations || []) {
+        if (!existing.has(relId)) {
+          rsNet._member_relations.push(relId);
+        }
+      }
+      console.log(`  Merged superroute "${net.name}" into route-system "${rsNet.name}"`);
+      return false;
+    });
+
     // Create all superroute + route-system networks in one call so byRelation
     // is built once. This prevents the second batch from flattening the first.
     if (allNetSources.length > 0) {
@@ -1829,9 +1883,6 @@ out geom tags;`;
   // Step 7c: Derive entry type (destination/infrastructure/connector)
   // Depends on path_type and _ways (still available, stripped later).
   // Networks already have type: 'network' — deriveEntryType skips them.
-  // Clear previously derived long-distance type so classification rules
-  // are re-evaluated from geometry (the pipeline may have written this
-  // type in a previous run under different rules).
   for (const entry of grouped) {
     if (entry.type === 'long-distance') delete entry.type;
     const et = deriveEntryType(entry);
@@ -1922,10 +1973,32 @@ out geom tags;`;
       if (candidate.ref) entry.ref = candidate.ref;
       if (candidate.network) entry.network = candidate.network;
       grouped.push(entry);
+      wayRegistry.claim(entry, candidate.bikeableWayIds);
       promotedCount++;
     }
     if (promotedCount > 0) {
       console.log(`  Promoted ${promotedCount} non-cycling relations to entries (≥${Math.round(PROMOTE_THRESHOLD * 100)}% bikeable)`);
+    }
+
+    // Classify promoted entries — they were added after steps 3b/7/7c.
+    // Derive path_type from the cycling entries that own their ways,
+    // then derive entry type normally.
+    for (const entry of grouped) {
+      if (!entry.path_type && entry.route_type) {
+        const ptCounts = {};
+        for (const wid of (entry.osm_way_ids || [])) {
+          const owner = wayRegistry.ownerOf(wid);
+          if (owner && owner !== entry && owner.path_type) {
+            ptCounts[owner.path_type] = (ptCounts[owner.path_type] || 0) + 1;
+          }
+        }
+        const best = Object.entries(ptCounts).sort((a, b) => b[1] - a[1])[0];
+        if (best) entry.path_type = best[0];
+      }
+      if (!entry.type && entry.type !== 'network') {
+        const et = deriveEntryType(entry);
+        if (et) entry.type = et;
+      }
     }
 
     // Attach overlap metadata for below-threshold relations
@@ -2141,13 +2214,6 @@ async function main() {
     }
     console.log(`\nTotal: ${entries.length} entries (${networkEntries.length} networks, ${memberEntries.length} members, ${superNetworks.length} super-networks)`);
   } else {
-    // Persist way IDs from the registry before stripping transient fields
-    for (const entry of entries) {
-      const wayIds = wayRegistry.wayIdsFor(entry);
-      if (wayIds.size > 0) {
-        entry.osm_way_ids = [...wayIds].sort((a, b) => a - b);
-      }
-    }
     // Slugs already set by the resolution pass — strip transient fields
     for (const entry of entries) {
       delete entry._ways;

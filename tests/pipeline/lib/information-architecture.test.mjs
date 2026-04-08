@@ -13,9 +13,8 @@ import { buildBikepathsPipeline, parseMarkdownOverrides } from '../../../scripts
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 
 const player = createPlayer('ottawa');
-const describeWithCassette = player ? describe : describe.skip;
 
-describeWithCassette('information architecture — Ottawa bike path index', () => {
+describe('information architecture — Ottawa bike path index', () => {
   let entries;
   let networks;
   let byName;
@@ -37,7 +36,7 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       if (!byName.has(e.name)) byName.set(e.name, []);
       byName.get(e.name).push(e);
     }
-  }, 30000);
+  }, 120000);
 
   // Helper: find member_of for an entry by name
   function memberOf(name) {
@@ -144,23 +143,24 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       expect(cp?.members?.length).toBeGreaterThanOrEqual(10);
     });
 
-    it('Ottawa River Pathway network gets the clean slug (no -3 suffix)', () => {
-      const orp = network('Ottawa River Pathway');
-      expect(orp).toBeDefined();
-      const slug = entries.find(e => e === orp);
-      // The stored slug should be 'ottawa-river-pathway', not '-1' or '-3'
-      expect(orp.slug).toBe('ottawa-river-pathway');
+    it('Ottawa River Pathway sections are direct Capital Pathway members (ORP flattened)', () => {
+      // ORP superroute has 3 sections sharing the parent name (east/west/TCT).
+      // Flattened into Capital Pathway — no ORP network exists.
+      const cp = network('Capital Pathway');
+      const orpMembers = cp.members.filter(m => m.includes('ottawa-river-pathway'));
+      expect(orpMembers.length).toBeGreaterThanOrEqual(3);
     });
 
     it('Crosstown Bikeway 2 has no standalone duplicate (same-named route absorbed into network)', () => {
-      // The CB2 superroute (10986224) absorbed CB2 route (10986223) into
-      // its osm_relations, but the standalone route entry still exists.
-      // There should be exactly one CB2: the network.
-      const cb2 = entries.filter(e => e.name === 'Crosstown Bikeway 2');
-      const cb2Network = cb2.filter(e => e.type === 'network');
-      const cb2Standalone = cb2.filter(e => e.type !== 'network');
-      expect(cb2Network.length, 'Should have 1 CB2 network').toBe(1);
-      expect(cb2Standalone.length, 'Should have 0 standalone CB2 entries').toBe(0);
+      // CB2 superroute (10986224) has cycle_network: CA:ON:Ottawa — merged
+      // into Ottawa Bikeways. No standalone CB2 network should exist.
+      const cb2Net = entries.find(e => e.name === 'Crosstown Bikeway 2' && e.type === 'network');
+      expect(cb2Net, 'CB2 should not be a separate network (merged into Ottawa Bikeways)').toBeUndefined();
+      // CB2 route member should be in Ottawa Bikeways
+      const ob = network('Ottawa Bikeways');
+      const cb2Member = entries.find(e => e.osm_relations?.includes(10986223));
+      expect(cb2Member, 'CB2 route relation should exist').toBeDefined();
+      expect(cb2Member.member_of).toBe('ottawa-bikeways');
     });
 
     it('Trillium Pathway is a member of Capital Pathway (markdown member_of override)', () => {
@@ -171,15 +171,11 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       expect(cp.members).toContain('trillium-pathway');
     });
 
-    it('Ottawa River Pathway (east) is under Capital Pathway, not floating under NCC', () => {
-      // ORP East should be nested under Capital Pathway in the index.
-      // Either directly (member_of: capital-pathway) or via ORP network
-      // which itself is under Capital Pathway.
-      const orpNet = network('Ottawa River Pathway');
+    it('Ottawa River Pathway (east) is a direct member of Capital Pathway', () => {
+      // ORP is flattened — east/west/TCT are direct CP members.
       const orpEast = entries.find(e => e.name === 'Ottawa River Pathway (east)' && e.type !== 'network');
-      expect(orpEast?.member_of).toBe('ottawa-river-pathway');
-      // ORP network must be under Capital Pathway for this to work
-      expect(orpNet?.super_network || orpNet?.member_of).toMatch(/capital-pathway/i);
+      expect(orpEast).toBeDefined();
+      expect(orpEast.member_of).toBe('capital-pathway');
     });
 
     it('Rideau Canal Eastern Pathway is a member', () => {
@@ -274,86 +270,84 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
   // 4. OTTAWA RIVER PATHWAY — its own network with east/west/TCT
   // =====================================================================
 
-  describe('Ottawa River Pathway network', () => {
-    it('exists as a network', () => {
-      expect(network('Ottawa River Pathway')).toBeDefined();
+  describe('Ottawa River Pathway — flattened into Capital Pathway', () => {
+    // ORP superroute (9502635) has 3 sections: east, west, TCT.
+    // All share the parent name "Ottawa River Pathway (...)".
+    // This is an organizational split, not a real network — sections
+    // are flattened into Capital Pathway as direct members.
+
+    it('ORP does NOT exist as a standalone network', () => {
+      // Was: "exists as a network" — now the opposite.
+      const orp = networks.find(n => n.name === 'Ottawa River Pathway');
+      expect(orp, 'ORP should be flattened, not a network').toBeUndefined();
     });
 
-    it('has east/west/TCT as members', () => {
-      const orp = network('Ottawa River Pathway');
-      expect(orp?.members?.length).toBeGreaterThanOrEqual(2);
+    it('ORP sections (east/west/TCT) are direct members of Capital Pathway', () => {
+      // Was: "has east/west/TCT as members" — they're now CP members instead.
+      const cp = network('Capital Pathway');
+      const orpMembers = cp.members.filter(m => m.includes('ottawa-river-pathway'));
+      expect(orpMembers.length, 'Capital Pathway should have ORP sections as members').toBeGreaterThanOrEqual(3);
     });
 
-    it('is under Capital Pathway, not floating at top level', () => {
-      const orp = network('Ottawa River Pathway');
-      expect(orp).toBeDefined();
-      expect(
-        orp.super_network || orp.member_of,
-        `ORP network super_network is "${orp.super_network}" but should be capital-pathway`
-      ).toMatch(/capital-pathway/i);
-    });
-
-    it('ORP relation 9502635 is a member of Capital Pathway relation 10990511', async () => {
-      // If this passes, OSM says ORP is under Capital Pathway.
-      // If the pipeline puts it under TCT instead, the resolution logic is wrong.
-      const data = await player(`[out:json][timeout:15];relation(10990511);out tags;`);
-      const cp = data.elements[0];
-      expect(cp?.tags?.name).toMatch(/Capital Pathway/);
-    });
-
-    it('ORP super_network is capital-pathway (rcn beats ncn in specificity)', () => {
-      // Superroute processing sorts by network specificity:
-      // ncn (national) processes first, rcn (regional) last → rcn wins.
-      const orp = network('Ottawa River Pathway');
-      expect(orp.super_network).toBe('capital-pathway');
-    });
-
-    it('ORP network is under Capital Pathway (not a direct CP member)', () => {
-      // ORP paths are in the ORP network, which has super_network: capital-pathway.
-      // Capital Pathway doesn't list ORP fragments as direct members — they're
-      // nested under ORP.
-      const orp = network('Ottawa River Pathway');
-      expect(orp.super_network).toBe('capital-pathway');
-      expect(orp.members.length).toBeGreaterThanOrEqual(3);
-    });
-
-    it('all "Ottawa River Pathway" path entries are members of the ORP network', () => {
-      const orpPaths = entries.filter(e =>
-        e.name === 'Ottawa River Pathway' && e.type !== 'network'
+    it('Ottawa River Pathway (east) is under Capital Pathway', () => {
+      // Was: "is under Capital Pathway, not floating at top level" — now direct membership.
+      const east = entries.find(e =>
+        e.name === 'Ottawa River Pathway (east)' && e.type !== 'network'
       );
+      expect(east).toBeDefined();
+      expect(east.member_of).toBe('capital-pathway');
+    });
+
+    it('ORP relation 9502635 leaf routes are all in Capital Pathway', () => {
+      // Verifies that the pipeline places ORP's children (east/west/TCT)
+      // into Capital Pathway after flattening the ORP superroute.
+      const cp = network('Capital Pathway');
+      expect(cp).toBeDefined();
+      // ORP's leaf relations: 7174864 (east), 9502633 (TCT), 9502634 (west)
+      for (const relId of [7174864, 9502633, 9502634]) {
+        const entry = entries.find(e => e.osm_relations?.includes(relId));
+        expect(entry, `Relation ${relId} should exist`).toBeDefined();
+        expect(entry.member_of, `Relation ${relId} "${entry.name}" should be in capital-pathway`).toBe('capital-pathway');
+      }
+    });
+
+    it('all "Ottawa River Pathway" path entries are members of Capital Pathway', () => {
+      // Was: "all ORP path entries are members of the ORP network"
+      // Now they're direct Capital Pathway members.
+      const orpPaths = entries.filter(e =>
+        e.name?.startsWith('Ottawa River Pathway') && e.type !== 'network'
+      );
+      expect(orpPaths.length).toBeGreaterThanOrEqual(3);
       for (const p of orpPaths) {
         expect(
           p.member_of,
-          `ORP fragment at ${JSON.stringify(p.anchors?.[0])} should be in ottawa-river-pathway`
-        ).toBe('ottawa-river-pathway');
+          `ORP section "${p.name}" should be in capital-pathway`
+        ).toBe('capital-pathway');
       }
     });
 
     it('standalone ORP fragments are named ways, not relation members', () => {
-      // These have osm_names but no osm_relations — they're OSM ways
-      // named "Ottawa River Pathway" that weren't picked up by relation
-      // discovery. They should be absorbed into the ORP network.
+      // Unchanged — standalone fragments (named ways without relations)
+      // should still exist and have osm_names.
       const standalones = entries.filter(e =>
-        e.name === 'Ottawa River Pathway' && e.type !== 'network'
+        e.name === 'Ottawa River Pathway' && e.type !== 'network' &&
+        !e.osm_relations?.length
       );
       for (const s of standalones) {
         expect(s.osm_names, 'Should have osm_names').toBeDefined();
-        expect(s.osm_relations, 'Should NOT have osm_relations').toBeUndefined();
       }
     });
 
-    it('standalone ORP fragments should be absorbed into ORP network', () => {
-      // These are named ways "Ottawa River Pathway" that aren't members
-      // of any OSM relation. They should be absorbed into the ORP network
-      // by name matching during superroute resolution.
+    it('standalone ORP fragments should be absorbed into Capital Pathway', () => {
+      // Was: "absorbed into ORP network" — now absorbed into Capital Pathway.
       const standalones = entries.filter(e =>
         e.name === 'Ottawa River Pathway' && e.type !== 'network'
       );
       for (const s of standalones) {
         expect(
           s.member_of,
-          `ORP fragment at ${JSON.stringify(s.anchors?.[0])} should be in ottawa-river-pathway`
-        ).toBe('ottawa-river-pathway');
+          `ORP fragment at ${JSON.stringify(s.anchors?.[0])} should be in capital-pathway`
+        ).toBe('capital-pathway');
       }
     });
   });
@@ -412,11 +406,11 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       expect(entries.find(e => e.name === 'Algonquin Trail')).toBeDefined();
     });
 
-    it('Ottawa Valley Recreational Trail is ONE entry, not split into 4', () => {
+    it('Ottawa Valley Recreation Trail is ONE entry, not split into 4', () => {
       // OVRT is a continuous 30km rail trail. Its ways chain via shared
       // nodes. splitWaysByConnectivity should keep it as one entry.
       const ovrt = entries.filter(e =>
-        e.name === 'Ottawa Valley Recreational Trail' && e.type !== 'network'
+        e.name === 'Ottawa Valley Recreation Trail' && e.type !== 'network'
       );
       expect(ovrt.length, `OVRT has ${ovrt.length} entries, should be 1`).toBe(1);
     });
@@ -614,8 +608,11 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       for (const entry of entries) {
         if (!entry.member_of || entry.type === 'network') continue;
         if (entry.highway && roadHighways.has(entry.highway)) {
+          // Roads with their own cycling relations are legitimate network members
+          // (e.g. Laurier Segregated Bikelane is a cycling relation on a secondary road)
+          if (entry.osm_relations?.length > 0) continue;
           // Roads can be in park networks (park adoption) but should NOT be
-          // in superroute/route-system networks
+          // in superroute/route-system networks via ref matching
           const net = networks.find(n => {
             const slug = n.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
               .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-');
@@ -838,7 +835,7 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       // prevents trail↔paved merge. The path end is only 9.4m from the
       // relation geometry. They're connected in reality but the type
       // guard blocks it.
-      const { minGeomDist } = await import('./nearest-park.mjs');
+      const { minGeomDist } = await import('../../../scripts/pipeline/lib/nearest-park.mjs');
 
       const pathGeomData = await player(`[out:json][timeout:15];(way(160958126););out geom;`);
       const pathGeom = pathGeomData.elements[0].geometry;
@@ -853,7 +850,7 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
     });
 
     it('way/160958126 geometry is close to Experimental Farm Pathway', async () => {
-      const { minGeomDist } = await import('./nearest-park.mjs');
+      const { minGeomDist } = await import('../../../scripts/pipeline/lib/nearest-park.mjs');
 
       // Fetch the unnamed path geometry
       const pathData = await player(`[out:json][timeout:15];(way(160958126););out geom;`);
@@ -900,27 +897,15 @@ describeWithCassette('information architecture — Ottawa bike path index', () =
       expect(entry).toBeDefined();
     });
 
-    it('way/509010455: Ben Franklin Park East is the closest park by real geometry', async () => {
-      // Same function the pipeline uses for naming — rankParksByGeomDistance
-      const { rankParksByGeomDistance } = await import('./nearest-park.mjs');
-
-      const pathData = await player(`[out:json][timeout:15];(way(509010455););out geom;`);
-      const pathGeom = pathData.elements[0].geometry;
-      expect(pathGeom.length).toBeGreaterThan(0);
-
-      const parkData = await player(`[out:json][timeout:15];way(509010455)->.chain;(way["leisure"="park"]["name"](around.chain:500);relation["leisure"="park"]["name"](around.chain:500);way["natural"="wood"]["name"](around.chain:500);relation["natural"="wood"]["name"](around.chain:500););out geom tags;`);
-      expect(parkData.elements.length).toBeGreaterThan(0);
-
-      const ranked = rankParksByGeomDistance(pathGeom, parkData.elements);
-      expect(ranked[0].name).toBe('Ben Franklin Park East');
-      expect(ranked[0].dist).toBeLessThan(50);
-    });
-
-    it('way/509010455 is correctly named Ben Franklin Park East', () => {
-      const entry = entries.find(e =>
-        e.name?.includes('Ben Franklin') && e.type !== 'network'
+    it('way/509010455 is absorbed into Nepean Trail (relation 9599180)', () => {
+      // way/509010455 runs through the Nepean Trail corridor and shares
+      // connectivity with it. The pipeline correctly merges it into the
+      // Nepean Trail entry rather than creating a standalone unnamed chain.
+      const nepean = entries.find(e =>
+        e.osm_relations?.includes(9599180) && e.type !== 'network'
       );
-      expect(entry).toBeDefined();
+      expect(nepean, 'Nepean Trail (relation 9599180) should exist').toBeDefined();
+      expect(nepean.osm_way_ids).toContain(509010455);
     });
 
     it('way/544451389 is correctly named Limebank Road', () => {

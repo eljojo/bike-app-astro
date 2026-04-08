@@ -123,14 +123,23 @@ describe('discoverNetworks', () => {
     expect(cp.wikidata).toBe('Q5035630');
   });
 
-  it('promotes sub-superroutes with 3+ children to networks (Ottawa River Pathway)', async () => {
+  it('flattens sub-superroutes whose children share the parent name (Ottawa River Pathway)', async () => {
     // Ottawa River Pathway (9502635) is a sub-superroute of Capital Pathway
-    // with 3 distinct sections (east/west/TCT). It gets promoted to its own network.
+    // with 3 sections all named "Ottawa River Pathway (east/west/TCT)".
+    // Sections sharing the parent name are organizational splits, not a real
+    // network — they get flattened into Capital Pathway as direct members.
     const mockQuery = buildMockFromFixture();
     const networks = await discoverNetworks({ bbox: '45.2,-76.4,45.6,-75.3', queryOverpass: mockQuery });
     const orp = networks.find(n => n.name === 'Ottawa River Pathway');
-    expect(orp).toBeDefined();
-    expect(orp._member_relations.length).toBeGreaterThanOrEqual(2);
+    expect(orp, 'ORP should be flattened, not a network').toBeUndefined();
+
+    // ORP's leaf relations should appear as Capital Pathway members instead
+    const cp = networks.find(n => n.name === 'Capital Pathway');
+    expect(cp).toBeDefined();
+    // ORP east (7174864), west (9502634), TCT (9502633) should all be CP members
+    for (const relId of [7174864, 9502634, 9502633]) {
+      expect(cp._member_relations, `relation ${relId} should be a CP member`).toContain(relId);
+    }
   });
 
   it('keeps same-named child as a regular member (no absorption)', async () => {

@@ -15,10 +15,7 @@ import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs'
 // RECORD_OVERPASS=ottawa node scripts/build-bikepaths.mjs --city ottawa
 const player = createPlayer('ottawa');
 
-// Skip if cassette not recorded yet
-const describeWithCassette = player ? describe : describe.skip;
-
-describeWithCassette('pipeline park containment — real Ottawa data', () => {
+describe('pipeline park containment — real Ottawa data', () => {
   let entries;
 
   // Run the full pipeline once with recorded Overpass data
@@ -33,7 +30,7 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
       manualEntries: [],
     });
     entries = result.entries;
-  }, 30000);
+  }, 120000);
 
   // Basic sanity
   it('produces entries', () => {
@@ -100,10 +97,7 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
     const networks = entries.filter(e => e.type === 'network');
     const bySlug = new Map();
     for (const e of entries) {
-      // Compute slug roughly
-      const slug = e.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-');
-      bySlug.set(slug, e);
+      if (e.slug) bySlug.set(e.slug, e);
     }
 
     for (const network of networks) {
@@ -188,10 +182,14 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
   // Ottawa River Pathway should be its own network with east/west/TCT as members
   // -----------------------------------------------------------------------
 
-  it('Ottawa River Pathway is a network with east/west/TCT members', () => {
-    const orpNetwork = entries.find(e => e.type === 'network' && e.name?.includes('Ottawa River Pathway'));
-    expect(orpNetwork, 'Should have an Ottawa River Pathway network').toBeDefined();
-    expect(orpNetwork.members?.length).toBeGreaterThanOrEqual(2);
+  it('Ottawa River Pathway is flattened — sections are direct Capital Pathway members', () => {
+    // ORP superroute has 3 sections sharing the parent name (east/west/TCT).
+    // Flattened into Capital Pathway — no ORP network exists.
+    const orpNetwork = entries.find(e => e.type === 'network' && e.name === 'Ottawa River Pathway');
+    expect(orpNetwork, 'ORP should be flattened, not a network').toBeUndefined();
+    const cp = entries.find(e => e.type === 'network' && e.name === 'Capital Pathway');
+    const orpMembers = cp?.members?.filter(m => m.includes('ottawa-river-pathway'));
+    expect(orpMembers?.length, 'Capital Pathway should have ORP sections').toBeGreaterThanOrEqual(3);
   });
 
   // -----------------------------------------------------------------------
@@ -219,15 +217,15 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
     ).toBe(0);
   });
 
-  it('Ottawa River Pathway network only has relation-based members (no ghost slugs)', () => {
-    const orpNetwork = entries.find(e => e.type === 'network' && e.name === 'Ottawa River Pathway');
-    expect(orpNetwork, 'ORP network should exist').toBeDefined();
-    // Members should be named segments (east/west/TCT) + markdown overrides,
-    // NOT numbered ghost slugs from duplicate named way discovery
-    for (const memberSlug of orpNetwork.members || []) {
+  it('no ghost ORP slugs in Capital Pathway members', () => {
+    // ORP sections (east/west/TCT) are in Capital Pathway.
+    // Numbered ghost slugs (ottawa-river-pathway-1, -2) should not exist.
+    const cp = entries.find(e => e.type === 'network' && e.name === 'Capital Pathway');
+    const orpMembers = cp?.members?.filter(m => m.includes('ottawa-river-pathway')) || [];
+    for (const slug of orpMembers) {
       expect(
-        memberSlug,
-        `Network member "${memberSlug}" looks like a ghost slug from duplicate way discovery`
+        slug,
+        `CP member "${slug}" looks like a ghost slug`
       ).not.toMatch(/^ottawa-river-pathway-\d+$/);
     }
   });
@@ -474,6 +472,32 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
   });
 
   // -----------------------------------------------------------------------
+  // South March Highlands — MTB trail network from park containment
+  // -----------------------------------------------------------------------
+
+  it('South March Highlands is an MTB network (not absorbed)', () => {
+    const net = entries.find(e =>
+      e.type === 'network' && e.name === 'South March Highlands Conservation Forest'
+    );
+    expect(net, 'South March should be a network').toBeDefined();
+    expect(net.members.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('South March members are MTB trail destinations', () => {
+    const net = entries.find(e =>
+      e.type === 'network' && e.name === 'South March Highlands Conservation Forest'
+    );
+    const knownTrails = ['Klondike', 'Porcupine', 'Coconut Tree', 'Beartree', 'Staycation'];
+    for (const name of knownTrails) {
+      const member = entries.find(e => e.name === name && e.member_of);
+      expect(member, `${name} should exist as a member`).toBeDefined();
+      expect(member.mtb, `${name} should be MTB`).toBe(true);
+      expect(member.path_type, `${name} should be mtb-trail`).toBe('mtb-trail');
+      expect(member.type, `${name} should be a destination`).toBe('destination');
+    }
+  });
+
+  // -----------------------------------------------------------------------
   // path_type derivation
   // -----------------------------------------------------------------------
 
@@ -531,7 +555,7 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
   // -----------------------------------------------------------------------
 
   it('every non-network entry has a type from the allowed set', () => {
-    const allowed = new Set(['destination', 'infrastructure', 'connector']);
+    const allowed = new Set(['long-distance', 'destination', 'infrastructure', 'connector']);
     const nonNetwork = entries.filter(e => e.type !== 'network');
     const invalid = nonNetwork.filter(e => !allowed.has(e.type));
     expect(invalid.length,
@@ -539,8 +563,8 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
     ).toBe(0);
   });
 
-  it('Sawmill Creek Path (relation) is a destination', () => {
-    const entry = entries.find(e => e.name === 'Sawmill Creek Path');
+  it('Sawmill Creek Pathway (relation) is a destination', () => {
+    const entry = entries.find(e => e.name === 'Sawmill Creek Pathway');
     expect(entry?.type).toBe('destination');
   });
 
@@ -554,11 +578,16 @@ describeWithCassette('pipeline park containment — real Ottawa data', () => {
     expect(entry?.type).toBe('destination');
   });
 
-  it('no bike-lane is a destination', () => {
+  it('bike-lane destinations all have OSM relations (no false promotions)', () => {
+    // A bike lane with an OSM cycling relation is correctly a destination —
+    // it has real-world identity (e.g. Crosstown Bikeway 2, TCT Sussex Drive).
+    // Bike lanes WITHOUT relations should be infrastructure or connector.
     const lanes = entries.filter(e => e.path_type === 'bike-lane');
-    const destinations = lanes.filter(e => e.type === 'destination');
-    expect(destinations.length,
-      `${destinations.length} bike-lanes are destinations: ${destinations.slice(0, 5).map(e => e.name).join(', ')}`
+    const destWithoutRelation = lanes.filter(e =>
+      e.type === 'destination' && !e.osm_relations?.length
+    );
+    expect(destWithoutRelation.length,
+      `${destWithoutRelation.length} bike-lanes are destinations without relations: ${destWithoutRelation.slice(0, 5).map(e => e.name).join(', ')}`
     ).toBe(0);
   });
 

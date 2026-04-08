@@ -617,4 +617,84 @@ describe('buildBikepathsPipeline', () => {
     // Must NOT have osm_relations (it's an unnamed chain, not a relation)
     expect(parkEntry.osm_relations).toBeUndefined();
   });
+
+  it('surface_mix km values reflect actual way lengths for relation entries', async () => {
+    // Bug: the way-tag enrichment query used `out tags;` which omits
+    // geometry. Without geometry, wayLengthKm() falls back to 1km per
+    // way, making surface_mix proportions reflect way count, not distance.
+    //
+    // This relation has a long asphalt way (~8km) and a short gravel way
+    // (~0.8km). With correct geometry, asphalt dominates the mix.
+    const RELATION = {
+      type: 'relation', id: 5550001,
+      tags: { name: 'Mixed Surface Trail', route: 'bicycle', type: 'route' },
+    };
+
+    // ~8km asphalt (0.1° longitude at lat 45)
+    const LONG_ASPHALT = {
+      type: 'way', id: 4401,
+      tags: { highway: 'cycleway', surface: 'asphalt' },
+      geometry: [{ lat: 45.0, lon: -75.5 }, { lat: 45.0, lon: -75.4 }],
+    };
+    // ~0.8km gravel (0.01° longitude at lat 45)
+    const SHORT_GRAVEL = {
+      type: 'way', id: 4402,
+      tags: { highway: 'cycleway', surface: 'gravel' },
+      geometry: [{ lat: 45.0, lon: -75.4 }, { lat: 45.0, lon: -75.39 }],
+    };
+
+    const MEMBER_REFS = [
+      { type: 'way', ref: 4401, role: '' },
+      { type: 'way', ref: 4402, role: '' },
+    ];
+
+    // Format-aware mock: strips geometry from `out tags;` responses,
+    // mirroring real Overpass behavior.
+    const queryOverpass = async (query) => {
+      if (query.includes('relation["route"=')) {
+        return { elements: [RELATION] };
+      }
+      if (query.includes('out body')) {
+        return { elements: [{ type: 'relation', id: 5550001, members: MEMBER_REFS }] };
+      }
+      if (query.includes('way(id:') && !query.includes('rel(bw)')) {
+        const ways = [LONG_ASPHALT, SHORT_GRAVEL];
+        // Real Overpass: `out tags;` omits geometry, `out geom` includes it
+        if (!query.includes('out geom')) {
+          return { elements: ways.map(({ geometry, ...rest }) => rest) };
+        }
+        return { elements: ways };
+      }
+      if (query.match(/relation\(\d+\)/) && query.includes('out geom')) {
+        return { elements: [{ type: 'relation', id: 5550001, members: MEMBER_REFS.map((m, i) => ({
+          ...m, geometry: [LONG_ASPHALT, SHORT_GRAVEL][i].geometry,
+        })) }] };
+      }
+      return { elements: [] };
+    };
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '44.5,-76.0,45.5,-75.0',
+      adapter: OTTAWA_ADAPTER,
+      manualEntries: [],
+    });
+
+    const trail = entries.find(e => e.osm_relations?.includes(5550001));
+    expect(trail, 'relation entry should exist').toBeDefined();
+    expect(trail.surface_mix, 'relation with mixed surfaces must have surface_mix').toBeDefined();
+
+    const asphalt = trail.surface_mix.find(m => m.value === 'asphalt');
+    const gravel = trail.surface_mix.find(m => m.value === 'gravel');
+    expect(asphalt, 'asphalt should be in surface_mix').toBeDefined();
+    expect(gravel, 'gravel should be in surface_mix').toBeDefined();
+
+    // The asphalt way is ~10x longer than the gravel way.
+    // With the bug: both ways get 1km fallback → asphalt.km == gravel.km
+    // With the fix: geometry is fetched → asphalt.km >> gravel.km
+    expect(
+      asphalt.km,
+      'surface_mix km must reflect actual way lengths, not way count',
+    ).toBeGreaterThan(gravel.km * 3);
+  });
 });
