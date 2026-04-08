@@ -8,6 +8,7 @@
  * Pure logic: buildTiles() — tested directly
  * CLI entry point: runs when executed as a script
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type {
@@ -302,6 +303,62 @@ export function buildTiles(
   return { tiles, manifest };
 }
 
+// ── Slug index ───────────────────────────────────────────────────
+
+export interface SlugIndexEntry {
+  tiles: string[];
+  hash: string;
+}
+
+/**
+ * Build a slug -> { tiles, hash } index from the tile output.
+ * The hash is computed from the slug's geometry coordinates (SHA-256, 12 hex chars).
+ * Deduplicates features by _fid across tiles (cross-boundary duplicates).
+ */
+export function buildSlugIndex(
+  tiles: Map<string, TileData>,
+): Record<string, SlugIndexEntry> {
+  const slugTiles = new Map<string, Set<string>>();
+  const slugCoords = new Map<string, number[]>();
+  const seenFids = new Set<string>();
+
+  for (const [tileId, tile] of tiles) {
+    for (const feature of tile.features) {
+      const slug = (feature.properties as TileFeatureMeta)?.slug;
+      if (!slug) continue;
+
+      if (!slugTiles.has(slug)) slugTiles.set(slug, new Set());
+      slugTiles.get(slug)!.add(tileId);
+
+      const fid = (feature.properties as TileFeatureMeta)?._fid ?? '';
+      const dedupKey = `${slug}:${fid}`;
+      if (!seenFids.has(dedupKey)) {
+        seenFids.add(dedupKey);
+        if (!slugCoords.has(slug)) slugCoords.set(slug, []);
+        for (const coord of extractCoordinates(feature)) {
+          slugCoords.get(slug)!.push(...coord);
+        }
+      }
+    }
+  }
+
+  const index: Record<string, SlugIndexEntry> = {};
+  for (const [slug, tileIds] of slugTiles) {
+    const coords = slugCoords.get(slug) ?? [];
+    const hash = crypto
+      .createHash('sha256')
+      .update(Float64Array.from(coords))
+      .digest('hex')
+      .slice(0, 12);
+    index[slug] = {
+      tiles: [...tileIds].sort(),
+      hash,
+    };
+  }
+
+  return index;
+}
+
 // --- CLI entry point ---
 const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename);
 
@@ -406,6 +463,11 @@ if (isMainModule) {
 
   // Write manifest
   fs.writeFileSync(path.join(tilesDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+  // Write slug index (slug -> tile IDs + geometry hash)
+  const slugIndex = buildSlugIndex(tiles);
+  fs.writeFileSync(path.join(tilesDir, 'slug-index.json'), JSON.stringify(slugIndex));
+  console.log(`[path-tiles] Generated slug index for ${Object.keys(slugIndex).length} slugs`);
 
   console.log(`[path-tiles] Generated ${tiles.size} tiles (${totalFeatures} features) + manifest`);
 }
