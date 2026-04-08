@@ -120,14 +120,6 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Restore map cache
-        uses: actions/cache@v5
-        with:
-          path: public/maps
-          key: maps-${{ inputs.city }}-${{ hashFiles(format('bike-routes/{0}/routes/**/variants/*.gpx', inputs.city), format('bike-routes/{0}/routes/**/*.gpx', inputs.city), format('bike-routes/{0}/rides/**/*.gpx', inputs.city), 'scripts/generate-maps.ts', 'src/loaders/rides.ts', 'src/lib/maps/map-paths.ts') }}
-          restore-keys: |
-            maps-${{ inputs.city }}-
-
       - name: Restore bike path geometry cache
         uses: actions/cache@v5
         with:
