@@ -1,11 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { MAP_SIZE_PRESETS, buildGoogleMapsUrl } from '../src/views/api/map-image-helpers';
+import {
+  MAP_SIZE_PRESETS,
+  buildGoogleMapsUrl,
+  buildGoogleMapsUrlFromPolyline,
+  parseMapImagePath,
+} from '../src/views/api/map-image-helpers';
 
 describe('MAP_SIZE_PRESETS', () => {
-  it('has a social preset', () => {
+  it('has expected presets', () => {
     expect(MAP_SIZE_PRESETS.social).toBeDefined();
-    expect(MAP_SIZE_PRESETS.social.size).toBe('600x315');
-    expect(MAP_SIZE_PRESETS.social.scale).toBe(2);
+    expect(MAP_SIZE_PRESETS.social.cfImage.width).toBe(1200);
+    expect(MAP_SIZE_PRESETS.social.googleSize).toBe('600x315');
+    expect(MAP_SIZE_PRESETS.thumb).toBeDefined();
+    expect(MAP_SIZE_PRESETS['thumb-2x']).toBeDefined();
+    expect(MAP_SIZE_PRESETS['thumb-lg']).toBeDefined();
+    expect(MAP_SIZE_PRESETS.full).toBeDefined();
   });
 });
 
@@ -61,5 +70,63 @@ describe('buildGoogleMapsUrl', () => {
   it('returns null when no matching features found', () => {
     const url = buildGoogleMapsUrl([geojson], 'nonexistent', 'social', 'TEST_KEY');
     expect(url).toBeNull();
+  });
+});
+
+describe('buildGoogleMapsUrlFromPolyline', () => {
+  it('builds URL with markers', () => {
+    const polyline = 'o}|tGdwn|M_@_@_@_@';
+    const url = buildGoogleMapsUrlFromPolyline(polyline, 'TEST_KEY', 'en');
+    expect(url).toContain('staticmap');
+    expect(url).toContain('key=TEST_KEY');
+    expect(url).toContain('language=en');
+    expect(url).toContain('markers=color:yellow');
+    expect(url).toContain('enc:');
+  });
+
+  it('returns null for empty polyline', () => {
+    expect(buildGoogleMapsUrlFromPolyline('', 'KEY')).toBeNull();
+  });
+});
+
+describe('parseMapImagePath', () => {
+  it('parses bike path URL', () => {
+    const result = parseMapImagePath('bike-path/424ac567b00f/aviation-pathway-social-en.png');
+    expect(result).toEqual({
+      type: 'bike-path', hash: '424ac567b00f', slug: 'aviation-pathway',
+      size: 'social', variant: undefined, lang: 'en',
+    });
+  });
+
+  it('parses route URL with variant', () => {
+    const variants = new Set(['main', 'variants-return']);
+    const result = parseMapImagePath('route/a1b2c3d4e5f6/aylmer-main-thumb-2x-en.png', variants);
+    expect(result).toEqual({
+      type: 'route', hash: 'a1b2c3d4e5f6', slug: 'aylmer',
+      size: 'thumb-2x', variant: 'main', lang: 'en',
+    });
+  });
+
+  it('parses multi-part variant (variant before size in filename)', () => {
+    const variants = new Set(['main', 'variants-return']);
+    const result = parseMapImagePath('route/f6e5d4c3b2a1/aylmer-variants-return-full-en.png', variants);
+    expect(result).toEqual({
+      type: 'route', hash: 'f6e5d4c3b2a1', slug: 'aylmer',
+      size: 'full', variant: 'variants-return', lang: 'en',
+    });
+  });
+
+  it('parses ride URL (no variant)', () => {
+    const result = parseMapImagePath('ride/b209388fdfec/morning-ride-thumb-en.png');
+    expect(result).toEqual({
+      type: 'ride', hash: 'b209388fdfec', slug: 'morning-ride',
+      size: 'thumb', variant: undefined, lang: 'en',
+    });
+  });
+
+  it('returns null for invalid format', () => {
+    expect(parseMapImagePath('invalid')).toBeNull();
+    expect(parseMapImagePath('route/hash/no-size.png')).toBeNull();
+    expect(parseMapImagePath('unknown-type/hash/slug-social-en.png')).toBeNull();
   });
 });
