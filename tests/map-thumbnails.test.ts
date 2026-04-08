@@ -34,16 +34,6 @@ describe('mapThumbPaths', () => {
     expect(paths.full).toContain('britannia/bike-days/map.png');
   });
 
-  it('returns locale-prefixed paths when lang is provided', () => {
-    const paths = mapThumbPaths('aylmer', undefined, 'fr');
-    expect(paths.thumb).toContain('fr/aylmer/map-750.webp');
-    expect(paths.full).toContain('fr/aylmer/map.png');
-  });
-
-  it('returns locale-prefixed variant paths', () => {
-    const paths = mapThumbPaths('britannia', 'bike-days', 'fr');
-    expect(paths.thumb).toContain('fr/britannia/bike-days/map-750.webp');
-  });
 });
 
 describe('map-thumbnails', () => {

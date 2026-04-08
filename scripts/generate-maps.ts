@@ -60,7 +60,6 @@ async function generateMapImages(pngBuffer: Buffer, paths: ReturnType<typeof map
 async function main() {
   const config = getCityConfig();
   const defaultLang = shortLang(config.locale);
-  const languages = [defaultLang];
 
   let generated = 0;
   let skipped = 0;
@@ -94,46 +93,42 @@ async function main() {
         const gpxContent = fs.readFileSync(gpxPath, 'utf-8');
         const hash = gpxHash(gpxContent);
         const variantCacheKey = vKey;
+        const cacheKey = slug + '/' + variantCacheKey;
 
-        for (const lang of languages) {
-          const langPrefix = lang === defaultLang ? undefined : lang;
-          const cacheKey = slug + '/' + variantCacheKey;
-
-          if (!FORCE && !needsRegeneration(cacheKey, hash, langPrefix)) {
-            skipped++;
-            continue;
-          }
-
-          const label = langPrefix ? `${slug}/${vKey} [${lang}]` : `${slug}/${vKey}`;
-          console.log(`[maps] ${label}: generating...`);
-
-          const track = parseGpx(gpxContent);
-          if (!track.polyline) {
-            console.log(`[maps] ${label}: empty polyline, skipping`);
-            continue;
-          }
-
-          const url = buildStaticMapUrl(track.polyline, API_KEY!, lang);
-          const response = await fetch(url);
-          if (!response.ok) {
-            console.error(`[maps] ${label}: HTTP ${response.status}`);
-            continue;
-          }
-          const pngBuffer = Buffer.from(await response.arrayBuffer());
-
-          const variantPaths = mapThumbPaths(slug, variantCacheKey, langPrefix);
-          await generateMapImages(pngBuffer, variantPaths);
-          fs.writeFileSync(hashPath(cacheKey, langPrefix), hash);
-
-          // First variant also goes to the route-level cache (used by route cards)
-          if (i === 0) {
-            const routePaths = mapThumbPaths(slug, undefined, langPrefix);
-            await generateMapImages(pngBuffer, routePaths);
-            fs.writeFileSync(hashPath(slug, langPrefix), hash);
-          }
-
-          generated++;
+        if (!FORCE && !needsRegeneration(cacheKey, hash)) {
+          skipped++;
+          continue;
         }
+
+        const label = `${slug}/${vKey}`;
+        console.log(`[maps] ${label}: generating...`);
+
+        const track = parseGpx(gpxContent);
+        if (!track.polyline) {
+          console.log(`[maps] ${label}: empty polyline, skipping`);
+          continue;
+        }
+
+        const url = buildStaticMapUrl(track.polyline, API_KEY!, defaultLang);
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.error(`[maps] ${label}: HTTP ${response.status}`);
+          continue;
+        }
+        const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+        const variantPaths = mapThumbPaths(slug, variantCacheKey);
+        await generateMapImages(pngBuffer, variantPaths);
+        fs.writeFileSync(hashPath(cacheKey), hash);
+
+        // First variant also goes to the route-level cache (used by route cards)
+        if (i === 0) {
+          const routePaths = mapThumbPaths(slug);
+          await generateMapImages(pngBuffer, routePaths);
+          fs.writeFileSync(hashPath(slug), hash);
+        }
+
+        generated++;
       }
     }
   }
@@ -156,37 +151,32 @@ async function main() {
       const gpxContent = fs.readFileSync(gpxAbsPath, 'utf-8');
       const hash = gpxHash(gpxContent);
 
-      for (const lang of languages) {
-        const langPrefix = lang === defaultLang ? undefined : lang;
-
-        if (!FORCE && !needsRegeneration(slug, hash, langPrefix)) {
-          skipped++;
-          continue;
-        }
-
-        const label = langPrefix ? `${slug} [${lang}]` : slug;
-        console.log(`[maps] ${label}: generating...`);
-
-        const track = parseGpx(gpxContent);
-        if (!track.polyline) {
-          console.log(`[maps] ${label}: empty polyline, skipping`);
-          continue;
-        }
-
-        const url = buildStaticMapUrl(track.polyline, API_KEY!, lang);
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.error(`[maps] ${label}: HTTP ${response.status}`);
-          continue;
-        }
-        const pngBuffer = Buffer.from(await response.arrayBuffer());
-
-        const ridePaths = mapThumbPaths(slug, undefined, langPrefix);
-        await generateMapImages(pngBuffer, ridePaths);
-        fs.writeFileSync(hashPath(slug, langPrefix), hash);
-
-        generated++;
+      if (!FORCE && !needsRegeneration(slug, hash)) {
+        skipped++;
+        continue;
       }
+
+      console.log(`[maps] ${slug}: generating...`);
+
+      const track = parseGpx(gpxContent);
+      if (!track.polyline) {
+        console.log(`[maps] ${slug}: empty polyline, skipping`);
+        continue;
+      }
+
+      const url = buildStaticMapUrl(track.polyline, API_KEY!, defaultLang);
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(`[maps] ${slug}: HTTP ${response.status}`);
+        continue;
+      }
+      const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+      const ridePaths = mapThumbPaths(slug);
+      await generateMapImages(pngBuffer, ridePaths);
+      fs.writeFileSync(hashPath(slug), hash);
+
+      generated++;
     }
   }
 
@@ -214,32 +204,27 @@ async function main() {
         .digest('hex').slice(0, 16);
       const tourSlug = `tour-${tour.slug}`;
 
-      for (const lang of languages) {
-        const langPrefix = lang === defaultLang ? undefined : lang;
-
-        if (!FORCE && !needsRegeneration(tourSlug, combinedHash, langPrefix)) {
-          skipped++;
-          continue;
-        }
-
-        const label = langPrefix ? `${tourSlug} [${lang}]` : tourSlug;
-        console.log(`[maps] ${label}: generating tour map (${polylines.length} rides)...`);
-
-        const url = buildStaticMapUrlMulti(polylines, API_KEY!, lang);
-        if (!url) continue;
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.error(`[maps] ${label}: HTTP ${response.status}`);
-          continue;
-        }
-        const pngBuffer = Buffer.from(await response.arrayBuffer());
-
-        const tourPaths = mapThumbPaths(tourSlug, undefined, langPrefix);
-        await generateMapImages(pngBuffer, tourPaths);
-        fs.writeFileSync(hashPath(tourSlug, langPrefix), combinedHash);
-
-        generated++;
+      if (!FORCE && !needsRegeneration(tourSlug, combinedHash)) {
+        skipped++;
+        continue;
       }
+
+      console.log(`[maps] ${tourSlug}: generating tour map (${polylines.length} rides)...`);
+
+      const url = buildStaticMapUrlMulti(polylines, API_KEY!, defaultLang);
+      if (!url) continue;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(`[maps] ${tourSlug}: HTTP ${response.status}`);
+        continue;
+      }
+      const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+      const tourPaths = mapThumbPaths(tourSlug);
+      await generateMapImages(pngBuffer, tourPaths);
+      fs.writeFileSync(hashPath(tourSlug), combinedHash);
+
+      generated++;
     }
   }
 
@@ -286,42 +271,34 @@ async function main() {
         .digest('hex').slice(0, 16);
       const mapSlug = `path-${page.slug}`;
 
-      // Bike paths: single thumbnail in default locale only (no localized variants).
-      // The map is just geometry on tiles — locale doesn't change the content.
-      // Routes and rides keep per-locale generation.
-      for (const lang of [defaultLang]) {
-        const langPrefix = lang === defaultLang ? undefined : lang;
-
-        if (!FORCE && !needsRegeneration(mapSlug, combinedHash, langPrefix)) {
-          skipped++;
-          continue;
-        }
-
-        const label = langPrefix ? `${mapSlug} [${lang}]` : mapSlug;
-        console.log(`[maps] ${label}: generating bike path map...`);
-
-        // Merge adjacent segments that share endpoints (within 100m) into
-        // continuous chains, then pass directly to the URL builder. This avoids
-        // the encode→decode→re-split round-trip that dropped small park paths.
-        const merged = mergeAdjacentSegments(segments, 0.1);
-        const url = buildStaticMapUrlFromSegments(merged, API_KEY!, lang, { size: '800x400', markers: false });
-        if (!url) {
-          console.warn(`[maps] WARNING: ${label} — no renderable geometry, skipping`);
-          continue;
-        }
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.error(`[maps] ${label}: HTTP ${response.status}`);
-          continue;
-        }
-        const pngBuffer = Buffer.from(await response.arrayBuffer());
-
-        const thumbPaths = mapThumbPaths(mapSlug, undefined, langPrefix);
-        await generateMapImages(pngBuffer, thumbPaths, '2:1');
-        fs.writeFileSync(hashPath(mapSlug, langPrefix), combinedHash);
-
-        generated++;
+      if (!FORCE && !needsRegeneration(mapSlug, combinedHash)) {
+        skipped++;
+        continue;
       }
+
+      console.log(`[maps] ${mapSlug}: generating bike path map...`);
+
+      // Merge adjacent segments that share endpoints (within 100m) into
+      // continuous chains, then pass directly to the URL builder. This avoids
+      // the encode→decode→re-split round-trip that dropped small park paths.
+      const merged = mergeAdjacentSegments(segments, 0.1);
+      const url = buildStaticMapUrlFromSegments(merged, API_KEY!, defaultLang, { size: '800x400', markers: false });
+      if (!url) {
+        console.warn(`[maps] WARNING: ${mapSlug} — no renderable geometry, skipping`);
+        continue;
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(`[maps] ${mapSlug}: HTTP ${response.status}`);
+        continue;
+      }
+      const pngBuffer = Buffer.from(await response.arrayBuffer());
+
+      const thumbPaths = mapThumbPaths(mapSlug);
+      await generateMapImages(pngBuffer, thumbPaths, '2:1');
+      fs.writeFileSync(hashPath(mapSlug), combinedHash);
+
+      generated++;
     }
   }
 

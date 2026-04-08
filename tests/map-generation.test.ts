@@ -9,8 +9,6 @@ const TEST_DIR = path.join(MAP_CACHE_DIR, TEST_SLUG);
 
 afterEach(() => {
   fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  // Also clean up lang-prefixed test dir if created
-  fs.rmSync(path.join(MAP_CACHE_DIR, 'fr', TEST_SLUG), { recursive: true, force: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -36,15 +34,9 @@ describe('gpxHash', () => {
 // hashPath
 // ---------------------------------------------------------------------------
 describe('hashPath', () => {
-  it('returns path under public/maps for default locale (no lang prefix)', () => {
+  it('returns path under public/maps/slug/.gpx-hash', () => {
     const result = hashPath('my-route');
     expect(result).toBe(path.join(MAP_CACHE_DIR, 'my-route', '.gpx-hash'));
-    expect(result).not.toContain('/fr/');
-  });
-
-  it('includes lang prefix for non-default locale', () => {
-    const result = hashPath('my-route', 'fr');
-    expect(result).toBe(path.join(MAP_CACHE_DIR, 'fr', 'my-route', '.gpx-hash'));
   });
 
   it('path contains slug and .gpx-hash filename', () => {
@@ -73,27 +65,14 @@ describe('mapThumbPaths', () => {
     expect(paths.thumbLarge).toContain('variants-return');
   });
 
-  it('includes lang prefix when provided', () => {
-    const paths = mapThumbPaths('my-route', undefined, 'fr');
-    expect(paths.thumb).toBe(path.join(MAP_CACHE_DIR, 'fr', 'my-route', 'map-750.webp'));
-    expect(paths.thumbLarge).toContain('/fr/');
-  });
-
-  it('includes both variant key and lang prefix when both provided', () => {
-    const paths = mapThumbPaths('my-route', 'variants-return', 'fr');
-    expect(paths.thumb).toBe(
-      path.join(MAP_CACHE_DIR, 'fr', 'my-route', 'variants-return', 'map-750.webp'),
-    );
-  });
 });
 
 // ---------------------------------------------------------------------------
 // needsRegeneration
 // ---------------------------------------------------------------------------
 
-function writeHashFile(slug: string, hash: string, lang?: string): void {
-  const base = lang ? path.join(MAP_CACHE_DIR, lang) : MAP_CACHE_DIR;
-  const hashDir = path.join(base, slug);
+function writeHashFile(slug: string, hash: string): void {
+  const hashDir = path.join(MAP_CACHE_DIR, slug);
   fs.mkdirSync(hashDir, { recursive: true });
   fs.writeFileSync(path.join(hashDir, '.gpx-hash'), hash, 'utf-8');
 }
@@ -134,11 +113,4 @@ describe('needsRegeneration', () => {
     expect(needsRegeneration(TEST_SLUG, hash)).toBe(true);
   });
 
-  it('respects lang prefix when provided', () => {
-    const hash = gpxHash('<gpx>fr content</gpx>');
-    const langDir = path.join(MAP_CACHE_DIR, 'fr', TEST_SLUG);
-    writeHashFile(TEST_SLUG, hash, 'fr');
-    writeOutputFiles(langDir);
-    expect(needsRegeneration(TEST_SLUG, hash, 'fr')).toBe(false);
-  });
 });

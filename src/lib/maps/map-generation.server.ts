@@ -16,18 +16,15 @@ export function gpxHash(gpxContent: string): string {
   return crypto.createHash('sha256').update(gpxContent).digest('hex').slice(0, 16);
 }
 
-export function hashPath(routeSlug: string, lang?: string): string {
-  const base = lang ? path.join(MAP_CACHE_DIR, lang) : MAP_CACHE_DIR;
-  return path.join(base, routeSlug, '.gpx-hash');
+export function hashPath(routeSlug: string): string {
+  return path.join(MAP_CACHE_DIR, routeSlug, '.gpx-hash');
 }
 
-export function needsRegeneration(routeSlug: string, currentHash: string, lang?: string): boolean {
-  const hp = hashPath(routeSlug, lang);
+export function needsRegeneration(routeSlug: string, currentHash: string): boolean {
+  const hp = hashPath(routeSlug);
   if (!fs.existsSync(hp)) return true;
   if (fs.readFileSync(hp, 'utf-8').trim() !== currentHash) return true;
-  // Regenerate if any expected output file is missing (e.g. thumbLarge added later)
-  const base = lang ? path.join(MAP_CACHE_DIR, lang) : MAP_CACHE_DIR;
-  const dir = path.join(base, routeSlug);
+  const dir = path.join(MAP_CACHE_DIR, routeSlug);
   for (const file of ['map-1500.webp', 'map-750.webp', 'map-375.webp']) {
     if (!fs.existsSync(path.join(dir, file))) return true;
   }
