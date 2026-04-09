@@ -20,9 +20,9 @@ export async function getDeployWorkflowRuns(opts: {
   token: string;
   owner: string;
   repo: string;
-  workflowFile?: string;
+  workflowFiles: string[];
 }): Promise<WorkflowRunsResponse> {
-  const { token, owner, repo, workflowFile = 'production.yml' } = opts;
+  const { token, owner, repo, workflowFiles } = opts;
   const baseUrl = `https://api.github.com/repos/${owner}/${repo}/actions`;
 
   const headers = {
@@ -34,29 +34,34 @@ export async function getDeployWorkflowRuns(opts: {
   let latestRun: WorkflowRun | null = null;
   let latestSuccessfulRun: WorkflowRun | null = null;
 
-  const latestRes = await fetch(
-    `${baseUrl}/workflows/${workflowFile}/runs?per_page=1`,
-    { headers },
-  );
+  // Check all workflow files, keep the most recent run from each category
+  await Promise.all(workflowFiles.map(async (workflowFile) => {
+    const latestRes = await fetch(
+      `${baseUrl}/workflows/${workflowFile}/runs?per_page=1`,
+      { headers },
+    );
 
-  if (latestRes.ok) {
-    const data = await latestRes.json() as { workflow_runs?: WorkflowRun[] };
-    if (data.workflow_runs?.length) {
-      latestRun = data.workflow_runs[0];
+    if (latestRes.ok) {
+      const data = await latestRes.json() as { workflow_runs?: WorkflowRun[] };
+      const run = data.workflow_runs?.[0];
+      if (run && (!latestRun || new Date(run.created_at) > new Date(latestRun.created_at))) {
+        latestRun = run;
+      }
     }
-  }
 
-  const successRes = await fetch(
-    `${baseUrl}/workflows/${workflowFile}/runs?status=success&per_page=1`,
-    { headers },
-  );
+    const successRes = await fetch(
+      `${baseUrl}/workflows/${workflowFile}/runs?status=success&per_page=1`,
+      { headers },
+    );
 
-  if (successRes.ok) {
-    const data = await successRes.json() as { workflow_runs?: WorkflowRun[] };
-    if (data.workflow_runs?.length) {
-      latestSuccessfulRun = data.workflow_runs[0];
+    if (successRes.ok) {
+      const data = await successRes.json() as { workflow_runs?: WorkflowRun[] };
+      const run = data.workflow_runs?.[0];
+      if (run && (!latestSuccessfulRun || new Date(run.updated_at) > new Date(latestSuccessfulRun.updated_at))) {
+        latestSuccessfulRun = run;
+      }
     }
-  }
+  }));
 
   return { latestRun, latestSuccessfulRun };
 }

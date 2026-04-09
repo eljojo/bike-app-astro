@@ -329,8 +329,7 @@ const contentLabel = features.hasRides ? 'rides' : 'routes';
   const fill = document.getElementById('deploy-bar-fill');
   const dismissBtn = document.getElementById('deploy-bar-dismiss');
 
-  if (bar && text && track && fill && dismissBtn) {
-    if (bar.dataset.anonymous === 'true') return;
+  if (bar && text && track && fill && dismissBtn && bar.dataset.anonymous !== 'true') {
     let dismissed = false;
     let prevStatus = '';
     let interval = 30000;
