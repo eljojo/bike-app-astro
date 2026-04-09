@@ -3,6 +3,8 @@
  * Browser-safe — no .server.ts, no node:* imports.
  */
 
+import { compareMemberNames } from './member-sort';
+
 export interface NetworkMeta {
   name: string;
   length_km?: number;
@@ -58,10 +60,10 @@ export function tierNetworkMembers<T extends TierableMember>(
 
   const allPrimary = memberRefs
     .filter(m => !m.memberOf || m.memberOf === networkSlug)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(compareMemberNames);
   const allSecondary = memberRefs
     .filter(m => m.memberOf && m.memberOf !== networkSlug)
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(compareMemberNames);
 
   // Long-distance members get their own section
   const longDistanceMembers = [...allPrimary, ...allSecondary]
@@ -100,7 +102,7 @@ export function tierNetworkMembers<T extends TierableMember>(
     if (rel && (relationCounts.get(rel.id) ?? 0) >= 2) overlapLabelSlugs.add(m.slug);
   }
 
-  const ungroupedPrimary = [...primaryMembers].sort((a, b) => a.name.localeCompare(b.name));
+  const ungroupedPrimary = [...primaryMembers].sort(compareMemberNames);
 
   return { longDistanceMembers, ungroupedPrimary, overlapLabelSlugs, primaryTier2, secondaryMembers };
 }

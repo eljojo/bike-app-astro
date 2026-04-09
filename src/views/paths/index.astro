@@ -8,6 +8,7 @@ import { imageUrl } from '@/lib/media/image-service';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
 import { localizeSurface, localizePathType } from '@/lib/bike-paths/bike-path-facts';
+import { compareMemberNames } from '@/lib/bike-paths/member-sort';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -91,7 +92,8 @@ function buildNetworkInfo(net: typeof networkPages[0]): NetworkInfo {
   });
   const tier1 = localRefs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
   const tier2 = localRefs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
-  tier1.sort((a, b) => a.name.localeCompare(b.name));
+  tier1.sort(compareMemberNames);
+  tier2.sort(compareMemberNames);
   return { slug: net.slug, name: pathName(net), length_km: net.length_km, operator: net.operator, tier1, tier2 };
 }
 
