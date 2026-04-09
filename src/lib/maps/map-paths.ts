@@ -1,7 +1,6 @@
 /**
- * Shared map thumbnail helpers — used by both the Astro app (map-thumbnails.ts)
- * and the generation script (map-generation.ts). No virtual module imports here
- * so scripts can use these without Vite.
+ * Shared map helpers — static map URL construction and polyline utilities.
+ * No virtual module imports here so scripts can use these without Vite.
  */
 import polylineCodec from '@mapbox/polyline';
 import { haversineKm } from '../geo/proximity';

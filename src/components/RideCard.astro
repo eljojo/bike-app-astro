@@ -2,10 +2,10 @@
 import './RideCard.scss';
 import type { CollectionEntry } from 'astro:content';
 import { imageUrl } from '@/lib/media/image-service';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance } from '@/lib/format';
-import { paths, assets } from '@/lib/paths';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import { paths } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
 
 interface Props {
@@ -17,7 +17,8 @@ interface Props {
 
 const { ride, featured = false, badges = [], lazy = true } = Astro.props;
 const cover = ride.data.media.find(m => m.cover);
-const hasMap = hasCachedMap(ride.id);
+const gpxHash = ride.data.gpxHash;
+const locale = Astro.currentLocale || 'en';
 const loadAttr = lazy ? 'lazy' : 'eager';
 ---
 
@@ -42,11 +43,11 @@ const loadAttr = lazy ? 'lazy' : 'eager';
           height="600"
         />
       )}
-      {hasMap && (
+      {gpxHash && (
         <img
           class="ride-card--map"
-          src={assets.mapThumbnail(ride.id, 750)}
-          srcset={assets.mapThumbnailSrcsetLarge(ride.id)}
+          src={mapImageUrl('ride', ride.id, 'thumb', { hash: gpxHash, lang: locale })}
+          srcset={`${mapImageUrl('ride', ride.id, 'thumb', { hash: gpxHash, lang: locale })} 1x, ${mapImageUrl('ride', ride.id, 'thumb-2x', { hash: gpxHash, lang: locale })} 2x`}
           alt={`Map of ${ride.data.name}`}
           loading={loadAttr}
           width="600"

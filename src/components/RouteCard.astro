@@ -1,9 +1,9 @@
 ---
 import './RouteCard.scss';
 import { imageUrl } from '../lib/media/image-service';
-import { hasCachedMap, cachedMapLocale } from '../lib/maps/map-thumbnails';
+import { mapImageUrl } from '../lib/maps/map-image-url';
 import { formatDistance } from '../lib/geo/distance';
-import { paths, assets } from '../lib/paths';
+import { paths } from '../lib/paths';
 import { makePreview } from '../lib/markdown/markdown-preview';
 import { tTag } from '../lib/i18n/tag-translations.server';
 
@@ -25,18 +25,17 @@ interface Props {
   variants?: Variant[];
   /** Translated slug for locale-aware links (falls back to slug if not provided) */
   localeSlug?: string;
+  gpxHash?: string;
 }
 
-const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, variants, localeSlug } = Astro.props;
+const { slug, name, tagline, distance_km, tags, body, coverKey, lazy = true, variants, localeSlug, gpxHash } = Astro.props;
 const linkSlug = localeSlug || slug;
-const locale = Astro.currentLocale;
+const locale = Astro.currentLocale || 'en';
 
 const variantDistances = variants?.map(v => v.distance_km).filter((d): d is number => d != null) || [];
 const distanceTag = variantDistances.length > 0 ? formatDistance(variantDistances) : formatDistance([distance_km]);
 const allTags = [distanceTag, ...tags];
 const previewParagraphs = makePreview(body);
-const hasMap = hasCachedMap(slug, undefined, locale);
-const mapLang = cachedMapLocale(slug, undefined, locale);
 const loading = lazy ? 'lazy' : 'eager';
 ---
 
@@ -54,10 +53,10 @@ const loading = lazy ? 'lazy' : 'eager';
           class="route-cover"
         />
       )}
-      {hasMap && (
+      {gpxHash && (
         <img
-          src={assets.mapThumbnail(slug, 375, mapLang)}
-          srcset={assets.mapThumbnailSrcset(slug, mapLang)}
+          src={mapImageUrl('route', slug, 'thumb', { hash: gpxHash, lang: locale })}
+          srcset={`${mapImageUrl('route', slug, 'thumb', { hash: gpxHash, lang: locale })} 1x, ${mapImageUrl('route', slug, 'thumb-2x', { hash: gpxHash, lang: locale })} 2x`}
           alt={`map of ${name}`}
           width="300"
           height="300"

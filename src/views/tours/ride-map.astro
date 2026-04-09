@@ -55,6 +55,7 @@ const photos = route.data.media
       trackDistanceM={track.distance_m}
       gpxPath={paths.rideGpx(route.id, variantKey)}
       backPath={paths.ride(route.id, route.data.tour_slug)}
+      gpxHash={route.data.gpxHash}
     />
   ) : (
     <p>{t('map.no_map', locale)}</p>

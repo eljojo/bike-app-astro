@@ -19,6 +19,9 @@ const NUMERIC_ONLY = /^\d+$/;
 const RELATION_ID = /^relation-\d+$/;
 
 export function isHardExcluded(entry: SluggedBikePathYml): boolean {
+  // Network and trail entries are explicitly modeled — never hard-exclude them.
+  // The rules below are for filtering individual path entries from OSM.
+  if (entry.type === 'network' || entry.type === 'long-distance') return false;
   if (entry.highway && EXCLUDED_HIGHWAYS.has(entry.highway)) return true;
   if (entry.network && EXCLUDED_NETWORKS.has(entry.network)) return true;
   if (entry.seasonal === 'winter') return true;
@@ -46,25 +49,23 @@ export function scoreBikePath(entry: SluggedBikePathYml, routeOverlapCount: numb
 export const SCORE_THRESHOLD = 4;
 
 /**
- * Destination rule: a path gets a standalone page only if it's a plausible
- * cycling destination (length >= 1km). Below that, it appears on its parent
- * network page but doesn't get its own page. Markdown always overrides:
- * hasMarkdown forces a page, hidden suppresses one. Networks always get pages.
+ * Destination rule: a path gets a standalone page based on its pipeline `type`.
+ * `network` and `destination` entries get pages; `infrastructure` and `connector`
+ * entries do not (they appear on the map or in listings but have no detail page).
+ * Markdown always overrides: hasMarkdown forces a page, hidden suppresses one.
  *
  * `standalone` is the SINGLE SOURCE OF TRUTH for "does this have a page?"
  * Every consumer (sitemap, map popups, nearby paths, etc.) checks this.
  */
-const DESTINATION_LENGTH_KM = 1;
-
 export function isDestination(
   entry: SluggedBikePathYml,
-  lengthKm: number | undefined,
   hasMarkdown: boolean,
   hidden: boolean,
 ): boolean {
   if (hidden) return false;
   if (hasMarkdown) return true;
   if (entry.type === 'network') return true;
-  if (lengthKm !== undefined && lengthKm < DESTINATION_LENGTH_KM) return false;
-  return true;
+  if (entry.type === 'long-distance') return true;
+  if (entry.type === 'destination') return true;
+  return false;
 }

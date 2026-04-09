@@ -1,6 +1,6 @@
 ---
 description: R2 storage, video transcoding, universal media pattern, photo registry, media merge
-type: pattern
+type: knowledge
 triggers: [working with media, uploads, video transcoding, photo registry, media merge, adding media fields]
 related: [save-pipeline, content-model]
 ---

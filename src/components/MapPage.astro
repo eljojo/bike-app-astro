@@ -2,11 +2,11 @@
 import RouteMap from './RouteMap.astro';
 import InteractiveElevation from './InteractiveElevation.tsx';
 import { computeElevationPoints } from '../lib/geo/elevation-profile';
-import { hasCachedMap, cachedMapLocale } from '../lib/maps/map-thumbnails';
+import { mapImageUrl } from '../lib/maps/map-image-url';
 import { variantKey as variantKeyFromGpx } from '../lib/gpx/filenames';
 import { getCityConfig } from '../lib/config/city-config';
 import { t } from '../i18n';
-import { paths, assets } from '../lib/paths';
+import { paths } from '../lib/paths';
 import Icon from './Icon.astro';
 
 interface Variant {
@@ -40,13 +40,14 @@ interface Props {
   gpxPath?: string;
   /** Override "back to" link path */
   backPath?: string;
+  gpxHash?: string;
 }
 
-const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, trackPoints, trackDistanceM, gpxPath, backPath } = Astro.props;
+const { routeSlug, routeLocaleSlug, routeName, variant, polyline, variantLabel, elevationGain, elevationConclusion, trackPoints, trackDistanceM, gpxPath, backPath, gpxHash } = Astro.props;
 const linkSlug = routeLocaleSlug || routeSlug;
 const siteUrl = getCityConfig().url;
 const variantKey = variantKeyFromGpx(variant.gpx);
-const locale = Astro.currentLocale;
+const locale = Astro.currentLocale || 'en';
 
 function gpxStudioUrl(gpxUrl: string): string {
   const urlParam = encodeURIComponent(gpxUrl);
@@ -55,8 +56,6 @@ function gpxStudioUrl(gpxUrl: string): string {
 
 const gpxUrl = `${siteUrl}${gpxPath || paths.routeGpx(routeSlug, variantKey)}`;
 const exploreUrl = gpxStudioUrl(gpxUrl);
-const hasVariantMap = hasCachedMap(routeSlug, variantKey, locale);
-const variantMapLang = cachedMapLocale(routeSlug, variantKey, locale);
 
 const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
 ---
@@ -95,10 +94,10 @@ const title = variantLabel ? `${routeName} (${variantLabel})` : routeName;
       </a>
     </Fragment>
   )}
-  {hasVariantMap && (
+  {gpxHash && (
     <Fragment>
       {' '}
-      <a href={assets.mapPng(routeSlug, variantKey, variantMapLang)} class="action-button" target="_blank" rel="noopener">
+      <a href={mapImageUrl('ride', routeSlug, 'full', { hash: gpxHash, variant: variantKey, lang: locale })} class="action-button" target="_blank" rel="noopener">
         <Icon name="map-trifold" size={18} /> PNG
       </a>
     </Fragment>

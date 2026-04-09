@@ -1,6 +1,6 @@
 ---
 description: How bikepaths.yml (OSM) and markdown files cooperate — overlay model, network resolution, page generation
-type: pattern
+type: knowledge
 triggers: [working with bike paths, modifying bike-path-entries, changing network pages, debugging path page generation, adding bike path features]
 related: [content-model, architecture-principles, virtual-modules]
 ---
@@ -34,23 +34,48 @@ When a markdown file's slug matches a YML entry:
 
 This applies regardless of YML entry type. A markdown matching a `type: network` entry should produce a network page enriched with the markdown content — not a standalone page.
 
+### OSM Provenance
+
+Every entry in bikepaths.yml carries provenance metadata tracing it back to OSM:
+
+- `osm_relations` — the OSM relation IDs for this entry. Each relation appears in exactly one entry. Networks only carry their own superroute relation ID — never their members' IDs.
+- `osm_names` — the way names used to discover this entry
+- `osm_way_ids` — the OSM way IDs that compose this entry's geometry. Ways can legitimately appear in multiple entries (shared pavement between routes).
+- `overlapping_relations` — non-cycling route relations (hiking, skiing, etc.) that share ways with this entry. Discovered by the pipeline's web-spider step (2d). Most are metadata on existing cycling entries. Exception: non-cycling relations with ≥90% bikeable ways are promoted to full entries with `path_type` derived from the cycling entries that own their ways.
+
+The pipeline preserves way IDs from Overpass responses through the entire build process. This enables:
+
+1. **Structural dedup** — if two entries share ≥50% of their ways, they're the same path (relation trumps named way)
+2. **Validation** — each OSM relation appears in exactly one entry (a relation is one route)
+3. **Fast geometry resolution** — `scripts/cache-path-geometry.ts` queries ways by ID instead of name
+4. **Provenance audit** — given any fact in bikepaths.yml, trace it to the Overpass query that produced it
+
 ## Networks
 
 A network is a group of connected paths that share a real-world identity (a park trail system, a greenway corridor).
 
+### Multi-Network Membership
+
+A path can belong to multiple networks. Watts Creek Pathway is physically part of both the NCC Greenbelt and Capital Pathway — this is a fact about the world, not a data error.
+
+Each path has one **primary network** (`member_of` in YML / `memberOf` on `BikePathPage`). The primary network determines the path's URL: `/bike-paths/{primary-network}/{slug}`. Only one page is generated per path — under its primary network.
+
+A path can also appear in other networks' `members` arrays as a **secondary member**. Secondary members are listed on the network page but their links point to the path's primary network URL (where the page actually lives).
+
 ### YML Structure
 
 ```yaml
+# Network A — primary network for klondike
 - name: South March Highlands Conservation Forest
   type: network
   members: [klondike, porcupine, brady, ...]
-  osm_names: [Klondike]
-  anchors: [...]
-```
 
-Member paths reference their network:
+# Network B — also lists klondike (secondary member here)
+- name: Capital Pathway
+  type: network
+  members: [klondike, experimental-farm, ...]
 
-```yaml
+# Path — primary network is south-march-highlands
 - name: Klondike
   member_of: south-march-highlands-conservation-forest
 ```
@@ -59,7 +84,9 @@ Member paths reference their network:
 
 Network pages aggregate from their members: geometry, overlapping routes, nearby photos, nearby places. Members with `standalone: true` get their own sub-pages at `/bike-paths/{network}/{member}`.
 
-The `memberOf` field on a path page controls URL structure — paths with `memberOf` live under their network's URL. If a network fails validation (< 2 members, no standalone members), `memberOf` is cleared and members become flat standalone pages.
+The `memberOf` field on a path page is the **primary network** — it controls the path's URL. The path's page lives at `/bike-paths/{memberOf}/{slug}`. If a network fails validation (< 2 members, no standalone members), `memberOf` is cleared and members become flat standalone pages.
+
+When rendering a network's member list, use `m.memberOf` (the member's primary network) to construct URLs — not the current network's slug. For primary members, `m.memberOf === net.slug` so this is the same. For secondary members, `m.memberOf` points to a different network where the page actually lives. Using `net.slug` instead produces broken links.
 
 ## Enrichment Pipeline
 

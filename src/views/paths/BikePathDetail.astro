@@ -16,54 +16,85 @@ import NearbyPlaces from '@/components/NearbyPlaces.astro';
 import NearbyPaths from '@/components/NearbyPaths.astro';
 import EditEntryPoint from '@/components/EditEntryPoint.astro';
 import { t, localePath } from '@/i18n';
-import { paths, assets } from '@/lib/paths';
+import { paths } from '@/lib/paths';
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
-import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
+import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, localizePathType, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
+import { groupPathsByNetwork, tierNetworkMembers, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 interface Props {
   page: BikePathPage;
-  networkNames: Record<string, string>;
-  memberGeoMap?: Record<string, string>;  // network only
+  networkMeta: Record<string, NetworkMeta>;
   memberMeta?: PathMeta[];                // network only — member metadata for fact aggregation
   networkPage?: BikePathPage;             // member only
+  /** All member geo IDs — for fit-to-network-extent (network pages only). */
+  allMemberGeoIds?: string[];
+  /** Standalone member geo IDs — for interactive map styling (network pages only). */
+  interactiveGeoIds?: string[];
 }
 
-const { page, networkNames, memberGeoMap, memberMeta, networkPage } = Astro.props;
+const { page, networkMeta, memberMeta, networkPage, allMemberGeoIds, interactiveGeoIds } = Astro.props;
 const { overlappingRoutes, nearbyPhotos, nearbyPlaces, nearbyPaths, connectedPaths } = page;
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 
-// Derive page type from the data
-const isNetwork = (page.memberRefs?.length ?? 0) > 0;
-const isMember = !isNetwork && !!page.memberOf;
-const isStandalone = !isNetwork && !isMember;
+// Data-driven rendering — sections render based on what data exists, not page "type"
+const hasMembers = (page.memberRefs?.length ?? 0) > 0;
+const hasMemberOf = !!page.memberOf;
 
 // Locale-aware content: translation overrides default
 const trans = locale ? page.translations[locale] : undefined;
 const localeName = trans?.name || page.name;
 const localeVibe = trans?.vibe || page.vibe;
 const localeBody = trans?.body || page.body;
-const descriptionHtml = localeBody ? await renderMarkdownHtml(localeBody) : null;
+// Body fallback: markdown → locale-aware wikidata description → YML description
+const wikidataMeta_ = page.ymlEntries[0]?.wikidata_meta as Record<string, unknown> | undefined;
+const shortLocale = locale?.split('-')[0] ?? 'en';
+const wikidataDesc = wikidataMeta_
+  ? ((wikidataMeta_[`description_${shortLocale}`] as string) ?? (wikidataMeta_.description_en as string))
+  : undefined;
+const bodyFromWikipedia = !localeBody && !!page.wikipedia_extract;
+const bodyText = localeBody
+  || page.wikipedia_extract
+  || wikidataDesc
+  || page.ymlEntries[0]?.description
+  || undefined;
+const descriptionHtml = bodyText ? await renderMarkdownHtml(bodyText) : null;
 
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
+// --- Structured facts — aggregated from members when available, individual otherwise ---
+// Computed early because tiering logic uses networkFacts to detect MTB networks.
+const pathFacts = buildPathFacts(page);
+const networkFacts = memberMeta ? buildNetworkFacts(memberMeta) : [];
+const useNetworkFacts = networkFacts.length > 0;
+
 // --- Network-specific data ---
-const MIN_DISPLAY_KM = 0.5;
-const allMemberRefs = page.memberRefs ?? [];
-const memberRefs = allMemberRefs.filter(m => m.length_km == null || m.length_km >= MIN_DISPLAY_KM);
+const isMtbNetwork = memberMeta ? memberMeta.filter(m => m.path_type === 'mtb-trail').length > memberMeta.length / 2 : false;
+const { longDistanceMembers, ungroupedPrimary, displayOverlapGroups, primaryTier2, secondaryMembers } =
+  tierNetworkMembers(page.memberRefs ?? [], page.slug, isMtbNetwork);
+const memberRefs = (page.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= 0.5);
+
 const standaloneMemberCount = memberRefs.filter(m => m.standalone).length;
 const wikidataMeta = page.ymlEntries[0]?.wikidata_meta;
 
-// Maps for clickable paths on the network map
-const memberNameMap: Record<string, string> = {};
-const memberUrlMap: Record<string, string> = {};
-if (isNetwork) {
-  for (const m of allMemberRefs) {
-    memberNameMap[m.slug] = m.name;
+const highlightGeoIds = page.geoFiles.map(f => f.replace(/\.geojson$/, ''));
+
+// --- Network browse map data (slug info for popups, built from memberRefs) ---
+const networkMapSlugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string }> = {};
+if (hasMembers) {
+  for (const m of page.memberRefs ?? []) {
     if (m.standalone) {
-      memberUrlMap[m.slug] = paths.bikePath(m.slug, m.memberOf ?? page.slug, locale);
+      const url = paths.bikePath(m.slug, m.memberOf ?? page.slug, locale);
+      networkMapSlugInfo[m.slug] = {
+        name: m.name,
+        url,
+        length_km: m.length_km,
+        surface: localizeSurface(m.surface, t, locale) || m.surface,
+        path_type: localizePathType(m.path_type, t, locale),
+        vibe: m.vibe,
+      };
     }
   }
 }
@@ -73,77 +104,100 @@ const networkName = networkPage
   ? ((locale && networkPage.translations[locale]?.name) || networkPage.name)
   : page.memberOf;
 
-// --- Structured facts from centralized system ---
-const pathFacts = !isNetwork ? buildPathFacts(page) : [];
-const networkFacts = isNetwork && memberMeta ? buildNetworkFacts(memberMeta) : [];
-
 // --- SEO ---
 const seoDescription = (() => {
-  if (isNetwork) {
-    const wikidataDesc = wikidataMeta
-      ? (wikidataMeta as Record<string, unknown>)[`description_${locale}`] as string | undefined
-        ?? wikidataMeta.description_en
+  if (localeVibe) return localeVibe;
+  if (hasMembers) {
+    const wd = wikidataMeta
+      ? (wikidataMeta as Record<string, unknown>)[`description_${locale}`] as string | undefined ?? wikidataMeta.description_en
       : undefined;
-    return localeVibe || wikidataDesc || `${localeName} — ${standaloneMemberCount} ${t('paths.pathways', locale)}`;
+    return wd || `${localeName} — ${standaloneMemberCount} ${t('paths.pathways', locale)}`;
   }
-  if (isMember) {
-    return localeVibe || `${localeName} — ${page.length_km ? `${page.length_km} km` : ''} cycling path`;
-  }
-  // standalone — use sentence form for SEO
   const seoFacts = pathFacts.map(f => localizeFactSentence(f, t, locale));
-  return localeVibe || (seoFacts.length > 0 ? seoFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`);
+  return seoFacts.length > 0 ? seoFacts.join('. ') + '.' : `${localeName} — ${t('paths.seo_fallback', locale)}`;
 })();
 
-// ogImage: network uses thumbnail_key fallback, standalone/member use route cover photo
-const hasMapThumb = hasCachedMap(`path-${page.slug}`);
-const mapThumbUrl = hasMapThumb ? assets.mapSocial(`path-${page.slug}`) : undefined;
-const ogImage = (() => {
-  if (isNetwork) {
-    return mapThumbUrl || (page.thumbnail_key ? imageUrl(page.thumbnail_key, { width: 1200, height: 630, fit: 'cover' }) : undefined);
-  }
-  const firstCoverKey = overlappingRoutes.find(r => r.coverKey)?.coverKey;
-  return mapThumbUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
-})();
+// ogImage: use map image proxy URL (cache-busted via geometry hash baked at build time)
+const mapProxyUrl = page.geoHash
+  ? mapImageUrl('bike-path', page.slug, 'social', { hash: page.geoHash, lang: locale || 'en' })
+  : undefined;
+const firstCoverKey = page.thumbnail_key || overlappingRoutes.find(r => r.coverKey)?.coverKey;
+const ogImage = mapProxyUrl || (firstCoverKey ? imageUrl(firstCoverKey, { width: 1200, height: 630, fit: 'cover' }) : undefined);
 
 // Breadcrumbs: member gets 4 levels (home > paths > network > name)
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
   { name: t('nav.bike_paths', locale), url: `${config.url}${paths.bikePaths(locale)}` },
-  ...(isMember && networkPage ? [{ name: networkName!, url: `${config.url}${paths.bikePath(networkPage.slug, undefined, locale)}` }] : []),
-  { name: localeName, url: `${config.url}${paths.bikePath(page.slug, isNetwork ? undefined : page.memberOf, locale)}` },
+  ...(hasMemberOf && networkPage ? [{ name: networkName!, url: `${config.url}${paths.bikePath(networkPage.slug, undefined, locale)}` }] : []),
+  { name: localeName, url: `${config.url}${paths.bikePath(page.slug, hasMemberOf ? page.memberOf : undefined, locale)}` },
 ]);
 
-// --- Connected paths ---
-const memberSlugs = isNetwork ? new Set(memberRefs.map(m => m.slug)) : undefined;
+// --- Connected paths (exclude own members and own network siblings) ---
+const memberSlugSet = hasMembers ? new Set(memberRefs.map(m => m.slug)) : new Set<string>();
 const ownNetwork = page.memberOf;
 
-const externalConnected = isNetwork
-  ? connectedPaths.filter(p => !memberSlugs!.has(p.slug) && p.memberOf !== page.slug)
-  : connectedPaths.filter(p => p.memberOf !== ownNetwork || !ownNetwork);
+const externalConnected = connectedPaths.filter(p => {
+  if (memberSlugSet.has(p.slug)) return false; // exclude own members
+  if (hasMembers && p.memberOf === page.slug) return false; // exclude paths that belong to this network
+  if (ownNetwork && p.memberOf === ownNetwork) return false; // exclude siblings in same network
+  return true;
+});
 
-const standaloneConnected = externalConnected.filter(p => !p.memberOf);
-const connectedByNetwork = new Map<string, typeof connectedPaths>();
-for (const p of externalConnected) {
-  if (!p.memberOf) continue;
-  const list = connectedByNetwork.get(p.memberOf);
-  if (list) list.push(p); else connectedByNetwork.set(p.memberOf, [p]);
+const showStubCta = !descriptionHtml && (page.stub || !page.hasMarkdown);
+
+// Overlapping non-cycling relations (hiking trails, ski trails sharing this path)
+const ROUTE_LABELS: Record<string, string> = { hiking: 'paths.shared_hiking', piste: 'paths.shared_ski', foot: 'paths.shared_walking', ski: 'paths.shared_ski' };
+const overlappingRelations = (page.overlapping_relations ?? [])
+  .filter(r => ROUTE_LABELS[r.route]);
+// Deduplicate by name (same trail can appear via multiple ways)
+const seenRelNames = new Set<string>();
+const uniqueOverlaps = overlappingRelations.filter(r => {
+  if (seenRelNames.has(r.name)) return false;
+  seenRelNames.add(r.name);
+  return true;
+});
+
+// Infrastructure data — what connects to this path/network and what networks are nearby
+const filteredNearby = nearbyPaths.filter(p => !memberSlugSet.has(p.slug));
+// Connected paths sorted by length (longest first = most significant)
+const sortedConnected = [...externalConnected].sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+// Networks present in connected + nearby paths (deduplicated)
+const nearbyNetworkSlugs = new Set<string>();
+for (const p of [...externalConnected, ...filteredNearby]) {
+  if (p.memberOf && p.memberOf !== page.slug && p.memberOf !== page.memberOf) {
+    nearbyNetworkSlugs.add(p.memberOf);
+  }
 }
-const connectedNetworkEntries = [...connectedByNetwork.entries()];
+// Own network (if this is a member path)
+const ownNetworkMeta = page.memberOf ? networkMeta[page.memberOf] : undefined;
 
-// Stub CTA condition differs: network checks !descriptionHtml, standalone/member check page.stub || !page.hasMarkdown
-const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdown);
+// --- Nearest major path — the most significant path close to this one ---
+const nearestMajorPath = findNearestMajorPath({
+  connectedPaths,
+  nearbyPaths,
+  pageSlug: page.slug,
+  pageLengthKm: page.length_km,
+  pageMemberOf: page.memberOf,
+  hasMembers,
+  memberSlugs: memberSlugSet,
+});
+
+// Website resolution (page.website already includes wikidata_meta.website fallback)
+// Suppress website card if it's the exact same URL as the operator website (already shown in facts table)
+const websiteUrl = page.website && page.website !== page.operator_website ? page.website : undefined;
+const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).hostname; } catch { return undefined; } })() : undefined;
 ---
 
 <Base title={`${localeName} | ${config.display_name}`} description={seoDescription} ogImage={ogImage} breadcrumbs={breadcrumbs}>
-  <div class:list={['bike-path-detail', { 'network-detail': isNetwork }]}>
-    <h1>
-      {localeName}
-      {!isNetwork && (
+  <div class:list={['bike-path-detail', { 'has-members': hasMembers }]}>
+    <div class="bike-path-title">
+      <h1>
+        {localeName}
         <a href={`/admin/bike-paths/${page.slug}`} class="admin-edit-link" aria-label="Edit this path">Edit</a>
-      )}
-    </h1>
+      </h1>
+    </div>
 
-    {isMember && page.memberOf && networkPage && (
+    {hasMemberOf && networkPage && (
       <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="network-badge">
         {t('paths.part_of', locale)} {networkName}
       </a>
@@ -151,23 +205,24 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
 
     {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
 
-    {/* Network: full-width map ABOVE two-column layout */}
-    {isNetwork && memberGeoMap && (
+    {/* Full-width browse-style map for networks — same infrastructure as the index page */}
+    {hasMembers && (
       <div class="network-map-full">
-        <BikePathMap
-          geoFiles={page.geoFiles}
-          center={computeCenter(page.points)}
-          fallbackCenter={fallbackCenter}
-          hintText={t('paths.tap_to_explore', locale)}
-          closeLabel={t('paths.close_map', locale)}
-          photos={nearbyPhotos.filter(p => p.lat && p.lng)}
-          places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
-          cdnUrl={config.cdn_url}
-          slugMap={memberGeoMap}
-          nameMap={memberNameMap}
-          urlMap={memberUrlMap}
-          highlightSelector=".network-members-list li[data-slug]"
-        />
+        <div class="paths-map-hero-wrapper">
+          <div
+            class="paths-map-hero"
+            id="network-browse-map"
+            data-center={JSON.stringify(computeCenter(page.points) || fallbackCenter)}
+            data-all-member-geo-ids={JSON.stringify(allMemberGeoIds ?? [])}
+            data-interactive-geo-ids={JSON.stringify(interactiveGeoIds ?? [])}
+            data-slug-info={JSON.stringify(networkMapSlugInfo)}
+            data-label-view-details={t('paths.view_details', locale)}
+            style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
+          ></div>
+          <div class="map-touch-lock" id="network-map-touch-lock">
+            <span class="map-touch-label">{t('paths.tap_to_explore', locale)}</span>
+          </div>
+        </div>
       </div>
     )}
 
@@ -183,26 +238,49 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
         {descriptionHtml && (
           <div class="bike-path-description" set:html={descriptionHtml} />
         )}
+        {bodyFromWikipedia && page.wikipedia_url && (
+          <p class="bike-path-wikipedia-attribution">
+            {t('paths.wikipedia_source', locale)}{' '}
+            <a href={page.wikipedia_url} target="_blank" rel="noopener">
+              {t('paths.wikipedia_link', locale)}
+            </a>
+          </p>
+        )}
 
-        <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
+        <div class="bike-path-edit-cta">
+          <EditEntryPoint text={t('paths.edit_description', locale)} href={`/admin/bike-paths/${page.slug}`} />
+        </div>
 
-        {/* Member list (network only) */}
-        {isNetwork && memberRefs.length > 0 && (
-          <section class="network-members">
-            <h2>{t('paths.member_paths', locale)}</h2>
-            <ul class="network-members-list">
-              {memberRefs.map(m => (
-                <li data-slug={m.slug}>
-                  {m.standalone ? (
-                    <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
-                      <span class="network-member-name">{m.name}</span>
-                      {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
-                    </a>
-                  ) : (
-                    <span class="network-member-no-page">
-                      <span class="network-member-name">{m.name}</span>
-                      {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+        {/* Nearest major path — the most significant path close to this one */}
+        {nearestMajorPath && (
+          <a href={paths.bikePath(nearestMajorPath.slug, nearestMajorPath.memberOf, locale)} class="nearest-major-path">
+            <span class="nearest-major-label">{t('paths.nearest_major', locale)}</span>
+            <span class="nearest-major-name">{nearestMajorPath.name}</span>
+            <span class="nearest-major-meta">
+              {nearestMajorPath.length_km && `${nearestMajorPath.length_km} km`}
+              {nearestMajorPath.length_km && nearestMajorPath.surface && ' · '}
+              {nearestMajorPath.surface && (localizeSurface(nearestMajorPath.surface, t, locale) || nearestMajorPath.surface)}
+            </span>
+          </a>
+        )}
+
+        {/* Connects to — paths you can ride to from here */}
+        {sortedConnected.length > 0 && (
+          <section class="connects-to-section">
+            <h2>{t('paths.connects_to', locale)}</h2>
+            <ul class="connects-to-list">
+              {sortedConnected.slice(0, 5).map(p => (
+                <li data-relation="connects" data-slug={p.slug}>
+                  <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="connects-to-link">
+                    <span class="connects-to-name">{p.name}</span>
+                    <span class="connects-to-meta">
+                      {p.length_km && `${p.length_km} km`}
+                      {p.length_km && p.surface && ' · '}
+                      {p.surface && (localizeSurface(p.surface, t, locale) || p.surface)}
                     </span>
+                  </a>
+                  {p.memberOf && networkMeta[p.memberOf] && (
+                    <a href={paths.bikePath(p.memberOf, undefined, locale)} class="connects-to-network">{networkMeta[p.memberOf].name}</a>
                   )}
                 </li>
               ))}
@@ -210,34 +288,146 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
           </section>
         )}
 
-        <RoutesOnPath routes={overlappingRoutes} locale={locale} />
+        {/* Networks — one-line summaries of networks in this area */}
+        {/* Member list — shown when this page has members (networks, trails with sections) */}
+        {hasMembers && memberRefs.length > 0 && (
+          <section class="network-members">
+            <h2>{t('paths.member_paths', locale)}</h2>
 
-        {/* Photos: network uses <button> (limited to 8), standalone/member use <a> links (unlimited) */}
-        {nearbyPhotos.length > 0 && (
-          <section class="bike-path-photos">
-            <h2>{t('paths.photos', locale)}</h2>
-            <div class="bike-path-photo-grid">
-              {isNetwork ? (
-                nearbyPhotos.slice(0, 8).map(photo => (
-                  <button
-                    type="button"
-                    class="bike-path-photo"
-                    data-photo-key={photo.key}
-                    data-photo-lat={photo.lat}
-                    data-photo-lng={photo.lng}
-                  >
-                    <img
-                      src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
-                      srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
-                      alt={photo.caption || localeName}
-                      width="300"
-                      height="200"
-                      loading="lazy"
-                    />
-                  </button>
-                ))
-              ) : (
-                nearbyPhotos.map(photo => (
+            {/* Long-distance trails that pass through this network */}
+            {longDistanceMembers.length > 0 && (
+              <div class="network-members-long-distance">
+                {longDistanceMembers.map(m => (
+                  <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-long-distance" data-slug={m.slug}>
+                    <span class="network-member-name">{m.name}</span>
+                    <span class="network-member-meta">{m.length_km && `${m.length_km} km`}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* Tier 1: significant members (≥5km or has markdown), sorted by length */}
+            {ungroupedPrimary.length > 0 && (
+              <ul class="network-members-list">
+                {ungroupedPrimary.map(m => (
+                  <li data-slug={m.slug}>
+                    {m.standalone ? (
+                      <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
+                        <span class="network-member-name">{m.name}</span>
+                        {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                      </a>
+                    ) : (
+                      <span class="network-member-no-page">
+                        <span class="network-member-name">{m.name}</span>
+                        {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Overlap groups — members grouped by shared non-cycling relation */}
+            {displayOverlapGroups.map(group => (
+              <div class="network-overlap-group">
+                <h3 class="network-overlap-heading">
+                  {group.name}
+                  <span class="network-overlap-route-type">({group.route})</span>
+                </h3>
+                <ul class="network-members-list">
+                  {group.members.map(m => (
+                    <li data-slug={m.slug}>
+                      {m.standalone ? (
+                        <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
+                          <span class="network-member-name">{m.name}</span>
+                          {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                        </a>
+                      ) : (
+                        <span class="network-member-no-page">
+                          <span class="network-member-name">{m.name}</span>
+                          {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            {/* Tier 2: shorter segments, expandable */}
+            {primaryTier2.length > 0 && (
+              <details class="network-tier2">
+                <summary class="network-tier2-label">
+                  {t('paths.shorter_segments', locale, { count: String(primaryTier2.length) })}
+                  <span class="network-tier2-names">
+                    {primaryTier2.slice(0, 8).map((m, j) => (
+                      <span>{m.name}{j < Math.min(7, primaryTier2.length - 1) ? ', ' : ''}</span>
+                    ))}
+                    {primaryTier2.length > 8 && <span>&hellip;</span>}
+                  </span>
+                </summary>
+                <ul class="network-members-list">
+                  {primaryTier2.map(m => (
+                    <li data-slug={m.slug}>
+                      {m.standalone ? (
+                        <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
+                          <span class="network-member-name">{m.name}</span>
+                          {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                        </a>
+                      ) : (
+                        <span class="network-member-no-page">
+                          <span class="network-member-name">{m.name}</span>
+                          {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            {/* Secondary members — paths that also belong to this network but live under another */}
+            {secondaryMembers.length > 0 && <h3>{t('paths.shared_members', locale)}</h3>}
+            {secondaryMembers.length > 0 && (
+              <ul class="network-members-list network-members-shared">
+                {secondaryMembers.map(m => (
+                  <li data-slug={m.slug}>
+                    {m.standalone ? (
+                      <a href={paths.bikePath(m.slug, m.memberOf, locale)} class="network-member-link network-member-secondary">
+                        <span class="network-member-name">{m.name}</span>
+                        <span class="network-member-meta">
+                          {m.length_km ? `${m.length_km} km · ` : ''}{networkMeta[m.memberOf!]?.name ?? m.memberOf}
+                        </span>
+                      </a>
+                    ) : (
+                      <span class="network-member-no-page">
+                        <span class="network-member-name">{m.name}</span>
+                        {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {overlappingRoutes.length > 0 && (
+          <section class="bike-path-routes">
+            <RoutesOnPath routes={overlappingRoutes} locale={locale} />
+          </section>
+        )}
+
+        {/* Photos */}
+        {nearbyPhotos.length > 0 && (() => {
+          const photoLimit = 10;
+          const hasMore = nearbyPhotos.length > photoLimit;
+          const visiblePhotos = hasMore ? nearbyPhotos.slice(0, photoLimit) : nearbyPhotos;
+          return (
+            <section class="bike-path-photos">
+              <h2>{t('paths.photos', locale)}</h2>
+              <div class="bike-path-photo-grid">
+                {visiblePhotos.map(photo => (
                   <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo">
                     <img
                       src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
@@ -248,152 +438,289 @@ const showStubCta = isNetwork ? !descriptionHtml : (page.stub || !page.hasMarkdo
                       loading="lazy"
                     />
                   </a>
-                ))
+                ))}
+                {hasMore && nearbyPhotos.slice(photoLimit).map(photo => (
+                  <a href={`${paths.route(photo.routeSlug, locale)}?photo=${encodeURIComponent(photo.key)}#photos`} class="bike-path-photo bike-path-photo-hidden">
+                    <img
+                      src={imageUrl(photo.key, { width: 300, height: 200, fit: 'cover' })}
+                      srcset={`${imageUrl(photo.key, { width: 600, height: 400, fit: 'cover' })} 2x`}
+                      alt={photo.caption || localeName}
+                      width="300"
+                      height="200"
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+              {hasMore && (
+                <button class="action-button" id="show-all-path-photos">
+                  {t('paths.show_all_photos', locale, { count: nearbyPhotos.length })}
+                </button>
               )}
-            </div>
-          </section>
-        )}
+            </section>
+          );
+        })()}
       </div>
 
       {/* ===== Sidebar (infobox) ===== */}
       <aside class="bike-path-sidebar">
-        {/* Sidebar map: standalone + member only (network map is above) */}
-        {!isNetwork && (
-          <BikePathMap
-            geoFiles={page.geoFiles}
-            center={computeCenter(page.points)}
-            fallbackCenter={fallbackCenter}
-            hintText={t('paths.tap_to_explore', locale)}
-            closeLabel={t('paths.close_map', locale)}
-            photos={nearbyPhotos.filter(p => p.lat && p.lng)}
-            places={nearbyPlaces.map(p => ({ name: p.name, lat: p.lat, lng: p.lng, category: p.category }))}
-            cdnUrl={config.cdn_url}
-          />
+        {/* Sidebar map: pages without members (map is full-width above when members exist) */}
+        {!hasMembers && (
+          <div class="bike-path-sidebar-map">
+            <BikePathMap
+              highlightGeoIds={highlightGeoIds}
+              center={computeCenter(page.points)}
+              fallbackCenter={fallbackCenter}
+              hintText={t('paths.tap_to_explore', locale)}
+              closeLabel={t('paths.close_map', locale)}
+              cdnUrl={config.cdn_url}
+            />
+          </div>
         )}
 
-        {/* Facts table — network aggregates from members, standalone/member driven by buildPathFacts */}
-        {isNetwork ? (
-          <table class="bike-path-facts-table">
-            {page.length_km && (
-              <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
-            )}
-            <tr><td>{t('paths.pathways', locale)}</td><td>{standaloneMemberCount}</td></tr>
-            {networkFacts.map(fact => (
+        {page.commons_image && (
+          <div class="bike-path-commons-image">
+            <img
+              src={`/api/commons-image/${encodeURIComponent(page.commons_image)}`}
+              alt={t('paths.commons_image_alt', locale)}
+              loading="lazy"
+              class="commons-image"
+            />
+            <p class="commons-image-attribution">
+              <a href={`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.commons_image)}`} target="_blank" rel="noopener">
+                Wikimedia Commons
+              </a>
+            </p>
+          </div>
+        )}
+
+        {/* Facts table — aggregated from members when available, individual otherwise */}
+        <table class="bike-path-facts-table">
+          {page.length_km && (
+            <tr class="fact-length"><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
+          )}
+          {hasMembers && <tr><td>{t('paths.pathways', locale)}</td><td>{standaloneMemberCount}</td></tr>}
+          {useNetworkFacts ? (
+            networkFacts.map(fact => (
               <tr><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeNetworkFactValue(fact, t, locale)}</td></tr>
-            ))}
-            {/* Network's own operator (if not already shown via member aggregation) */}
-            {page.operator && !networkFacts.some(f => f.key === 'operator') && (
-              <tr><td>{t('paths.label.operator', locale)}</td><td>{page.operator}</td></tr>
+            ))
+          ) : (
+            pathFacts.map(fact => {
+              const factClass = fact.key === 'path_info' ? 'fact-path-type'
+                : fact.key === 'surface_width' || fact.key === 'surface' || fact.key === 'surface_mixed' ? 'fact-surface'
+                : fact.key.startsWith('smoothness_') ? 'fact-surface-quality'
+                : fact.key.startsWith('traffic_') ? 'fact-traffic'
+                : fact.key === 'separated_cars' || fact.key === 'separated_peds' ? 'fact-traffic'
+                : fact.key === 'lit' || fact.key === 'not_lit' || fact.key === 'lit_mixed' ? 'fact-lighting'
+                : fact.key === 'flat' || fact.key === 'gentle_hills' || fact.key === 'hilly' ? 'fact-terrain'
+                : fact.key === 'operator' ? 'fact-operator'
+                : fact.key.startsWith('network_') ? 'fact-network'
+                : fact.key === 'inception' ? 'fact-established'
+                : `fact-${fact.key.replace(/_/g, '-')}`;
+              return (
+                <tr class={factClass}><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
+              );
+            })
+          )}
+          {page.operator && useNetworkFacts && !networkFacts.some(f => f.key === 'operator') && (
+            <tr class="fact-operator">
+              <td>{t('paths.label.operator', locale)}</td>
+              <td>
+                {page.operator_website
+                  ? <a href={page.operator_website} target="_blank" rel="noopener">{page.operator}</a>
+                  : page.wikidata_operator_qid
+                    ? <a href={`https://www.wikidata.org/wiki/${page.wikidata_operator_qid}`} target="_blank" rel="noopener">{page.operator}</a>
+                    : page.operator
+                }
+              </td>
+            </tr>
+          )}
+          {wikidataMeta?.inception && !pathFacts.some(f => f.key === 'inception') && (
+            <tr class="fact-established"><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
+          )}
+        </table>
+
+        {/* Nearby networks — in the sidebar for context */}
+        {(ownNetworkMeta || nearbyNetworkSlugs.size > 0) && (
+          <section class="networks-here">
+            {ownNetworkMeta && page.memberOf && (
+              <div class="network-here-own">
+                <a href={paths.bikePath(page.memberOf, undefined, locale)} class="network-here-link">
+                  {t('paths.on_this_network', locale)}: {ownNetworkMeta.name}
+                </a>
+                {ownNetworkMeta.length_km && <span class="network-here-meta">{ownNetworkMeta.length_km} km</span>}
+              </div>
             )}
-            {wikidataMeta?.inception && (
-              <tr><td>{t('paths.fact.established', locale)}</td><td>{wikidataMeta.inception}</td></tr>
-            )}
-            {wikidataMeta?.website && (
-              <tr><td>{t('paths.fact.website', locale)}</td><td><a href={wikidataMeta.website} target="_blank" rel="noopener">{new URL(wikidataMeta.website).hostname}</a></td></tr>
-            )}
-          </table>
-        ) : (
-          <table class="bike-path-facts-table">
-            {page.length_km && (
-              <tr><td>{t('paths.label.length', locale)}</td><td>{page.length_km} km</td></tr>
-            )}
-            {pathFacts.map(fact => (
-              <tr><td>{t(factLabelKey(fact.key), locale)}</td><td>{localizeFactValue(fact, t, locale)}</td></tr>
-            ))}
-            {page.parallel_to && (
-              <tr><td>{t('paths.label.alongside', locale)}</td><td>{page.parallel_to}</td></tr>
-            )}
-          </table>
+            {nearbyNetworkSlugs.size > 0 && <div class="network-here-heading">{t('paths.nearby_networks', locale)}</div>}
+            {[...nearbyNetworkSlugs].map(slug => {
+              const meta = networkMeta[slug];
+              if (!meta) return null;
+              return (
+                <div class="network-here-item">
+                  <a href={paths.bikePath(slug, undefined, locale)} class="network-here-link">{meta.name}</a>
+                  {meta.length_km && <span class="network-here-meta">{meta.length_km} km</span>}
+                </div>
+              );
+            })}
+          </section>
+        )}
+
+        {/* Shared with non-cycling routes (hiking trails, ski trails) */}
+        {uniqueOverlaps.length > 0 && (
+          <div class="shared-routes">
+            <h3>{t('paths.shared_with', locale)}</h3>
+            <ul>
+              {uniqueOverlaps.map(r => {
+                const wpUrl = r.wikipedia ? (() => {
+                  const [lang, ...parts] = r.wikipedia.split(':');
+                  return `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(parts.join(':').replace(/ /g, '_'))}`;
+                })() : undefined;
+                const linkUrl = r.website || wpUrl || `https://openstreetmap.org/relation/${r.id}`;
+                return (
+                  <li>
+                    <a href={linkUrl} target="_blank" rel="noopener" class="shared-route-link">
+                      {r.name}
+                    </a>
+                    <span class="shared-route-type">{t(ROUTE_LABELS[r.route], locale)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
 
         {nearbyPlaces.length > 0 && (
           <NearbyPlaces nearby={nearbyPlaces} limit={8} />
         )}
 
-        {/* Connected paths */}
-        {externalConnected.length > 0 && (
-          <section class="connected-paths">
-            <h2>{t('paths.connects_to', locale)}</h2>
-            <ul class="connected-paths-list">
-              {connectedNetworkEntries.map(([netSlug, members]) => (
-                <li>
-                  <a href={paths.bikePath(netSlug, undefined, locale)}>{networkNames[netSlug] || netSlug}</a>
-                  {members.length > 1 && <span class="path-meta">{members.length} {t('paths.pathways', locale)}</span>}
-                </li>
-              ))}
-              {standaloneConnected.map(p => (
-                <li>
-                  <a href={paths.bikePath(p.slug, p.memberOf, locale)}>{p.name}</a>
-                  {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {/* NearbyPaths minus already-connected ones */}
+        {/* Nearby paths — compact sidebar list, max 3, excludes connected and own members */}
         {(() => {
           const connectedSlugs = new Set(connectedPaths.map(p => p.slug));
-          const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug));
-          return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} locale={locale} /> : null;
+          const filtered = nearbyPaths.filter(p => !connectedSlugs.has(p.slug) && !memberSlugSet.has(p.slug)).slice(0, 3);
+          return filtered.length > 0 ? <NearbyPaths nearbyPaths={filtered} networkMeta={networkMeta} locale={locale} /> : null;
         })()}
 
-        {/* External links */}
-        <div class="bike-path-links">
-          {page.wikipedia && (() => {
-            const [lang, ...titleParts] = page.wikipedia.split(':');
-            const title = titleParts.join(':');
-            const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
-            return <a href={url} target="_blank" rel="noopener">{title} — Wikipedia ↗</a>;
-          })()}
+        {/* Website link card */}
+        {websiteUrl && websiteHostname && (
+          <a href={websiteUrl} target="_blank" rel="noopener" class="external-link-card external-link-website">
+            <span class="external-link-icon">&#x1f517;</span>
+            <span>{websiteHostname}</span>
+            <span class="external-link-arrow">&nearr;</span>
+          </a>
+        )}
 
-          {(page.osmRelationIds.length > 0 || page.osmNames.length > 0) && (
-            <div class="bike-path-osm">
-              <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
-              {page.ymlEntries.map(entry => (
-                entry.osm_relations?.length
-                  ? entry.osm_relations.map(id => (
-                      <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
-                        {entry.name} — relation {id} ↗
-                      </a>
-                    ))
+        {/* Wikipedia link card */}
+        {page.wikipedia && (() => {
+          const [lang, ...titleParts] = page.wikipedia.split(':');
+          const title = titleParts.join(':');
+          const url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+          return (
+            <a href={url} target="_blank" rel="noopener" class="external-link-card external-link-wikipedia">
+              <span class="external-link-icon" style="color: var(--color-text-muted)">W</span>
+              <span>{title} — Wikipedia</span>
+              <span class="external-link-arrow">&nearr;</span>
+            </a>
+          );
+        })()}
+
+        {page.wikidata_social?.map(social => (
+          <a href={social.url} target="_blank" rel="noopener" class="external-link-card external-link-social">
+            <span class="external-link-icon" style="color: var(--color-text-muted)">{social.platform[0]}</span>
+            <span>{social.platform}</span>
+            <span class="external-link-arrow">&nearr;</span>
+          </a>
+        ))}
+
+        {page.commons_category && (
+          <a href={`https://commons.wikimedia.org/wiki/Category:${encodeURIComponent(page.commons_category)}`} target="_blank" rel="noopener" class="external-link-card external-link-commons">
+            <span class="external-link-icon" style="color: var(--color-text-muted)">&#x1f5bc;</span>
+            <span>{t('paths.commons_photos', locale)}</span>
+            <span class="external-link-arrow">&nearr;</span>
+          </a>
+        )}
+
+        {/* OSM attribution */}
+        {(page.osmRelationIds.length > 0 || page.osmNames.length > 0 || page.ymlEntries.some(e => e.osm_way_ids?.length)) && (
+          <div class="bike-path-osm">
+            <span>{t('paths.osm_attribution', locale)} <a href="https://openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>.</span>
+            {page.ymlEntries.map(entry => (
+              entry.osm_relations?.length
+                ? entry.osm_relations.map(id => (
+                    <a href={`https://openstreetmap.org/relation/${id}`} target="_blank" rel="noopener">
+                      {entry.name} — relation {id} ↗
+                    </a>
+                  ))
+                : entry.osm_way_ids?.length
+                  ? <a href={`https://openstreetmap.org/way/${entry.osm_way_ids[0]}`} target="_blank" rel="noopener">
+                      {entry.name} — way {entry.osm_way_ids[0]} ↗
+                    </a>
                   : entry.osm_names?.length
                     ? <a href={`https://openstreetmap.org/search?query=${encodeURIComponent(entry.osm_names[0])}`} target="_blank" rel="noopener">
                         {entry.name} — {t('paths.osm_search', locale)} ↗
                       </a>
                     : null
-              ))}
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </aside>
     </div>
 
     {/* Back link — member goes to network, network is bare <a>, standalone wraps in <p> */}
-    {isMember && networkPage ? (
-      <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="go-back-button">&#x21A9; {networkName}</a>
-    ) : isMember ? (
-      <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
-    ) : isNetwork ? (
-      <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
-    ) : (
-      <p style="margin-top: 2em;">
+    <div class="bike-path-back">
+      {hasMemberOf && networkPage ? (
+        <a href={paths.bikePath(networkPage.slug, undefined, locale)} class="go-back-button">&#x21A9; {networkName}</a>
+      ) : (
         <a href={paths.bikePaths(locale)} class="go-back-button">&#x21A9; {t('paths.go_back', locale)}</a>
-      </p>
-    )}
+      )}
+    </div>
   </div>
 </Base>
 
-{/* Network-only: photo -> map interaction script */}
-{isNetwork && (
-  <script>
-    document.querySelectorAll<HTMLElement>('.bike-path-photo[data-photo-key]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.photoKey!;
-        const lat = Number(btn.dataset.photoLat);
-        const lng = Number(btn.dataset.photoLng);
-        document.dispatchEvent(new CustomEvent('map:show-photo', { detail: { key, lat, lng } }));
-      });
+<script>
+  import { createPathsBrowseMap } from '../../lib/maps/paths-browse-map';
+
+  const container = document.getElementById('network-browse-map');
+  if (container) {
+    const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+    const allMemberGeoIds: string[] = JSON.parse(container.dataset.allMemberGeoIds || '[]');
+    const interactiveGeoIdsList: string[] = JSON.parse(container.dataset.interactiveGeoIds || '[]');
+    const slugInfo = JSON.parse(container.dataset.slugInfo || '{}');
+
+    createPathsBrowseMap({
+      container,
+      touchLockEl: document.getElementById('network-map-touch-lock'),
+      center,
+      zoom: 11,
+      compactHeight: 400,
+      expandedHeight: 700,
+      slugInfo,
+      interactiveGeoIds: new Set(interactiveGeoIdsList),
+      listSelector: '.network-members-list li[data-slug], .network-member-long-distance[data-slug]',
+      labels: { viewDetails: container.dataset.labelViewDetails },
+      onHighlightClear: (result) => {
+        result.fitToGeoIds(allMemberGeoIds);
+      },
+      onReady: (result) => {
+        // Hide surrounding city paths — only show this network's members
+        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+          if (result.map.getLayer(id)) {
+            result.map.setLayoutProperty(id, 'visibility', 'none');
+          }
+        }
+        result.fitToGeoIds(allMemberGeoIds);
+      },
     });
-  </script>
-)}
+  }
+</script>
+
+<script>
+  const showAllBtn = document.getElementById('show-all-path-photos');
+  if (showAllBtn) {
+    showAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('.bike-path-photo-hidden').forEach(el => {
+        (el as HTMLElement).classList.remove('bike-path-photo-hidden');
+      });
+      showAllBtn.style.display = 'none';
+    });
+  }
+</script>

@@ -23,6 +23,7 @@ import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { slugify } from '../lib/slug';
 import type { RouteMedia } from './route-file-reader';
 import { readRideFile } from './ride-file-reader';
+import { gpxHash } from '../lib/maps/map-generation.server';
 
 export interface RideDate {
   year: number;
@@ -442,6 +443,8 @@ export function rideLoader(): Loader {
           distance_km: Math.round(gpxTrack.distance_m / 100) / 10,
         }];
 
+        const rideGpxHash = gpxHash(parsed.rawContents.gpxXml);
+
         const data = {
           name,
           status,
@@ -452,6 +455,7 @@ export function rideLoader(): Loader {
           updated_at: isoDate,
           media,
           gpxTracks,
+          gpxHash: rideGpxHash,
           gpxRelativePath: gpxRelPath,
           renderedBody,
           translations: {},

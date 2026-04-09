@@ -1,18 +1,37 @@
 /**
  * Generate spatial tiles from individual path GeoJSON files.
  *
- * Groups features into 1-degree tiles (floor of lat/lng) so the client
- * can load only the tiles visible in the viewport instead of all 601 files.
+ * Merges all features per geoId into a single geometry, truncates
+ * coordinates to 5 decimal places, injects metadata, and splits
+ * tiles adaptively via quadtree so no tile exceeds a coordinate budget.
  *
  * Pure logic: buildTiles() — tested directly
  * CLI entry point: runs when executed as a script
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Feature, FeatureCollection, Position } from 'geojson';
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiLineString,
+  Position,
+} from 'geojson';
 
-import type { TileManifestEntry } from '../src/lib/maps/tile-types';
-export type { TileManifestEntry };
+import type { TileFeatureMeta, TileManifestEntry } from '../src/lib/maps/tile-types';
+export type { TileManifestEntry, TileFeatureMeta };
+
+/** Metadata entry keyed by geoId, passed into buildTiles. */
+export interface GeoMetaEntry {
+  slug: string;
+  name: string;
+  memberOf: string;
+  surface: string;
+  hasPage: boolean;
+  path_type: string;
+  length_km: number;
+}
 
 export interface TileData {
   features: Feature[];
@@ -20,6 +39,25 @@ export interface TileData {
   minLat: number;
   maxLng: number;
   maxLat: number;
+}
+
+export const DEFAULT_MAX_COORDS = 300_000;
+const MAX_DEPTH = 12;
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+/** Round a single number to 5 decimal places. */
+function roundCoord(n: number): number {
+  return Math.round(n * 1e5) / 1e5;
+}
+
+/** Truncate all coordinates in a position array to 5dp. */
+function truncateCoords(coords: Position[]): Position[] {
+  return coords.map(([lng, lat, ...rest]) => {
+    const out: Position = [roundCoord(lng), roundCoord(lat)];
+    if (rest.length > 0) out.push(...rest.map(roundCoord));
+    return out;
+  });
 }
 
 /** Extract all coordinate positions from a feature's geometry. */
@@ -33,80 +71,228 @@ function extractCoordinates(feature: Feature): Position[] {
     case 'MultiLineString':
       return geom.coordinates.flat();
     default:
-      // Skip non-line geometry gracefully
       return [];
   }
 }
 
-/** Compute which 1-degree tile IDs a set of coordinates touches. */
-function tileIdsForCoordinates(coords: Position[]): Set<string> {
-  const ids = new Set<string>();
-  for (const [lng, lat] of coords) {
-    const tileId = `${Math.floor(lat)}_${Math.floor(lng)}`;
-    ids.add(tileId);
+/** Count only coordinates that fall within a bounding box. */
+function countCoordsInBox(features: Feature[], box: SplitBox): number {
+  let total = 0;
+  for (const f of features) {
+    for (const [lng, lat] of extractCoordinates(f)) {
+      if (lng >= box.minLng && lng <= box.maxLng && lat >= box.minLat && lat <= box.maxLat) {
+        total++;
+      }
+    }
   }
-  return ids;
+  return total;
 }
 
 /**
- * Build spatial tiles from a map of geoId → FeatureCollection.
+ * Merge all features for a single geoId into one geometry.
  *
- * Each feature is assigned to every 1-degree tile its coordinates touch.
- * Cross-boundary features are duplicated into all relevant tiles.
+ * - Multiple LineStrings become a MultiLineString
+ * - A single LineString stays as-is
+ * - MultiLineStrings are flattened and merged
+ * - Coordinates are truncated to 5dp
  */
-export function buildTiles(input: Map<string, FeatureCollection>): {
-  tiles: Map<string, TileData>;
-  manifest: TileManifestEntry[];
-} {
-  const tiles = new Map<string, TileData>();
+function mergeFeatures(
+  geoId: string,
+  fc: FeatureCollection,
+  metadata?: Map<string, GeoMetaEntry>,
+): Feature<LineString | MultiLineString> | null {
+  const allLineArrays: Position[][] = [];
 
-  for (const [geoId, fc] of input) {
-    for (let i = 0; i < fc.features.length; i++) {
-      const feature = fc.features[i];
-      const coords = extractCoordinates(feature);
-      if (coords.length === 0) continue;
+  for (const feature of fc.features) {
+    const geom = feature.geometry;
+    if (!geom) continue;
 
-      const tileIds = tileIdsForCoordinates(coords);
-      if (tileIds.size === 0) continue;
-
-      // Build the enriched feature (clone to avoid mutating input)
-      const enriched: Feature = {
-        ...feature,
-        properties: {
-          ...feature.properties,
-          _geoId: geoId,
-          _fid: `${geoId}:${i}`,
-        },
-      };
-
-      for (const tileId of tileIds) {
-        let tile = tiles.get(tileId);
-        if (!tile) {
-          tile = {
-            features: [],
-            minLng: Infinity,
-            minLat: Infinity,
-            maxLng: -Infinity,
-            maxLat: -Infinity,
-          };
-          tiles.set(tileId, tile);
-        }
-        tile.features.push(enriched);
-
-        // Update bounding box from this feature's coordinates
-        for (const [lng, lat] of coords) {
-          if (lng < tile.minLng) tile.minLng = lng;
-          if (lat < tile.minLat) tile.minLat = lat;
-          if (lng > tile.maxLng) tile.maxLng = lng;
-          if (lat > tile.maxLat) tile.maxLat = lat;
-        }
+    if (geom.type === 'LineString') {
+      const truncated = truncateCoords(geom.coordinates);
+      if (truncated.length > 0) allLineArrays.push(truncated);
+    } else if (geom.type === 'MultiLineString') {
+      for (const line of geom.coordinates) {
+        const truncated = truncateCoords(line);
+        if (truncated.length > 0) allLineArrays.push(truncated);
       }
     }
   }
 
-  // Build manifest, sorted by id for deterministic output
+  if (allLineArrays.length === 0) return null;
+
+  // Build properties
+  const meta = metadata?.get(geoId);
+  const properties: TileFeatureMeta = {
+    _geoId: geoId,
+    _fid: geoId,
+    slug: meta?.slug ?? '',
+    name: meta?.name ?? '',
+    memberOf: meta?.memberOf ?? '',
+    surface: meta?.surface ?? '',
+    hasPage: meta?.hasPage ?? false,
+    path_type: meta?.path_type ?? '',
+    length_km: meta?.length_km ?? 0,
+  };
+
+  // Single LineString stays as LineString
+  if (allLineArrays.length === 1) {
+    return {
+      type: 'Feature',
+      properties,
+      geometry: { type: 'LineString', coordinates: allLineArrays[0] },
+    };
+  }
+
+  return {
+    type: 'Feature',
+    properties,
+    geometry: { type: 'MultiLineString', coordinates: allLineArrays },
+  };
+}
+
+// ── Adaptive quadtree splitting ──────────────────────────────────
+
+interface SplitBox {
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+}
+
+/** Check if a feature has any coordinates inside a bounding box. */
+function featureIntersectsBox(feature: Feature, box: SplitBox): boolean {
+  const coords = extractCoordinates(feature);
+  for (const [lng, lat] of coords) {
+    if (lng >= box.minLng && lng <= box.maxLng && lat >= box.minLat && lat <= box.maxLat) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Recursively split a set of features into tiles using quadtree subdivision.
+ *
+ * If the total coordinate count is within budget, emit a single tile.
+ * Otherwise, split the bounding box into 4 quadrants and recurse.
+ */
+function splitAdaptive(
+  prefix: string,
+  features: Feature[],
+  box: SplitBox,
+  maxCoords: number,
+  depth: number,
+  result: Map<string, TileData>,
+): void {
+  if (features.length === 0) return;
+
+  // Count only coordinates within this tile's bounds — not the feature's total.
+  // A long path spanning the city is one feature; without this, its full coord
+  // count would inflate every quadrant it touches, causing infinite splitting.
+  const coordCount = countCoordsInBox(features, box);
+
+  // Emit tile if within budget or at max depth
+  if (coordCount <= maxCoords || depth >= MAX_DEPTH) {
+    // Compute actual bounds from features
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const f of features) {
+      for (const [lng, lat] of extractCoordinates(f)) {
+        if (lng < minLng) minLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lng > maxLng) maxLng = lng;
+        if (lat > maxLat) maxLat = lat;
+      }
+    }
+
+    result.set(prefix, {
+      features,
+      minLng,
+      minLat,
+      maxLng,
+      maxLat,
+    });
+    return;
+  }
+
+  // Split into 4 quadrants
+  const midLng = (box.minLng + box.maxLng) / 2;
+  const midLat = (box.minLat + box.maxLat) / 2;
+
+  const quadrants: [string, SplitBox][] = [
+    [`${prefix}_0`, { minLng: box.minLng, minLat: midLat, maxLng: midLng, maxLat: box.maxLat }],
+    [`${prefix}_1`, { minLng: midLng, minLat: midLat, maxLng: box.maxLng, maxLat: box.maxLat }],
+    [`${prefix}_2`, { minLng: box.minLng, minLat: box.minLat, maxLng: midLng, maxLat: midLat }],
+    [`${prefix}_3`, { minLng: midLng, minLat: box.minLat, maxLng: box.maxLng, maxLat: midLat }],
+  ];
+
+  for (const [qPrefix, qBox] of quadrants) {
+    const qFeatures = features.filter(f => featureIntersectsBox(f, qBox));
+    splitAdaptive(qPrefix, qFeatures, qBox, maxCoords, depth + 1, result);
+  }
+}
+
+// ── Main ─────────────────────────────────────────────────────────
+
+export interface BuildTilesOptions {
+  maxCoords?: number;
+}
+
+/**
+ * Build spatial tiles from a map of geoId -> FeatureCollection.
+ *
+ * 1. Merges all features per geoId into one MultiLineString (or keeps single LineString)
+ * 2. Truncates coordinates to 5 decimal places
+ * 3. Injects metadata from an optional metadata map
+ * 4. Splits tiles adaptively via quadtree
+ */
+export function buildTiles(
+  input: Map<string, FeatureCollection>,
+  metadata?: Map<string, GeoMetaEntry>,
+  options?: BuildTilesOptions,
+): {
+  tiles: Map<string, TileData>;
+  manifest: TileManifestEntry[];
+} {
+  const maxCoords = options?.maxCoords ?? DEFAULT_MAX_COORDS;
+
+  // Step 1: Merge features per geoId (skip stale entries with no metadata)
+  const merged: Feature[] = [];
+  for (const [geoId, fc] of input) {
+    if (metadata && !metadata.has(geoId)) continue;
+    const feature = mergeFeatures(geoId, fc, metadata);
+    if (feature) merged.push(feature);
+  }
+
+  if (merged.length === 0) {
+    return { tiles: new Map(), manifest: [] };
+  }
+
+  // Step 2: Compute global bounding box
+  let globalMinLng = Infinity, globalMinLat = Infinity;
+  let globalMaxLng = -Infinity, globalMaxLat = -Infinity;
+  for (const f of merged) {
+    for (const [lng, lat] of extractCoordinates(f)) {
+      if (lng < globalMinLng) globalMinLng = lng;
+      if (lat < globalMinLat) globalMinLat = lat;
+      if (lng > globalMaxLng) globalMaxLng = lng;
+      if (lat > globalMaxLat) globalMaxLat = lat;
+    }
+  }
+
+  // Step 3: Adaptive quadtree split
+  const tiles = new Map<string, TileData>();
+  splitAdaptive(
+    '0',
+    merged,
+    { minLng: globalMinLng, minLat: globalMinLat, maxLng: globalMaxLng, maxLat: globalMaxLat },
+    maxCoords,
+    0,
+    tiles,
+  );
+
+  // Step 4: Build manifest, sorted by numeric id for deterministic output
   const manifest: TileManifestEntry[] = [...tiles.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
     .map(([id, tile]) => ({
       id,
       bounds: [tile.minLng, tile.minLat, tile.maxLng, tile.maxLat],
@@ -115,6 +301,62 @@ export function buildTiles(input: Map<string, FeatureCollection>): {
     }));
 
   return { tiles, manifest };
+}
+
+// ── Slug index ───────────────────────────────────────────────────
+
+export interface SlugIndexEntry {
+  tiles: string[];
+  hash: string;
+}
+
+/**
+ * Build a slug -> { tiles, hash } index from the tile output.
+ * The hash is computed from the slug's geometry coordinates (SHA-256, 12 hex chars).
+ * Deduplicates features by _fid across tiles (cross-boundary duplicates).
+ */
+export function buildSlugIndex(
+  tiles: Map<string, TileData>,
+): Record<string, SlugIndexEntry> {
+  const slugTiles = new Map<string, Set<string>>();
+  const slugCoords = new Map<string, number[]>();
+  const seenFids = new Set<string>();
+
+  for (const [tileId, tile] of tiles) {
+    for (const feature of tile.features) {
+      const slug = (feature.properties as TileFeatureMeta)?.slug;
+      if (!slug) continue;
+
+      if (!slugTiles.has(slug)) slugTiles.set(slug, new Set());
+      slugTiles.get(slug)!.add(tileId);
+
+      const fid = (feature.properties as TileFeatureMeta)?._fid ?? '';
+      const dedupKey = `${slug}:${fid}`;
+      if (!seenFids.has(dedupKey)) {
+        seenFids.add(dedupKey);
+        if (!slugCoords.has(slug)) slugCoords.set(slug, []);
+        for (const coord of extractCoordinates(feature)) {
+          slugCoords.get(slug)!.push(...coord);
+        }
+      }
+    }
+  }
+
+  const index: Record<string, SlugIndexEntry> = {};
+  for (const [slug, tileIds] of slugTiles) {
+    const coords = slugCoords.get(slug) ?? [];
+    const hash = crypto
+      .createHash('sha256')
+      .update(Float64Array.from(coords))
+      .digest('hex')
+      .slice(0, 12);
+    index[slug] = {
+      tiles: [...tileIds].sort(),
+      hash,
+    };
+  }
+
+  return index;
 }
 
 // --- CLI entry point ---
@@ -126,29 +368,81 @@ if (isMainModule) {
     process.exit(0);
   }
 
-  const geoDir = path.resolve('public', 'bike-paths', 'geo');
-  const tilesDir = path.join(geoDir, 'tiles');
+  const CITY = process.env.CITY || 'ottawa';
+  const cacheDir = path.resolve('.cache', 'bikepath-geometry', CITY);
 
-  if (!fs.existsSync(geoDir)) {
-    console.log(`[path-tiles] No geo directory at ${geoDir} — skipping`);
+  const tilesDir = path.resolve('public', 'bike-paths', 'geo', 'tiles');
+  const metaPath = path.resolve('public', 'bike-paths', 'geo', 'geo-metadata.json');
+
+  if (!fs.existsSync(cacheDir)) {
+    console.log(`[path-tiles] No cache directory at ${cacheDir} — skipping`);
     process.exit(0);
   }
 
-  const files = fs.readdirSync(geoDir).filter(f => f.endsWith('.geojson'));
-  if (files.length === 0) {
+  // Read geo files from manifest (authoritative list from cache-path-geometry).
+  // Falls back to globbing the directory if no manifest exists (first run / old cache).
+  const manifestPath = path.join(cacheDir, 'manifest.json');
+  let files: string[];
+  if (fs.existsSync(manifestPath)) {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    files = (manifest.files as string[]).filter(f => fs.existsSync(path.join(cacheDir, f)));
+    console.log(`[path-tiles] Reading ${files.length} files from manifest (${manifest.files.length} listed)`);
+  } else {
+    files = fs.readdirSync(cacheDir).filter(f => f.endsWith('.geojson'));
+    console.log(`[path-tiles] No manifest found — falling back to directory glob (${files.length} files)`);
+  }
+
+  // Read geojson files
+  const input = new Map<string, FeatureCollection>();
+  for (const file of files) {
+    const geoId = file.replace('.geojson', '');
+    const content = fs.readFileSync(path.join(cacheDir, file), 'utf-8');
+    input.set(geoId, JSON.parse(content) as FeatureCollection);
+  }
+
+  // Demo city: read from e2e/fixtures/overpass/ (overwrite cache — cache may have
+  // empty results from failed Overpass fetches for fake relation IDs)
+  if (CITY === 'demo') {
+    const fixtureDir = path.resolve('e2e', 'fixtures', 'overpass');
+    if (fs.existsSync(fixtureDir)) {
+      const fixtures = fs.readdirSync(fixtureDir).filter(f => f.endsWith('.geojson'));
+      for (const file of fixtures) {
+        const geoId = file.replace('.geojson', '');
+        const content = fs.readFileSync(path.join(fixtureDir, file), 'utf-8');
+        input.set(geoId, JSON.parse(content) as FeatureCollection);
+      }
+    }
+  }
+
+  if (input.size === 0) {
     console.log('[path-tiles] No geojson files found — skipping');
     process.exit(0);
   }
 
-  // Read all geojson files
-  const input = new Map<string, FeatureCollection>();
-  for (const file of files) {
-    const geoId = file.replace('.geojson', '');
-    const content = fs.readFileSync(path.join(geoDir, file), 'utf-8');
-    input.set(geoId, JSON.parse(content) as FeatureCollection);
+  // Read optional metadata
+  let metadata: Map<string, GeoMetaEntry> | undefined;
+  if (fs.existsSync(metaPath)) {
+    const raw = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as Record<string, GeoMetaEntry>;
+    metadata = new Map(Object.entries(raw));
+    console.log(`[path-tiles] Loaded metadata for ${metadata.size} geoIds`);
   }
 
-  const { tiles, manifest } = buildTiles(input);
+  // Copy raw geojson files to public/ before buildTiles (which may mutate input).
+  // Needed by getPathLengthKm() in bike-path-entries.server.ts during astro build.
+  const geoOutDir = path.resolve('public', 'bike-paths', 'geo');
+  fs.mkdirSync(geoOutDir, { recursive: true });
+  for (const f of fs.readdirSync(geoOutDir)) {
+    if (f.endsWith('.geojson')) fs.unlinkSync(path.join(geoOutDir, f));
+  }
+  let geoCopied = 0;
+  for (const [geoId, fc] of input) {
+    if (metadata && !metadata.has(geoId)) continue;
+    fs.writeFileSync(path.join(geoOutDir, `${geoId}.geojson`), JSON.stringify(fc));
+    geoCopied++;
+  }
+  console.log(`[path-geo] Copied ${geoCopied} geometry files to ${geoOutDir}/ (${input.size - geoCopied} stale skipped)`);
+
+  const { tiles, manifest } = buildTiles(input, metadata);
 
   // Clean previous tiles
   if (fs.existsSync(tilesDir)) {
@@ -169,6 +463,11 @@ if (isMainModule) {
 
   // Write manifest
   fs.writeFileSync(path.join(tilesDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+  // Write slug index (slug -> tile IDs + geometry hash)
+  const slugIndex = buildSlugIndex(tiles);
+  fs.writeFileSync(path.join(tilesDir, 'slug-index.json'), JSON.stringify(slugIndex));
+  console.log(`[path-tiles] Generated slug index for ${Object.keys(slugIndex).length} slugs`);
 
   console.log(`[path-tiles] Generated ${tiles.size} tiles (${totalFeatures} features) + manifest`);
 }

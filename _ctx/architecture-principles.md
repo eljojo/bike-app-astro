@@ -1,6 +1,6 @@
 ---
 description: Static is Sacred, Develop on a Train, Universal Media, Data Locality, Data Insights, Tags as Behaviour
-type: guide
+type: vision
 triggers: [designing a new feature, choosing where data lives, deciding build-time vs runtime, adding media handling, working with tags]
 related: [instance-types, config-layers, development-principles]
 ---

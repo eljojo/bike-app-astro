@@ -104,6 +104,34 @@
   }
 }
 
+// Map expand button — reusable toggle for grow/shrink
+.map-expand-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: none;
+  background: #fff;
+  color: #333;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform $transition-state;
+  &:hover { transform: scale(1.1); }
+  @include dark-mode {
+    background: #222;
+    color: #ddd;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+}
+
 .expandable-map-hint {
   position: absolute;
   bottom: 8px;

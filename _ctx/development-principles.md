@@ -1,6 +1,6 @@
 ---
 description: Empathy, universality, show don't tell, domain-driven design, durability, docs currency
-type: guide
+type: vision
 triggers: [making product decisions, choosing defaults, naming domain concepts, writing for new users, adding content types]
 related: [voice-and-feel, architecture-principles, brand-framing]
 ---

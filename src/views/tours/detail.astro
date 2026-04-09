@@ -11,8 +11,8 @@ import { t } from '@/i18n';
 import { countryToFlag } from '@/lib/country-flags';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation } from '@/lib/format';
-import { paths, assets } from '@/lib/paths';
-import { hasCachedMap } from '@/lib/maps/map-thumbnails';
+import { paths } from '@/lib/paths';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { TOUR_PALETTE } from '@/lib/maps/map-init';
 
 const config = getCityConfig();
@@ -114,7 +114,8 @@ const breadcrumbs = breadcrumbJsonLd([
         <ul class="tour-detail--rides">
           {tourRides.map(ride => {
             const cover = ride.data.media.find(m => m.cover);
-            const hasMap = hasCachedMap(ride.id);
+            const rideGpxHash = ride.data.gpxHash;
+            const rideLang = locale || 'en';
             return (
               <li class="tour-ride">
                 <a href={paths.ride(ride.id, ride.data.tour_slug)} class="tour-ride--link">
@@ -129,10 +130,10 @@ const breadcrumbs = breadcrumbJsonLd([
                         height="80"
                       />
                     )}
-                    {hasMap && (
+                    {rideGpxHash && (
                       <img
                         class="tour-ride--map"
-                        src={assets.mapThumbnail(ride.id, 375)}
+                        src={mapImageUrl('ride', ride.id, 'thumb', { hash: rideGpxHash, lang: rideLang })}
                         alt={`Map of ${ride.data.name}`}
                         loading="lazy"
                         width="80"

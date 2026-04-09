@@ -74,7 +74,7 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
                   {net.memberRefs && net.memberRefs.length > 0 && (
                     <ul>
                       {net.memberRefs.filter(m => m.standalone).map(m => (
-                        <li><a href={paths.bikePath(m.slug, net.slug, defLocale)}>{m.name}</a></li>
+                        <li><a href={paths.bikePath(m.slug, m.memberOf ?? net.slug, defLocale)}>{m.name}</a></li>
                       ))}
                     </ul>
                   )}
@@ -168,7 +168,7 @@ const nonDefaultLocales = locales.filter(l => l !== defLocale);
                     {net.memberRefs && net.memberRefs.length > 0 && (
                       <ul>
                         {net.memberRefs.filter(m => m.standalone).map(m => (
-                          <li><a href={paths.bikePath(m.slug, net.slug, locale)}>{m.name}</a></li>
+                          <li><a href={paths.bikePath(m.slug, m.memberOf ?? net.slug, locale)}>{m.name}</a></li>
                         ))}
                       </ul>
                     )}

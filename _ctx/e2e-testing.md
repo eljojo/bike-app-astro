@@ -1,6 +1,6 @@
 ---
 description: E2E fixtures, hydration waits, screenshot conventions, DB lifecycle
-type: guide
+type: knowledge
 triggers: [writing e2e tests, debugging e2e failures, adding screenshot tests, working with test fixtures]
 related: [preact-islands]
 ---

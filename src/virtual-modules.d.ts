@@ -219,6 +219,7 @@ interface _Tour {
   start_date: string;
   end_date: string;
   rides: string[];
+  gpxHash?: string;
 }
 
 declare module 'virtual:bike-app/tours' {

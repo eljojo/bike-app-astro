@@ -1,0 +1,868 @@
+{
+  "type": "item",
+  "labels": {
+    "en": "Capital Pathway",
+    "ja": "カナダ首都県自転車専用道路",
+    "fr": "Sentier de la capitale"
+  },
+  "descriptions": {
+    "nl": "park in Ontario, Canada",
+    "ar": "متنزه في كندا",
+    "de": "Pfad in Kanada",
+    "en": "Bike path network in Ottawa-Gatineau, Canada",
+    "ja": "市内公園を通るの自転車や歩行者ための専用道路",
+    "fr": "réseau de pistes cyclables à Ottawa-Gatineau, Canada"
+  },
+  "aliases": {
+    "en": [
+      "National Capital Bike Path",
+      "Ottawa Bike Path",
+      "Gatineau Bike Path",
+      "Ottawa River Bike Path",
+      "Rideau River Bike Path",
+      "Rideau Canal Bike Path",
+      "NCC Bike Path"
+    ],
+    "ja": [
+      "オタワ自転車専道路",
+      "オタワ市自転車専道路",
+      "キャピタル•パスウェイ",
+      "ガティノ自転車専用道路",
+      "ガティノ市自転車専用道路",
+      "オタワ・ガティノ市自転車専用道路",
+      "コンフェデレーション・パスウェイ自転車歩行者専用道路（キャピタル・パスウェイ）"
+    ]
+  },
+  "statements": {
+    "P625": [
+      {
+        "id": "q5035630$7659CCD9-8A29-484B-9C87-E22DF199582D",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P625",
+          "data_type": "globe-coordinate"
+        },
+        "value": {
+          "type": "value",
+          "content": {
+            "latitude": 45.4265,
+            "longitude": -75.6991,
+            "precision": null,
+            "globe": "http://www.wikidata.org/entity/Q2"
+          }
+        }
+      }
+    ],
+    "P17": [
+      {
+        "id": "q5035630$83DE4409-D934-4E51-9A90-8364E700195E",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P17",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q16"
+        }
+      }
+    ],
+    "P131": [
+      {
+        "id": "q5035630$972A2674-EBA4-415E-BD58-A13902F44841",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "9e580a141f9ff4c7fb1cc4d232e769d306e55acd",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              },
+              {
+                "property": {
+                  "id": "P4656",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://en.wikipedia.org/wiki/Capital_Pathway"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P131",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q1930"
+        }
+      },
+      {
+        "id": "Q5035630$a1d63061-4e7b-7413-af1c-360d3ce5487f",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "9e580a141f9ff4c7fb1cc4d232e769d306e55acd",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              },
+              {
+                "property": {
+                  "id": "P4656",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://en.wikipedia.org/wiki/Capital_Pathway"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P131",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q141844"
+        }
+      }
+    ],
+    "P31": [
+      {
+        "id": "Q5035630$fcab4c79-403e-c947-7f2a-da8682e94a87",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "9e580a141f9ff4c7fb1cc4d232e769d306e55acd",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              },
+              {
+                "property": {
+                  "id": "P4656",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://en.wikipedia.org/wiki/Capital_Pathway"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P31",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q221722"
+        }
+      },
+      {
+        "id": "Q5035630$aacc6611-4612-833e-12af-3ed23c00fb85",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P31",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q12670591"
+        }
+      }
+    ],
+    "P18": [
+      {
+        "id": "Q5035630$5355D987-26E8-4A82-A039-E93DAFAF2591",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P18",
+          "data_type": "commonsMedia"
+        },
+        "value": {
+          "type": "value",
+          "content": "Ottawa Sept 09 2006 068.jpg"
+        }
+      }
+    ],
+    "P2043": [
+      {
+        "id": "Q5035630$C9832B65-1F99-4043-817F-24F5F7075A3D",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P2043",
+          "data_type": "quantity"
+        },
+        "value": {
+          "type": "value",
+          "content": {
+            "amount": "+220",
+            "unit": "http://www.wikidata.org/entity/Q828224"
+          }
+        }
+      }
+    ],
+    "P856": [
+      {
+        "id": "Q5035630$C98F18C9-CB94-4BCD-AB50-B85FF3F27F16",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q1860"
+            }
+          }
+        ],
+        "references": [],
+        "property": {
+          "id": "P856",
+          "data_type": "url"
+        },
+        "value": {
+          "type": "value",
+          "content": "https://ncc-ccn.gc.ca/places/capital-pathway"
+        }
+      },
+      {
+        "id": "Q5035630$490d0e1f-48aa-8a64-044b-739e083c435e",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q150"
+            }
+          }
+        ],
+        "references": [],
+        "property": {
+          "id": "P856",
+          "data_type": "url"
+        },
+        "value": {
+          "type": "value",
+          "content": "https://ccn-ncc.gc.ca/endroits/sentier-de-la-capitale"
+        }
+      }
+    ],
+    "P373": [
+      {
+        "id": "Q5035630$2B1F5422-641B-495D-A234-ABC79873E755",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P373",
+          "data_type": "string"
+        },
+        "value": {
+          "type": "value",
+          "content": "Capital Pathway"
+        }
+      }
+    ],
+    "P2789": [
+      {
+        "id": "Q5035630$862f8290-416d-f76b-9122-d8e274e4a719",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q3095844"
+        }
+      },
+      {
+        "id": "Q5035630$276b6e26-425a-4144-15ed-394e0ca01609",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q2024660"
+        }
+      },
+      {
+        "id": "Q5035630$8379b45e-4190-e04b-b325-dc308a1e9062",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q7832872"
+        }
+      },
+      {
+        "id": "Q5035630$b2ed1ff8-4016-38ee-a21e-0c3b51e5fd8d",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q356958"
+        }
+      },
+      {
+        "id": "Q5035630$c86e905d-4722-4c1f-e8f0-e41a36ca79d9",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q2943854"
+        }
+      },
+      {
+        "id": "Q5035630$0691545f-4d2d-a28b-17cb-1488143e3658",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q5432453"
+        }
+      },
+      {
+        "id": "Q5035630$0826a52b-4ede-882e-cdd1-05554b6430f2",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q3096415"
+        }
+      },
+      {
+        "id": "Q5035630$c08f2971-4be3-1553-440c-72d10778de3a",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P2789",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q3396687"
+        }
+      }
+    ],
+    "P126": [
+      {
+        "id": "Q5035630$733be960-4b65-f999-efbc-e9e7efbc9420",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "9e580a141f9ff4c7fb1cc4d232e769d306e55acd",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              },
+              {
+                "property": {
+                  "id": "P4656",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://en.wikipedia.org/wiki/Capital_Pathway"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P126",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q613449"
+        }
+      }
+    ],
+    "P7127": [
+      {
+        "id": "Q5035630$1f3aa10e-4efc-e92e-276b-8c01315417b2",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P7127",
+          "data_type": "external-id"
+        },
+        "value": {
+          "type": "value",
+          "content": "trail/canada/ontario/ottawa-river-pathway"
+        }
+      }
+    ],
+    "P3984": [
+      {
+        "id": "Q5035630$4f539749-4316-5273-67ff-36b89cbed8ce",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P1810",
+              "data_type": "string"
+            },
+            "value": {
+              "type": "value",
+              "content": "Ottawa Biking Community"
+            }
+          },
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q1860"
+            }
+          },
+          {
+            "property": {
+              "id": "P580",
+              "data_type": "time"
+            },
+            "value": {
+              "type": "value",
+              "content": {
+                "time": "+2011-08-19T00:00:00Z",
+                "precision": 11,
+                "calendarmodel": "http://www.wikidata.org/entity/Q1985727"
+              }
+            }
+          }
+        ],
+        "references": [
+          {
+            "hash": "2a72e66578ee08bcbc36fd6c183f8938adfeca5c",
+            "parts": [
+              {
+                "property": {
+                  "id": "P854",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://www.reddit.com/r/bikeinottawa/"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P3984",
+          "data_type": "external-id"
+        },
+        "value": {
+          "type": "value",
+          "content": "bikeinottawa"
+        }
+      }
+    ],
+    "P646": [
+      {
+        "id": "Q5035630$C11172E6-5623-4D4B-9A19-8DCDF089D6D4",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P646",
+          "data_type": "external-id"
+        },
+        "value": {
+          "type": "value",
+          "content": "/m/0h1ffn2"
+        }
+      }
+    ],
+    "P402": [
+      {
+        "id": "Q5035630$dd8202bc-4874-d729-6c90-248af0a7bd17",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [],
+        "property": {
+          "id": "P402",
+          "data_type": "external-id"
+        },
+        "value": {
+          "type": "value",
+          "content": "10990511"
+        }
+      }
+    ],
+    "P571": [
+      {
+        "id": "Q5035630$94b47e1e-49d5-b9f2-bb1e-912f559dc344",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "9e580a141f9ff4c7fb1cc4d232e769d306e55acd",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              },
+              {
+                "property": {
+                  "id": "P4656",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://en.wikipedia.org/wiki/Capital_Pathway"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P571",
+          "data_type": "time"
+        },
+        "value": {
+          "type": "value",
+          "content": {
+            "time": "+1970-00-00T00:00:00Z",
+            "precision": 8,
+            "calendarmodel": "http://www.wikidata.org/entity/Q1985727"
+          }
+        }
+      }
+    ],
+    "P973": [
+      {
+        "id": "Q5035630$6451fc44-4d82-c064-444d-6acb25016fc4",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q1860"
+            }
+          }
+        ],
+        "references": [],
+        "property": {
+          "id": "P973",
+          "data_type": "url"
+        },
+        "value": {
+          "type": "value",
+          "content": "https://ottawa.ca/en/parking-roads-and-travel/active-transportation/routes-and-maps"
+        }
+      },
+      {
+        "id": "Q5035630$a931d047-485b-0bb4-2635-041cad1dcd7d",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q150"
+            }
+          }
+        ],
+        "references": [],
+        "property": {
+          "id": "P973",
+          "data_type": "url"
+        },
+        "value": {
+          "type": "value",
+          "content": "https://ottawa.ca/fr/stationnement-routes-et-deplacements/velo/trajets-et-cartes"
+        }
+      },
+      {
+        "id": "Q5035630$9f0dc61e-4ca7-bf1b-cf62-bf72ac6aa68c",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q1860"
+            }
+          }
+        ],
+        "references": [],
+        "property": {
+          "id": "P973",
+          "data_type": "url"
+        },
+        "value": {
+          "type": "value",
+          "content": "https://hansonthebike.com/2020/05/27/ottawa-multi-use-pathway-map/"
+        }
+      },
+      {
+        "id": "Q5035630$371b3063-496b-748e-bc5e-d76dc7efc560",
+        "rank": "normal",
+        "qualifiers": [
+          {
+            "property": {
+              "id": "P407",
+              "data_type": "wikibase-item"
+            },
+            "value": {
+              "type": "value",
+              "content": "Q1860"
+            }
+          }
+        ],
+        "references": [],
+        "property": {
+          "id": "P973",
+          "data_type": "url"
+        },
+        "value": {
+          "type": "value",
+          "content": "https://maps.bikeottawa.ca/pathways/"
+        }
+      }
+    ],
+    "P276": [
+      {
+        "id": "Q5035630$596D1A1B-13EE-41D6-AD63-15512DA1ED35",
+        "rank": "normal",
+        "qualifiers": [],
+        "references": [
+          {
+            "hash": "96ba5f54bb3eaa6eeeb304d95204a456d314a44a",
+            "parts": [
+              {
+                "property": {
+                  "id": "P143",
+                  "data_type": "wikibase-item"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "Q328"
+                }
+              },
+              {
+                "property": {
+                  "id": "P813",
+                  "data_type": "time"
+                },
+                "value": {
+                  "type": "value",
+                  "content": {
+                    "time": "+2022-08-30T00:00:00Z",
+                    "precision": 11,
+                    "calendarmodel": "http://www.wikidata.org/entity/Q1985727"
+                  }
+                }
+              },
+              {
+                "property": {
+                  "id": "P4656",
+                  "data_type": "url"
+                },
+                "value": {
+                  "type": "value",
+                  "content": "https://en.wikipedia.org/w/index.php?title=Capital_Pathway&oldid=1102565823"
+                }
+              }
+            ]
+          }
+        ],
+        "property": {
+          "id": "P276",
+          "data_type": "wikibase-item"
+        },
+        "value": {
+          "type": "value",
+          "content": "Q668850"
+        }
+      }
+    ]
+  },
+  "sitelinks": {
+    "enwiki": {
+      "title": "Capital Pathway",
+      "badges": [],
+      "url": "https://en.wikipedia.org/wiki/Capital_Pathway"
+    },
+    "commonswiki": {
+      "title": "Category:Capital Pathway",
+      "badges": [],
+      "url": "https://commons.wikimedia.org/wiki/Category:Capital_Pathway"
+    }
+  },
+  "id": "Q5035630"
+}

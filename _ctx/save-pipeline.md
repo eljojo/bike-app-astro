@@ -1,6 +1,6 @@
 ---
 description: SaveHandlers factory, conflict detection, D1 cache overlay, afterCommit hooks
-type: pattern
+type: knowledge
 triggers: [editing save handlers, adding content types, debugging save conflicts, modifying admin save flow, working with D1 cache]
 related: [content-model, adding-new-things, preact-islands]
 ---

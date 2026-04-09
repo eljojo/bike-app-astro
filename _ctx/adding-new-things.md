@@ -1,6 +1,6 @@
 ---
 description: Checklists for adding content types, endpoints, routes, tables, virtual modules, islands
-type: pattern
+type: knowledge
 triggers: [adding content types, adding endpoints, adding routes, adding database tables, adding virtual modules, adding preact islands, creating new features]
 related: [save-pipeline, content-model, virtual-modules, i18n, preact-islands]
 ---

@@ -1,6 +1,6 @@
 ---
 description: Blog city is always blog/, CITY=blog, consumer repo pattern, sync.js, how rides differ from routes
-type: pattern
+type: knowledge
 triggers: [working on blog features, blog deployment, ride editor, blog-specific content, consumer repos]
 related: [instance-types, save-pipeline, content-model]
 ---

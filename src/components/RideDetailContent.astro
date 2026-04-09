@@ -1,10 +1,10 @@
 ---
 import { imageUrl } from '@/lib/media/image-service';
-import { hasCachedMap, cachedMapLocale } from '@/lib/maps/map-thumbnails';
+import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { t } from '@/i18n';
 import { formatDuration } from '@/lib/date-utils';
 import { formatDistance, formatElevation, formatSpeed } from '@/lib/format';
-import { paths, assets } from '@/lib/paths';
+import { paths } from '@/lib/paths';
 import { countryToFlag } from '@/lib/country-flags';
 import Icon from './Icon.astro';
 import MediaGallery from '@/components/MediaGallery.astro';
@@ -27,8 +27,7 @@ const { name, distance_km, media, gpxTracks, renderedBody } = route.data;
 const locale = Astro.currentLocale;
 
 const cover = media.find((m: any) => m.cover);
-const hasMap = hasCachedMap(route.id);
-const mapLang = cachedMapLocale(route.id, undefined, locale);
+const gpxHash = route.data.gpxHash;
 
 const primaryGpx = route.data.variants[0]?.gpx;
 const primaryTrack = primaryGpx ? gpxTracks[primaryGpx] : null;
@@ -90,11 +89,11 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
   </Fragment>
 
   <Fragment slot="sidebar">
-    {hasMap && (
+    {gpxHash && (
       <div class="route-detail--static-map">
         <a href={paths.rideMap(route.id, route.data.tour_slug)} title={t('ride.view_map', locale)}>
           <img
-            src={`/maps/${mapLang ? mapLang + '/' : ''}${route.id}/map-750.webp`}
+            src={mapImageUrl('ride', route.id, 'thumb-2x', { hash: gpxHash, lang: locale || 'en' })}
             alt={t('route.map_of', locale, { name })}
           />
         </a>
@@ -111,7 +110,7 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
         <ul class="tour-detail--rides">
           {tourRides.map(tourRide => {
             const rideCover = tourRide.data.media.find((m: any) => m.cover);
-            const rideHasMap = hasCachedMap(tourRide.id);
+            const rideGpxHash = tourRide.data.gpxHash;
             const isCurrent = tourRide.id === route.id;
             return (
               <li class={`tour-ride${isCurrent ? ' current' : ''}`}>
@@ -127,10 +126,10 @@ const timeDisplay = route.data.elapsed_time_s && route.data.moving_time_s
                         height="80"
                       />
                     )}
-                    {rideHasMap && (
+                    {rideGpxHash && (
                       <img
                         class="tour-ride--map"
-                        src={assets.mapThumbnail(tourRide.id, 375)}
+                        src={mapImageUrl('ride', tourRide.id, 'thumb', { hash: rideGpxHash, lang: locale || 'en' })}
                         alt={t('route.map_of', locale, { name: tourRide.data.name })}
                         loading="lazy"
                         width="80"

@@ -3,6 +3,7 @@ export const prerender = true;
 import { loadBikePathData, type BikePathPage } from '@/lib/bike-paths/bike-path-data.server';
 import { loadBuildPlan, filterByBuildPlan } from '@/lib/content/build-plan.server';
 import BikePathDetail from './BikePathDetail.astro';
+import { buildNetworkMeta, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 
 export async function getStaticPaths() {
   const { pages } = await loadBikePathData();
@@ -13,19 +14,15 @@ export async function getStaticPaths() {
     loadBuildPlan(),
     'bike-path',
   );
-  // Build network slug → name lookup for "Connects to" display
-  const networkNames: Record<string, string> = {};
-  for (const p of pages) {
-    if (p.memberRefs && p.memberRefs.length > 0) networkNames[p.slug] = p.name;
-  }
+  const networkMeta = buildNetworkMeta(pages);
   return filtered.map(page => ({
     params: { slug: page.slug },
-    props: { page, networkNames },
+    props: { page, networkMeta },
   }));
 }
 
-interface Props { page: BikePathPage; networkNames: Record<string, string> }
-const { page, networkNames } = Astro.props;
+interface Props { page: BikePathPage; networkMeta: Record<string, NetworkMeta> }
+const { page, networkMeta } = Astro.props;
 ---
 
-<BikePathDetail page={page} networkNames={networkNames} />
+<BikePathDetail page={page} networkMeta={networkMeta} />

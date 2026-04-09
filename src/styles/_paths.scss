@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use 'variables' as *;
 @use 'mixins' as *;
 
@@ -26,13 +27,61 @@
   }
 }
 
+.paths-browse-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: $color-bg;
+  @include dark-mode { background: $color-bg-dark; }
+}
+
 .paths-map-hero-wrapper {
-  margin-bottom: 2rem;
+  margin-bottom: 0;
+}
+
+// Path info popup on index map
+.path-popup {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.path-popup-name {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.2rem;
+}
+.path-popup-network {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  margin-bottom: 0.2rem;
+  a { color: $color-link; text-decoration: none; &:hover { text-decoration: underline; } }
+}
+.path-popup-meta {
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  margin-bottom: 0.2rem;
+}
+.path-popup-vibe {
+  font-style: italic;
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  margin-bottom: 0.3rem;
+}
+.path-popup-link {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: $color-link;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
 }
 
 .paths-map-hero {
   border-radius: $border-radius;
   overflow: hidden;
+
+  @media (max-width: $breakpoint-tablet) {
+    max-height: 40vh;
+  }
 }
 
 // Touch-lock overlay moved to global — see _map-touch-lock.scss
@@ -174,6 +223,11 @@
     transition: background 0.15s ease;
     padding: 0.15rem 0.3rem;
     border-radius: 3px;
+
+    @media (max-width: $breakpoint-tablet) {
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
   }
 
   li.path-highlight {
@@ -189,6 +243,53 @@
   padding: 0 1rem;
 
   h1 { margin: 0 0 0.25rem; }
+
+  @media (max-width: $breakpoint-tablet) {
+    display: grid;
+    grid-template-columns: 1fr;
+
+    // 1. Map (network or standalone/member)
+    .network-map-full { order: 1; }
+    .bike-path-sidebar-map { order: 1; }
+
+    // 2. Title area
+    .bike-path-title { order: 2; }
+    .network-badge { order: 3; }
+    .bike-path-vibe { order: 4; }
+
+    // 3. Key info
+    .nearest-major-path { order: 5; }
+    .bike-path-commons-image { order: 6; }
+    .bike-path-facts-table { order: 6; }
+    .bike-path-description { order: 7; }
+    .bike-path-stub-cta { order: 8; }
+
+    // 4. Network members (network pages)
+    .network-members { order: 9; }
+
+    // 5. Photos
+    .bike-path-photos { order: 10; }
+
+    // 6. External links
+    .external-link-website { order: 11; }
+    .external-link-wikipedia { order: 12; }
+    .external-link-social { order: 12; }
+    .external-link-commons { order: 12; }
+
+    // 7. Secondary info
+    .connects-to-section { order: 13; }
+    .bike-path-routes { order: 14; }
+    .networks-here { order: 15; }
+    .shared-routes { order: 16; }
+    .nearby-places { order: 17; }
+    .nearby-paths { order: 18; }
+
+    // 8. Bottom
+    .bike-path-wikipedia-attribution { order: 19; }
+    .bike-path-edit-cta { order: 19; }
+    .bike-path-osm { order: 20; }
+    .bike-path-back { order: 21; }
+  }
 }
 
 .network-badge {
@@ -224,40 +325,13 @@
   align-items: start;
 
   @media (max-width: $breakpoint-tablet) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    // Flatten into parent .bike-path-detail grid
+    display: contents;
 
-    // Flatten both containers so children become direct grid items,
-    // allowing interleaved ordering: map+facts → description → nearby → routes
     .bike-path-main,
     .bike-path-sidebar {
       display: contents;
     }
-
-    // 1. Map + facts
-    .bike-path-map-wrapper { order: 1; }
-    .bike-path-facts-table { order: 2; }
-
-    // 2. Description / body content
-    .bike-path-stub-cta { order: 3; }
-    .bike-path-description { order: 4; }
-    .edit-entry-point { order: 5; }
-
-    // 3. Routes on this path
-    .routes-on-path { order: 6; }
-
-    // 4. Nearby places
-    .nearby-places { order: 7; }
-
-    // 5. Photos
-    .bike-path-photos { order: 8; }
-
-    // 6. Nearby paths + connects to
-    .nearby-paths { order: 9; }
-    .connected-paths { order: 10; }
-
-    // 7. Footer links
-    .bike-path-links { order: 11; }
   }
 }
 
@@ -289,6 +363,34 @@
     color: inherit;
     font-weight: 600;
     text-decoration: underline;
+  }
+}
+
+// Commons image (sidebar)
+.bike-path-commons-image {
+  border-radius: $border-radius;
+  overflow: hidden;
+
+  .commons-image {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .commons-image-attribution {
+    margin: 0;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.7rem;
+    @include muted-text;
+    text-align: right;
+    background: $color-card-bg;
+    @include dark-mode { background: $color-card-bg-dark; }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
   }
 }
 
@@ -480,16 +582,15 @@
 .network-map-full {
   margin: 0 -1rem 1.5rem;
 
-  .bike-path-map-card {
+  .paths-map-hero {
     border-radius: 0;
   }
 
   @media (min-width: $breakpoint-tablet) {
     margin: 0 0 2rem;
 
-    .bike-path-map-card {
+    .paths-map-hero {
       border-radius: $border-radius;
-      min-height: 350px;
     }
   }
 }
@@ -552,6 +653,51 @@
   margin-left: 1em;
 }
 
+// Long-distance members — trails that pass through this network
+.network-members-long-distance {
+  margin-bottom: 1rem;
+}
+
+.network-member-long-distance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6em 0.75em;
+  margin-bottom: 0.35rem;
+  text-decoration: none;
+  color: $color-text;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  border-left: 3px solid $color-accent;
+  transition: background 0.15s;
+
+  &:hover {
+    background: color.adjust($color-card-bg, $lightness: -3%);
+  }
+
+  @include dark-mode {
+    color: $color-text-dark;
+    background: $color-card-bg-dark;
+    &:hover { background: color.adjust($color-card-bg-dark, $lightness: 3%); }
+  }
+
+  .network-member-name {
+    font-weight: 600;
+  }
+}
+
+// Secondary members — paths shared with another network
+.network-members h3 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  margin: 1.25rem 0 0.5rem;
+  @include muted-text;
+}
+
+.network-member-secondary .network-member-name {
+  font-weight: 400;
+}
+
 // Nearby paths
 .nearby-paths {
   margin-bottom: 1.5rem;
@@ -587,6 +733,30 @@
   }
 }
 
+.nearby-paths-network {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-decoration: none;
+  display: block;
+  margin-top: 0.4rem;
+  &:first-child { margin-top: 0; }
+  &:hover { text-decoration: underline; }
+}
+
+// Shared routes (hiking, ski trails)
+.shared-routes {
+  margin-bottom: 1rem;
+  h3 { @include muted-text; font-size: 0.85rem; margin: 0 0 0.4rem; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { display: flex; align-items: baseline; gap: 0.4rem; padding: 0.15rem 0; font-size: 0.85rem; }
+}
+.shared-route-link {
+  color: $color-text; text-decoration: none;
+  &:hover { text-decoration: underline; }
+  @include dark-mode { color: $color-text-dark; }
+}
+.shared-route-type { @include muted-text; font-size: 0.75rem; }
+
 // Photo grid on detail page
 .bike-path-photos {
   margin-bottom: 2rem;
@@ -598,6 +768,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.5rem;
+
+  .bike-path-photo-hidden {
+    display: none;
+  }
 
   .bike-path-photo {
     display: block;
@@ -624,6 +798,222 @@
   }
 }
 
+// Nearest major path — prominent callout to the closest significant path
+.nearest-major-path {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 1.25rem;
+  background: $color-card-bg;
+  border-radius: 4px;
+  text-decoration: none;
+  color: $color-text;
+  @include dark-mode { background: $color-card-bg-dark; color: $color-text-dark; }
+  &:hover { background: $color-card-hover; @include dark-mode { background: $color-card-hover-dark; } }
+}
+.nearest-major-label {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.nearest-major-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+.nearest-major-meta {
+  @include muted-text;
+  font-size: 0.8rem;
+}
+
+// Connects to — paths you can ride to from here
+.connects-to-section {
+  margin-bottom: 1.25rem;
+
+  h2 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+}
+
+.connects-to-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.connects-to-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid $color-card-bg;
+  @include dark-mode { border-color: $color-card-bg-dark; }
+}
+
+.connects-to-link {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: $color-text;
+  flex: 1;
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.connects-to-name {
+  font-weight: 500;
+}
+
+.connects-to-meta {
+  @include muted-text;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.connects-to-network {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+  &:hover { text-decoration: underline; }
+}
+
+// Networks here — one-line summaries
+.networks-here {
+  margin-bottom: 1.25rem;
+}
+
+.network-here-own,
+.network-here-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.network-here-own {
+  display: inline-flex;
+  background-color: rgba(#6bc46b, 0.15);
+  padding: 0.15em 0.3em;
+  border-radius: 2px;
+  @include dark-mode { background-color: rgba(#6bc46b, 0.12); }
+
+  .network-here-link { color: $color-text; font-weight: 500; @include dark-mode { color: $color-text-dark; } }
+  .network-here-meta { color: $color-text; @include dark-mode { color: $color-text-dark; } }
+}
+
+.network-here-link {
+  text-decoration: none;
+  color: $color-text;
+  font-size: 0.9rem;
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.network-here-heading {
+  @include muted-text;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.5rem;
+}
+
+.network-here-meta {
+  @include muted-text;
+  font-size: 0.8rem;
+}
+
+.network-card {
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.4rem;
+  border-left: 3px solid $color-accent;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.network-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.network-card-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: $color-accent;
+}
+
+.network-card-meta {
+  @include muted-text;
+  font-size: 0.75rem;
+}
+
+.network-card-label {
+  @include muted-text;
+  font-size: 0.75rem;
+}
+
+.network-card-paths {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid $color-card-bg;
+
+  @include dark-mode {
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.network-card-path {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+  font-size: 0.85rem;
+
+  a {
+    color: $color-text;
+    text-decoration: none;
+    @include dark-mode { color: $color-text-dark; }
+  }
+}
+
+.network-card-path-relation {
+  @include muted-text;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  margin-left: 0.5rem;
+}
+
+// Website + Wikipedia link cards
+.external-link-card {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  background: $color-card-bg;
+  border-radius: $border-radius;
+  margin-bottom: 0.35rem;
+  text-decoration: none;
+  font-size: 0.85rem;
+  color: $color-text;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+    color: $color-text-dark;
+  }
+
+  .external-link-icon {
+    flex-shrink: 0;
+  }
+
+  .external-link-arrow {
+    margin-left: auto;
+    @include muted-text;
+  }
+}
+
 // Distance on path (route cards)
 .routes-on-path-card-on-path {
   display: block;
@@ -631,4 +1021,133 @@
   font-size: 0.75rem;
   @include muted-text;
   font-style: italic;
+}
+
+// Network tab bar
+.paths-browse {
+  margin: 1.5rem 0;
+}
+
+.network-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid $color-card-bg;
+  @include dark-mode { border-color: $color-card-bg-dark; }
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.network-tab {
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: $color-text-muted;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+
+  @include dark-mode { color: rgba(255,255,255,0.5); }
+
+  &:hover {
+    color: $color-text;
+    @include dark-mode { color: $color-text-dark; }
+  }
+
+  &.active {
+    color: $color-accent;
+    border-bottom-color: $color-accent;
+  }
+}
+
+.network-tab--all {
+  font-style: italic;
+  font-weight: 400;
+}
+
+// Network panel (expanded member list)
+.network-panel {
+  display: none;
+  &.active { display: block; }
+}
+
+.network-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.75rem 0 0.5rem;
+
+  @media (max-width: $breakpoint-tablet) {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+.network-panel-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+  color: $color-text;
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.network-panel-link {
+  font-size: 0.8rem;
+  color: $color-accent;
+  text-decoration: none;
+}
+
+// Tier 2 — collapsed summary of shorter segments
+.network-tier2 {
+  padding: 0.5rem 0;
+  font-size: 0.8rem;
+
+  .network-members-list {
+    margin-top: 0.5rem;
+
+    li[data-slug] {
+      @media (max-width: $breakpoint-tablet) {
+        -webkit-touch-callout: none;
+        user-select: none;
+      }
+    }
+  }
+
+  &[open] .network-tier2-names {
+    display: none;
+  }
+}
+
+.network-tier2-label {
+  @include muted-text;
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker { display: none; }
+  &::marker { display: none; content: ''; }
+}
+
+.network-tier2-names {
+  @include muted-text;
+  font-size: 0.8rem;
+  margin-left: 0.25rem;
+}
+
+// Independent paths section
+.paths-independent {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid $color-card-bg;
+  @include dark-mode { border-color: $color-card-bg-dark; }
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 500;
+    @include muted-text;
+    margin: 0 0 0.75rem;
+  }
 }

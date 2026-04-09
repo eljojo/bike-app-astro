@@ -31,6 +31,7 @@ beforeAll(() => {
   // Create bikepaths.yml with test entries
   fs.writeFileSync(path.join(cityPath, 'bikepaths.yml'), `bike_paths:
   - name: Ottawa River Pathway
+    type: destination
     osm_relations: [7174864]
     network: rcn
     operator: NCC
@@ -45,6 +46,7 @@ beforeAll(() => {
     highway: cycleway
     surface: asphalt
   - name: Small Local Path
+    type: destination
     highway: cycleway
     member_of: trail-network
   - name: Some Random Road
@@ -77,10 +79,43 @@ beforeAll(() => {
       length_km: 220
       inception: 1970s
   - name: Aviation Pathway
+    type: destination
     member_of: capital-pathway
     osm_relations: [7174865]
     highway: cycleway
     surface: asphalt
+  - name: Bank Street Bike Lane
+    type: infrastructure
+    osm_relations: [5551234]
+    highway: cycleway
+    surface: asphalt
+  - name: Short Connector Segment
+    type: connector
+    highway: cycleway
+  - name: Untyped Old Path
+    osm_relations: [5559999]
+    highway: cycleway
+    operator: NCC
+  - name: Crosstown Bikeway 5
+    type: network
+    members:
+      - oconnor-bikeway
+      - crosstown-bikeway-5-1
+    osm_relations: [10986756]
+    highway: cycleway
+  - name: O'Connor Bikeway
+    type: destination
+    member_of: crosstown-bikeway-5
+    osm_relations: [7201612]
+    highway: cycleway
+    surface: asphalt
+  - name: Crosstown Bikeway 5
+    type: destination
+    member_of: crosstown-bikeway-5
+    osm_relations: [10986755]
+    highway: cycleway
+    surface: asphalt
+    slug: crosstown-bikeway-5-1
 `);
 
   // Markdown that matches a YML entry by slug
@@ -159,7 +194,7 @@ describe('loadBikePathEntries', () => {
 
   it('parses all YML entries', () => {
     const { allYmlEntries } = loadBikePathEntries();
-    expect(allYmlEntries.length).toBe(8);
+    expect(allYmlEntries.length).toBe(14);
     expect(allYmlEntries.map(e => e.name)).toContain('Ottawa River Pathway');
     expect(allYmlEntries.map(e => e.name)).toContain('Rideau Canal Pathway');
   });
@@ -337,4 +372,64 @@ describe('loadBikePathEntries', () => {
     expect(network!.tags).toEqual(['park', 'family']);
     expect(network!.photo_key).toBe('trail-network-photo');
   });
+
+  it('type: destination entry gets standalone: true and listed: true', () => {
+    const { pages } = loadBikePathEntries();
+    const ottawa = pages.find(p => p.slug === 'ottawa-river-pathway');
+    expect(ottawa).toBeDefined();
+    expect(ottawa!.standalone).toBe(true);
+    expect(ottawa!.listed).toBe(true);
+  });
+
+  it('type: infrastructure entry gets standalone: false and listed: true', () => {
+    const { pages } = loadBikePathEntries();
+    const bikeLane = pages.find(p => p.slug === 'bank-street-bike-lane');
+    expect(bikeLane).toBeDefined();
+    expect(bikeLane!.standalone).toBe(false);
+    expect(bikeLane!.listed).toBe(true);
+  });
+
+  it('type: connector entry gets standalone: false and listed: false', () => {
+    const { pages } = loadBikePathEntries();
+    const connector = pages.find(p => p.slug === 'short-connector-segment');
+    expect(connector).toBeDefined();
+    expect(connector!.standalone).toBe(false);
+    expect(connector!.listed).toBe(false);
+  });
+
+  it('entry without explicit type gets entryType unknown, not listed, not standalone', () => {
+    const { pages } = loadBikePathEntries();
+    const untyped = pages.find(p => p.slug === 'untyped-old-path');
+    expect(untyped).toBeDefined();
+    expect(untyped!.entryType).toBe('unknown');
+    expect(untyped!.standalone).toBe(false);
+    expect(untyped!.listed).toBe(false);
+  });
+
+  // ── Failing test: same-named member absorption ─────────────────
+
+  it('same-named member with own OSM relation keeps standalone: true', () => {
+    // Crosstown Bikeway 5: the network (superroute 10986756) has a member
+    // also called "Crosstown Bikeway 5" (relation 10986755) — genuinely
+    // distinct infrastructure (on-street bike lanes vs. the network umbrella).
+    // The current absorption logic sets standalone: false for any member
+    // whose name matches the network, but a member with its own osm_relations
+    // is distinct infrastructure that deserves its own page.
+    const { pages } = loadBikePathEntries();
+    const member = pages.find(p => p.slug === 'crosstown-bikeway-5-1');
+    expect(member).toBeDefined();
+    expect(member!.standalone).toBe(true);
+  });
+
+  it('markdown override forces standalone: true regardless of type', () => {
+    const { pages } = loadBikePathEntries();
+    // rideau-canal-pathway has markdown — it should be standalone regardless
+    const rideau = pages.find(p => p.slug === 'rideau-canal-pathway');
+    expect(rideau).toBeDefined();
+    expect(rideau!.hasMarkdown).toBe(true);
+    expect(rideau!.standalone).toBe(true);
+    expect(rideau!.listed).toBe(true);
+  });
+
+
 });

@@ -10,11 +10,33 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
-import { parseBikePathsYml, type SluggedBikePathYml } from './bikepaths-yml.server';
+import { parseBikePathsYml, geoFilesForEntry, type SluggedBikePathYml } from './bikepaths-yml.server';
 import { readGeoFileData } from '../geo/geojson-reader.server';
-import { scoreBikePath, isHardExcluded, isDestination, SCORE_THRESHOLD } from './bike-path-scoring.server';
+import { scoreBikePath, isHardExcluded, isDestination } from './bike-path-scoring.server';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
+
+function resolveWikidataDescription(entry?: SluggedBikePathYml): string | undefined {
+  if (!entry?.wikidata_meta) return undefined;
+  const locale = defaultLocale().split('-')[0]; // 'en' from 'en-CA'
+  const meta = entry.wikidata_meta as Record<string, unknown>;
+  return (meta[`description_${locale}`] as string) ?? (meta.description_en as string);
+}
+
+function resolveWikipediaExtract(entry?: SluggedBikePathYml): { extract?: string; url?: string } {
+  if (!entry?.wikidata_meta) return {};
+  const locale = defaultLocale().split('-')[0];
+  const meta = entry.wikidata_meta as Record<string, unknown>;
+  const extract = (meta[`wikipedia_extract_${locale}`] as string) ?? (meta.wikipedia_extract_en as string);
+  const wp = entry.wikipedia;
+  let url: string | undefined;
+  if (wp) {
+    const [lang, ...titleParts] = wp.split(':');
+    const title = titleParts.join(':');
+    url = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
+  }
+  return { extract, url };
+}
 
 // Resolve project root from this file's location (src/lib/bike-paths/) — avoids CWD dependency.
 // Lazy: import.meta.dirname is undefined in workerd (Cloudflare prerender), but this code
@@ -44,6 +66,18 @@ export interface MemberRef {
   standalone: boolean;
   /** The member's actual memberOf value — may differ from the network page slug. */
   memberOf?: string;
+  /** Whether this member has a markdown file — used for tier 1/tier 2 display on index. */
+  hasMarkdown: boolean;
+  /** The member's entry type — used to distinguish long-distance trails from regular members. */
+  entryType?: string;
+  /** Non-cycling relations this member overlaps with — for network page grouping. */
+  overlappingRelations?: Array<{ id: number; name: string; route: string }>;
+  /** Surface type — for map popup display. */
+  surface?: string;
+  /** Infrastructure type — for map popup display. */
+  path_type?: string;
+  /** Short description — for map popup display. */
+  vibe?: string;
 }
 
 /** A bike path page to be generated — merged YML + markdown data. */
@@ -72,20 +106,22 @@ export interface BikePathPage {
   osmNames: string[];
   /** GeoJSON filenames for this path (e.g., "12345.geojson", "name-foo.geojson"). */
   geoFiles: string[];
+  /** Geometry content hash from slug-index.json — used for map image proxy cache busting. */
+  geoHash?: string;
   /** Geographic points for this path — from YML anchors or sampled GeoJSON geometry. */
   points: Array<{ lat: number; lng: number }>;
   /** Number of routes that overlap this path (precomputed at build config time). */
   routeCount: number;
   /** Precomputed route cards for routes that overlap this path. */
-  overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string }>;
+  overlappingRoutes: Array<{ slug: string; name: string; distance_km: number; coverKey?: string; distanceOnPathKm?: number }>;
   /** Geolocated photos taken near this path. */
   nearbyPhotos: Array<{ key: string; lat: number; lng: number; routeSlug: string; caption?: string }>;
   /** Precomputed nearby places (within 300m). */
   nearbyPlaces: Array<{ name: string; category: string; lat: number; lng: number; distance_m: number }>;
   /** Precomputed nearby paths (within 2km). */
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
   /** Precomputed connected paths (endpoints within 200m). */
-  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
   /** Wikipedia article reference — "en:Article Title" format. */
   wikipedia?: string;
   /** Resolved thumbnail key for index display (photo_key → route cover → map PNG). */
@@ -95,35 +131,95 @@ export interface BikePathPage {
   /** Elevation gain in meters (from enriched GeoJSON, if available). */
   elevation_gain_m?: number;
   surface?: string;
+  surface_mix?: Array<{ value: string; km: number }>;
   width?: string;
   lit?: string;
+  lit_mix?: Array<{ value: string; km: number }>;
   segregated?: string;
   smoothness?: string;
   operator?: string;
   network?: string;
   highway?: string;
+  /** OSM cycleway tag: 'track', 'lane', 'shared_lane', 'crossing'. */
+  cycleway?: string;
+  /** OSM bicycle access: 'designated', 'yes', 'no'. */
+  bicycle?: string;
+  /** OSM foot access: 'designated', 'yes', 'no'. */
+  foot?: string;
+  /** OSM incline: '0%', 'up', 'down', '>10%'. */
+  incline?: string;
+  /** OSM access: 'yes', 'no', 'private', 'permissive'. */
+  access?: string;
   /** Road name this path runs alongside (for parallel bike lanes). */
   parallel_to?: string;
   /** Mountain bike trail (not road-bike-friendly). Set by detect-mtb in the data pipeline. */
   mtb?: boolean;
+  /** Infrastructure type (mup, separated-lane, bike-lane, paved-shoulder, mtb-trail, trail). */
+  path_type?: string;
+  /** Official website URL (from YML website or wikidata_meta.website). */
+  website?: string;
+  /** Seasonal restriction (e.g., "winter" for winter-only trails). */
+  seasonal?: string;
+  /** Reference code from OSM signs (e.g., "RV1", "CP-7"). */
+  ref?: string;
+  /** Wikidata description for the current build locale — fallback body text for stubs. */
+  wikidata_description?: string;
+  /** Year/date the path was established (from wikidata_meta.inception). */
+  inception?: string;
+  /** Wikimedia Commons image filename — from wikidata_meta.commons_image. */
+  commons_image?: string;
+  /** Wikimedia Commons category name — from wikidata_meta.commons_category. */
+  commons_category?: string;
+  /** Wikidata operator Q-ID — for linking to Wikidata entity page. */
+  wikidata_operator_qid?: string;
+  /** Operator's official website — from Wikidata P856 on the operator entity. */
+  operator_website?: string;
+  /** Social media links from Wikidata. */
+  wikidata_social?: Array<{ platform: string; username: string; url: string }>;
+  /** Wikipedia extract (plain text first paragraph) for the current build locale. */
+  wikipedia_extract?: string;
+  /** Wikipedia article URL for the current build locale. */
+  wikipedia_url?: string;
+  /** Park name from OSM containment — set when the path is inside a park polygon. */
+  park?: string;
+  /** Original OSM route type for non-cycling relations (foot, hiking, piste). Absent for cycling-first. */
+  route_type?: string;
+  /** Entry type from the pipeline: long-distance, network, destination, infrastructure, connector. */
+  entryType: string;
+  /** Non-cycling route relations that share ways with this entry. */
+  overlapping_relations?: Array<{
+    id: number;
+    name: string;
+    route: string;
+    operator?: string;
+    ref?: string;
+    network?: string;
+    wikipedia?: string;
+    website?: string;
+  }>;
   /** Locale-specific content overrides from .{locale}.md files, markdown frontmatter + YML name_{locale}. */
   translations: Record<string, BikePathTranslation>;
 }
 
-function buildOperatorAliases(): Array<{ pattern: RegExp; canonical: string }> {
+let cachedOperatorAliases: Array<{ pattern: RegExp; canonical: string }> | null = null;
+
+function getOperatorAliases(): Array<{ pattern: RegExp; canonical: string }> {
+  if (cachedOperatorAliases) return cachedOperatorAliases;
   const config = getCityConfig();
   const aliases = (config as unknown as Record<string, unknown>).operator_aliases as Record<string, string[]> | undefined;
-  if (!aliases) return [];
-  return Object.entries(aliases).map(([canonical, variants]) => ({
-    pattern: new RegExp(`\\b(${variants.join('|')})\\b`, 'i'),
-    canonical,
-  }));
+  cachedOperatorAliases = aliases
+    ? Object.entries(aliases).map(([canonical, variants]) => ({
+        pattern: new RegExp(`\\b(${variants.join('|')})\\b`, 'i'),
+        canonical,
+      }))
+    : [];
+  return cachedOperatorAliases;
 }
 
 /** Normalize operator names — OSM has many variants for the same org. */
 export function normalizeOperator(operator: string | undefined): string | undefined {
   if (!operator) return undefined;
-  for (const alias of buildOperatorAliases()) {
+  for (const alias of getOperatorAliases()) {
     if (alias.pattern.test(operator)) return alias.canonical;
   }
   return operator;
@@ -143,17 +239,8 @@ function readGeoLengthKm(filePath: string): number {
 function getPathLengthKm(entry: SluggedBikePathYml): number | undefined {
   const geoDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo');
   let totalKm = 0;
-  for (const relId of entry.osm_relations ?? []) {
-    totalKm += readGeoLengthKm(path.join(geoDir, `${relId}.geojson`));
-  }
-  if (totalKm === 0 && entry.osm_names?.length) {
-    totalKm = readGeoLengthKm(path.join(geoDir, `name-${entry.slug}.geojson`));
-  }
-  if (totalKm === 0 && entry.segments?.length) {
-    totalKm = readGeoLengthKm(path.join(geoDir, `seg-${entry.slug}.geojson`));
-  }
-  if (totalKm === 0 && entry.parallel_to) {
-    totalKm = readGeoLengthKm(path.join(geoDir, `parallel-${entry.slug}.geojson`));
+  for (const file of geoFilesForEntry(entry)) {
+    totalKm += readGeoLengthKm(path.join(geoDir, file));
   }
   return totalKm > 0 ? Math.round(totalKm * 10) / 10 : undefined;
 }
@@ -163,20 +250,8 @@ function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: num
   const geoDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo');
   const points: Array<{ lat: number; lng: number }> = [];
 
-  for (const relId of entry.osm_relations ?? []) {
-    points.push(...readGeoPoints(path.join(geoDir, `${relId}.geojson`)));
-  }
-
-  if (points.length === 0 && entry.osm_names?.length) {
-    points.push(...readGeoPoints(path.join(geoDir, `name-${entry.slug}.geojson`)));
-  }
-
-  if (points.length === 0 && entry.segments?.length) {
-    points.push(...readGeoPoints(path.join(geoDir, `seg-${entry.slug}.geojson`)));
-  }
-
-  if (points.length === 0 && entry.parallel_to) {
-    points.push(...readGeoPoints(path.join(geoDir, `parallel-${entry.slug}.geojson`)));
+  for (const file of geoFilesForEntry(entry)) {
+    points.push(...readGeoPoints(path.join(geoDir, file)));
   }
 
   if (points.length === 0) {
@@ -191,19 +266,7 @@ function getPathPoints(entry: SluggedBikePathYml): Array<{ lat: number; lng: num
 
 /** Compute the GeoJSON filenames that a set of YML entries would produce. */
 function entryGeoFiles(entries: SluggedBikePathYml[]): string[] {
-  const files: string[] = [];
-  for (const e of entries) {
-    if (e.osm_relations?.length) {
-      for (const relId of e.osm_relations) files.push(`${relId}.geojson`);
-    } else if (e.osm_names?.length) {
-      files.push(`name-${e.slug}.geojson`);
-    } else if (e.segments?.length) {
-      files.push(`seg-${e.slug}.geojson`);
-    } else if (e.parallel_to) {
-      files.push(`parallel-${e.slug}.geojson`);
-    }
-  }
-  return files;
+  return entries.flatMap(e => geoFilesForEntry(e));
 }
 
 /** Parsed markdown frontmatter for a bike-path .md file. */
@@ -387,9 +450,10 @@ export function loadBikePathEntries(): {
       const entry = ymlBySlug.get(md.id);
       if (entry) {
         matchedEntries.push(entry);
-        // If this YML entry is a network, don't claim it — stash the markdown
-        // overlay for step 7 so the network page gets built with markdown content.
-        if (entry.type === 'network') {
+        // If this YML entry has members (network or trail with sections), don't
+        // claim it — stash the markdown overlay for step 7 so the page gets built
+        // with member refs and markdown content.
+        if ((entry.members?.length ?? 0) > 0) {
           networkMarkdownOverlays.set(md.id, md);
           continue;
         }
@@ -438,22 +502,46 @@ export function loadBikePathEntries(): {
       nearbyPaths: [],
       connectedPaths: [],
       surface: primary?.surface,
+      surface_mix: primary?.surface_mix,
       width: primary?.width,
       lit: primary?.lit,
+      lit_mix: primary?.lit_mix,
       segregated: primary?.segregated,
       smoothness: primary?.smoothness,
-      operator: normalizeOperator(md.data.operator ?? primary?.operator),
+      operator: normalizeOperator(md.data.operator ?? primary?.operator) ?? primary?.wikidata_meta?.operator,
       network: primary?.network,
       highway: primary?.highway,
+      cycleway: primary?.cycleway,
+      bicycle: primary?.bicycle,
+      foot: primary?.foot,
+      incline: primary?.incline,
+      access: primary?.access,
       parallel_to: primary?.parallel_to,
       mtb: primary?.mtb,
+      path_type: primary?.path_type,
+      website: primary?.website ?? primary?.wikidata_meta?.website,
+      seasonal: primary?.seasonal,
+      ref: primary?.ref,
+      park: primary?.park,
+      route_type: primary?.route_type,
+      wikidata_description: resolveWikidataDescription(primary),
+      inception: primary?.wikidata_meta?.inception,
+      commons_image: primary?.wikidata_meta?.commons_image,
+      commons_category: primary?.wikidata_meta?.commons_category,
+      wikidata_operator_qid: primary?.wikidata_meta?.operator_qid,
+      operator_website: primary?.wikidata_meta?.operator_website,
+      wikidata_social: primary?.wikidata_meta?.social,
+      wikipedia_extract: resolveWikipediaExtract(primary).extract,
+      wikipedia_url: resolveWikipediaExtract(primary).url,
       wikipedia: md.data.wikipedia ?? primary?.wikipedia,
+      entryType: primary?.type ?? 'unknown',
+      overlapping_relations: primary?.overlapping_relations,
       translations: primary ? readBikePathTranslations(md.id, primary, md.rawFrontmatter) : {},
     });
   }
 
   // 6. Process all unclaimed YML entries (non-hard-excluded).
-  // Every entry gets a page; `listed` is determined by score in Tier 2.
+  // `listed` is type-based: destination/infrastructure are listed, connector/untyped are not.
   // Member entries stay in the file and get their own pages.
   for (const entry of allYmlEntries) {
     if (claimedSlugs.has(entry.slug)) continue;
@@ -461,8 +549,8 @@ export function loadBikePathEntries(): {
 
     const score = scoreBikePath(entry, 0);
 
-    // Skip network entries — they're processed after all paths
-    if (entry.type === 'network') continue;
+    // Skip entries with members (networks, trails with sections) — processed in step 7
+    if ((entry.members?.length ?? 0) > 0) continue;
 
     pages.push({
       slug: entry.slug,
@@ -470,8 +558,8 @@ export function loadBikePathEntries(): {
       tags: [],
       score,
       hasMarkdown: false,
-      listed: score >= SCORE_THRESHOLD,
-      standalone: isDestination(entry, getPathLengthKm(entry), false, false),
+      listed: entry.type === 'long-distance' || entry.type === 'destination' || entry.type === 'infrastructure',
+      standalone: isDestination(entry, false, false),
       stub: true, // all YML-only entries are stubs
       featured: false,
       memberOf: entry.member_of,
@@ -488,42 +576,66 @@ export function loadBikePathEntries(): {
       nearbyPaths: [],
       connectedPaths: [],
       surface: entry.surface,
+      surface_mix: entry.surface_mix,
       width: entry.width,
       lit: entry.lit,
+      lit_mix: entry.lit_mix,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
-      operator: normalizeOperator(entry.operator),
+      operator: normalizeOperator(entry.operator) ?? entry.wikidata_meta?.operator,
       network: entry.network,
       highway: entry.highway,
+      cycleway: entry.cycleway,
+      bicycle: entry.bicycle,
+      foot: entry.foot,
+      incline: entry.incline,
+      access: entry.access,
       parallel_to: entry.parallel_to,
       mtb: entry.mtb,
+      path_type: entry.path_type,
+      website: entry.website ?? entry.wikidata_meta?.website,
+      seasonal: entry.seasonal,
+      ref: entry.ref,
+      park: entry.park,
+      route_type: entry.route_type,
+      wikidata_description: resolveWikidataDescription(entry),
+      inception: entry.wikidata_meta?.inception,
+      commons_image: entry.wikidata_meta?.commons_image,
+      commons_category: entry.wikidata_meta?.commons_category,
+      wikidata_operator_qid: entry.wikidata_meta?.operator_qid,
+      operator_website: entry.wikidata_meta?.operator_website,
+      wikidata_social: entry.wikidata_meta?.social,
+      wikipedia_extract: resolveWikipediaExtract(entry).extract,
+      wikipedia_url: resolveWikipediaExtract(entry).url,
       wikipedia: entry.wikipedia,
+      entryType: entry.type,
+      overlapping_relations: entry.overlapping_relations,
       translations: readBikePathTranslations(entry.slug, entry),
     });
   }
 
-  // 7. Process type: network entries — build network pages with lightweight memberRefs.
-  // Network pages aggregate metadata from members. memberRefs are lightweight —
+  // 7. Process entries with members — networks AND trails with sections.
+  // These pages aggregate metadata from members. memberRefs are lightweight —
   // slug, name, length, thumbnail, standalone — NOT full BikePathPage objects.
   // The virtual module (build-data-plugin.ts) serializes all pages into a JS bundle;
   // embedding full page objects inside network pages would duplicate large relation arrays.
   const pageBySlug = new Map(pages.map(p => [p.slug, p]));
   for (const entry of allYmlEntries) {
-    if (entry.type !== 'network') continue;
+    if (!((entry.members?.length ?? 0) > 0)) continue;
     if (claimedSlugs.has(entry.slug)) continue;
     if (isHardExcluded(entry)) continue;
 
     const memberSlugs = entry.members ?? [];
-    // Guard: warn about network→network references (should be fixed in the data pipeline)
-    const networkMemberSlugs = memberSlugs.filter(s => {
+    // Guard: warn about entries that reference other member-bearing entries
+    const nestedMemberSlugs = memberSlugs.filter(s => {
       const yml = ymlBySlug.get(s);
-      return yml?.type === 'network';
+      return (yml?.members?.length ?? 0) > 0;
     });
-    if (networkMemberSlugs.length > 0) {
-      console.warn(`Network "${entry.slug}" references other networks as members: ${networkMemberSlugs.join(', ')} — skipped`);
+    if (nestedMemberSlugs.length > 0) {
+      console.warn(`"${entry.slug}" references other member-bearing entries: ${nestedMemberSlugs.join(', ')} — skipped`);
     }
     const memberPages = memberSlugs
-      .filter(s => !networkMemberSlugs.includes(s))
+      .filter(s => !nestedMemberSlugs.includes(s))
       .map(s => pageBySlug.get(s))
       .filter((p): p is BikePathPage => !!p);
 
@@ -544,6 +656,12 @@ export function loadBikePathEntries(): {
       thumbnail_key: p.thumbnail_key,
       standalone: p.standalone,
       memberOf: p.memberOf,
+      hasMarkdown: p.hasMarkdown,
+      entryType: p.ymlEntries[0]?.type,
+      overlappingRelations: p.overlapping_relations?.map(r => ({ id: r.id, name: r.name, route: r.route })),
+      surface: p.surface,
+      path_type: p.path_type,
+      vibe: p.vibe,
     }));
 
     // Aggregate geometry from all members
@@ -590,14 +708,26 @@ export function loadBikePathEntries(): {
       nearbyPaths: [],
       connectedPaths: [],
       surface: entry.surface,
+      surface_mix: entry.surface_mix,
       width: entry.width,
       lit: entry.lit,
+      lit_mix: entry.lit_mix,
       segregated: entry.segregated,
       smoothness: entry.smoothness,
-      operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator),
+      operator: normalizeOperator(mdOverlay?.data.operator ?? entry.operator) ?? entry.wikidata_meta?.operator,
       network: entry.network,
       highway: entry.highway,
+      wikidata_description: resolveWikidataDescription(entry),
+      inception: entry.wikidata_meta?.inception,
+      commons_image: entry.wikidata_meta?.commons_image,
+      commons_category: entry.wikidata_meta?.commons_category,
+      wikidata_operator_qid: entry.wikidata_meta?.operator_qid,
+      operator_website: entry.wikidata_meta?.operator_website,
+      wikidata_social: entry.wikidata_meta?.social,
+      wikipedia_extract: resolveWikipediaExtract(entry).extract,
+      wikipedia_url: resolveWikipediaExtract(entry).url,
       wikipedia: mdOverlay?.data.wikipedia ?? entry.wikipedia,
+      entryType: entry.type,
       translations: readBikePathTranslations(entry.slug, entry, mdOverlay?.rawFrontmatter),
     });
   }

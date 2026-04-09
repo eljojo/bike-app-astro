@@ -1,6 +1,6 @@
 ---
 description: build-data-plugin virtual modules, ambient types, how to add new ones
-type: pattern
+type: knowledge
 triggers: [adding virtual modules, modifying build-data-plugin, working with admin data, debugging module resolution]
 related: [content-model, adding-new-things]
 ---
@@ -29,7 +29,6 @@ Registered via `registerAdminModules()`, which strips trailing `s` for detail mo
 
 ### Other Modules
 
-- `cached-maps` — precomputed map thumbnail data
 - `contributors` — contributor statistics
 
 ## Ambient Type Declarations
@@ -44,8 +43,6 @@ declare module 'admin-routes' {
   export default data;
 }
 ```
-
-`src/virtual.d.ts` handles `cached-maps` types separately.
 
 ## Build-Time Transforms
 

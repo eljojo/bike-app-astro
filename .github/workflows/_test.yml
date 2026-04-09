@@ -73,6 +73,20 @@ jobs:
           CITY: demo
           PREBUILD_MINIMAL: '1'
 
+      - name: Restore pipeline cassette cache
+        id: cassette-cache
+        uses: actions/cache@v5
+        with:
+          path: scripts/pipeline/.cache
+          key: pipeline-cassette-${{ hashFiles('scripts/pipeline/build-bikepaths.ts', 'scripts/pipeline/lib/overpass.mjs') }}
+          restore-keys: pipeline-cassette-
+
+      - name: Record pipeline cassettes
+        if: steps.cassette-cache.outputs.cache-hit != 'true'
+        run: RECORD_OVERPASS=ottawa node scripts/pipeline/build-bikepaths.ts --city ottawa
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+
       - name: Run unit tests
         run: npx vitest run
         env:
@@ -123,21 +137,6 @@ jobs:
           key: astro-demo-${{ github.run_id }}
           restore-keys: |
             astro-demo-
-
-      - name: Restore map cache
-        uses: actions/cache@v5
-        with:
-          path: public/maps
-          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/maps/map-paths.ts') }}
-          restore-keys: |
-            maps-demo-
-
-      - name: Generate map thumbnails
-        run: npx tsx scripts/generate-maps.ts
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: demo
-          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
       - name: Build contributor stats
         run: npx tsx scripts/build-contributors.ts
@@ -305,23 +304,6 @@ jobs:
           key: astro-e2e-${{ github.run_id }}
           restore-keys: |
             astro-e2e-
-
-      - name: Restore map cache
-        if: matrix.suite == 'public'
-        uses: actions/cache@v5
-        with:
-          path: public/maps
-          key: maps-demo-${{ hashFiles('bike-routes/demo/routes/**/variants/*.gpx', 'bike-routes/demo/routes/**/*.gpx', 'scripts/generate-maps.ts', 'src/lib/maps/map-paths.ts') }}
-          restore-keys: |
-            maps-demo-
-
-      - name: Generate map thumbnails
-        if: matrix.suite == 'public'
-        run: npx tsx scripts/generate-maps.ts
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: demo
-          GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
 
       - name: Build contributor stats
         if: matrix.suite == 'public'

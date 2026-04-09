@@ -10,8 +10,7 @@
  * original files still work in Node.js (for config evaluation, content loaders,
  * tests) but get replaced with pre-loaded data during the build.
  *
- * For map-thumbnails.ts, we use a virtual module since it's not in the config
- * import chain.
+ * Map thumbnails are now served by the on-demand map image proxy.
  */
 // AGENTS.md: virtual-modules.d.ts is ambient — NO top-level imports or it breaks all declarations.
 // Detail module names strip trailing 's': admin-routes → admin-route-detail.
@@ -128,40 +127,6 @@ function loadContributors(rootDir?: string): Array<{ username: string; gravatarH
   const filePath = path.join(rootDir || PROJECT_ROOT, '.astro', 'contributors.json');
   if (!fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-}
-
-/** Scan a directory for route map thumbnails, returning cache keys. */
-function scanMapDir(dir: string, prefix?: string) {
-  const maps: string[] = [];
-  if (!fs.existsSync(dir)) return maps;
-  for (const slug of fs.readdirSync(dir)) {
-    const slugDir = path.join(dir, slug);
-    if (!fs.statSync(slugDir).isDirectory()) continue;
-    if (fs.existsSync(path.join(slugDir, 'map-750.webp'))) {
-      maps.push(prefix ? `${prefix}/${slug}` : slug);
-    }
-    for (const sub of fs.readdirSync(slugDir)) {
-      const subDir = path.join(slugDir, sub);
-      if (fs.statSync(subDir).isDirectory() && fs.existsSync(path.join(subDir, 'map-750.webp'))) {
-        maps.push(prefix ? `${prefix}/${slug}/${sub}` : `${slug}/${sub}`);
-      }
-    }
-  }
-  return maps;
-}
-
-function loadCachedMaps(rootDir?: string) {
-  const cacheDir = path.join(rootDir || PROJECT_ROOT, 'public', 'maps');
-  const maps: string[] = scanMapDir(cacheDir);
-  // Scan locale subdirectories (2-letter dirs like "fr", "es")
-  if (fs.existsSync(cacheDir)) {
-    for (const entry of fs.readdirSync(cacheDir)) {
-      if (entry.length === 2 && fs.statSync(path.join(cacheDir, entry)).isDirectory()) {
-        maps.push(...scanMapDir(path.join(cacheDir, entry), entry));
-      }
-    }
-  }
-  return maps;
 }
 
 // --- Admin module registration ---
@@ -469,6 +434,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
   // Enrich Tier 1 pages with Tier 2 relations at config time
   const enrichedPages = enrichBikePathPages(bikePathBase.pages, bikePathRelations, routeOverlaps, geoElevation);
+  // Bake geometry hashes from slug index onto pages (for map image proxy URLs)
+  const slugIndexPath = path.join(CONSUMER_ROOT, 'public', 'bike-paths', 'geo', 'tiles', 'slug-index.json');
+  if (fs.existsSync(slugIndexPath)) {
+    const slugIndex = JSON.parse(fs.readFileSync(slugIndexPath, 'utf-8')) as Record<string, { hash: string }>;
+    for (const page of enrichedPages) {
+      const entry = slugIndex[page.slug];
+      if (entry) page.geoHash = entry.hash;
+    }
+  }
   // Filter all path references to only include slugs that have generated pages
   const validSlugs = new Set(enrichedPages.map(p => p.slug));
   for (const page of enrichedPages) {
@@ -483,7 +457,6 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   }
   const fontPreloads = loadFontPreloads();
   const homepageFacts = loadHomepageFacts();
-  const cachedMaps = loadCachedMaps(CONSUMER_ROOT);
   const contributors = loadContributors(CONSUMER_ROOT);
 
   // Load admin data eagerly (async) so it's ready when load() is called.
@@ -532,9 +505,6 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
   // Non-admin virtual modules — each key maps to an async loader returning JS source
   const PREFIX = 'virtual:bike-app/';
   const virtualModules: Record<string, () => Promise<string>> = {
-    'cached-maps': async () =>
-      `export default new Set(${JSON.stringify(cachedMaps)});`,
-
     'contributors': async () =>
       `export default ${JSON.stringify(contributors)};`,
 
@@ -564,6 +534,15 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
     'tours': async () => {
       if (!adminRideDataPromise) return `export default [];`;
       const { tours } = await adminRideDataPromise;
+      // Bake gpxHash from tour-index.json onto tour data (for map image proxy URLs)
+      const tourIndexPath = path.join(CONSUMER_ROOT, 'public', 'maps', 'tour-index.json');
+      if (fs.existsSync(tourIndexPath)) {
+        const tourIndex = JSON.parse(fs.readFileSync(tourIndexPath, 'utf-8')) as Record<string, { hash: string }>;
+        for (const tour of tours) {
+          const entry = tourIndex[tour.slug];
+          if (entry) tour.gpxHash = entry.hash;
+        }
+      }
       return `export default ${JSON.stringify(tours)};`;
     },
 

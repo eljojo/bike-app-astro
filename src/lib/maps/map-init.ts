@@ -63,6 +63,11 @@ export function showPopup(map: maplibregl.Map, popup: maplibregl.Popup): void {
   });
 }
 
+export function closePopup(map: maplibregl.Map): void {
+  activePopups.get(map)?.remove();
+  activePopups.delete(map);
+}
+
 // --- Interfaces ---
 
 export interface MapOptions {
@@ -130,7 +135,7 @@ export function initMap({ el, center, zoom, styleUrl }: MapOptions): maplibregl.
     center: [center[1], center[0]], // MapLibre uses [lng, lat]
     zoom,
     fadeDuration: 0,
-    attributionControl: {},
+    attributionControl: { compact: true },
     transformRequest,
   });
 }

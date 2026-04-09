@@ -41,6 +41,7 @@ function lineOfPoints(startLat: number, startLng: number, count: number, stepLat
 /** Create a minimal SluggedBikePathYml entry. */
 function makeEntry(overrides: Partial<SluggedBikePathYml> & { slug: string; name: string }): SluggedBikePathYml {
   return {
+    type: 'infrastructure' as const,
     highway: 'cycleway',
     ...overrides,
   };
@@ -568,6 +569,7 @@ describe('computeBikePathRelations', () => {
       const pathEntry: SluggedBikePathYml = {
         slug: 'anchor-path',
         name: 'Anchor Path',
+        type: 'infrastructure',
         anchors: [{ lat: 45.0, lng: -75.7 }, { lat: 45.001, lng: -75.7 }],
       };
 
@@ -607,6 +609,7 @@ function makePage(overrides: Partial<BikePathPage> & { slug: string; name: strin
     nearbyPlaces: [],
     nearbyPaths: [],
     connectedPaths: [],
+    entryType: 'infrastructure',
     translations: {},
     ...overrides,
   };

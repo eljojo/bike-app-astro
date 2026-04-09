@@ -1,6 +1,6 @@
 ---
 description: Admin UI design — inevitability with personality, Keynote not Numbers, content is the material
-type: guide
+type: vision
 triggers: [designing admin UI, adding admin pages, styling admin components, editor layout decisions]
 related: [css-styling, preact-islands, voice-and-feel]
 ---

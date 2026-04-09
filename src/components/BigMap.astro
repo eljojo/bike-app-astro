@@ -9,28 +9,17 @@ interface RouteOnMap {
   photo_key?: string;
 }
 
-interface PathOnMap {
-  relId: string;
-  slug: string;
-  name: string;
-  hasPage: boolean;
-  operator?: string;
-  surface?: string;
-  memberOf?: string;
-}
-
 interface Props {
   routes: RouteOnMap[];
   center: [number, number];
-  pathMapData?: PathOnMap[];
+  hasPaths?: boolean;
   routesLabel?: string;
   pathsLabel?: string;
 }
 
 import { getCityConfig } from '../lib/config/city-config';
 import './SubTabToggle.scss';
-const { routes, center, pathMapData = [], routesLabel, pathsLabel } = Astro.props;
-const hasPaths = pathMapData.length > 0;
+const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.props;
 ---
 
 <div class="big-map">
@@ -46,15 +35,49 @@ const hasPaths = pathMapData.length > 0;
     data-routes={JSON.stringify(routes)}
     data-center={JSON.stringify(center)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
-    data-path-map-data={JSON.stringify(pathMapData)}
+    data-has-paths={hasPaths ? 'true' : ''}
   ></div>
   <div id="big-map-controls"></div>
+  {import.meta.env.DEV && (
+    <div id="map-tuning" style="display:none; position:absolute; bottom:30px; left:10px; z-index:3; background:rgba(255,255,255,0.95); border-radius:6px; padding:8px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.15); font:12px/1.4 sans-serif; width:260px;">
+      <div style="font-weight:600; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid #ddd;">Base map (tile cycling infra)</div>
+      <div style="margin-bottom:6px;">
+        <label style="display:flex; justify-content:space-between;"><span>Opacity</span><span id="t-base-opacity-val">0.30</span></label>
+        <input type="range" id="t-base-opacity" min="0" max="100" value="30" style="width:100%;">
+      </div>
+      <div style="font-weight:600; margin:10px 0 8px; padding-bottom:4px; border-bottom:1px solid #ddd;">Foreground paths (overlay)</div>
+      <div style="margin-bottom:6px;">
+        <label style="display:flex; justify-content:space-between;"><span>Interactive width</span><span id="t-fg-width-val">4.0</span></label>
+        <input type="range" id="t-fg-width" min="10" max="100" value="40" style="width:100%;">
+      </div>
+      <div style="margin-bottom:6px;">
+        <label style="display:flex; justify-content:space-between;"><span>Interactive opacity</span><span id="t-fg-opacity-val">0.80</span></label>
+        <input type="range" id="t-fg-opacity" min="0" max="100" value="80" style="width:100%;">
+      </div>
+      <div style="margin-bottom:6px;">
+        <label style="display:flex; justify-content:space-between;"><span>Other width</span><span id="t-bg-width-val">2.5</span></label>
+        <input type="range" id="t-bg-width" min="5" max="80" value="25" style="width:100%;">
+      </div>
+      <div style="margin-bottom:6px;">
+        <label style="display:flex; justify-content:space-between;"><span>Other opacity</span><span id="t-bg-opacity-val">0.10</span></label>
+        <input type="range" id="t-bg-opacity" min="0" max="100" value="10" style="width:100%;">
+      </div>
+      <div style="font-weight:600; margin:10px 0 8px; padding-bottom:4px; border-bottom:1px solid #ddd;">Color</div>
+      <div style="margin-bottom:6px;">
+        <label style="display:flex; justify-content:space-between; align-items:center;"><span>Path overlay</span><input type="color" id="t-path-color" value="#350091" style="width:40px; height:22px; border:1px solid #ccc; border-radius:3px; padding:0;"></label>
+      </div>
+      <div style="margin-top:10px; padding-top:6px; border-top:1px solid #ddd;">
+        <button type="button" id="t-log-values" style="font-size:11px; padding:3px 8px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer;">Log current values</button>
+      </div>
+    </div>
+  )}
 </div>
 
 <script>
-  import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createTilePathLayer, createGpsLayer, type PathInfo } from '../lib/maps/layers';
+  import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createTilePathLayer, createGpsLayer } from '../lib/maps/layers';
   import { html, raw } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
+  import { muteBaseCyclingLayers, restoreBaseCyclingLayers } from '../lib/maps/base-layer-control';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState, saveToggleState } from './admin/MapControls';
 
@@ -64,10 +87,7 @@ const hasPaths = pathMapData.length > 0;
     const routes = JSON.parse(el.dataset.routes || '[]');
     const center = JSON.parse(el.dataset.center || '[0, 0]');
     const cdnUrl = el.dataset.cdnUrl || '';
-    const pathMapData: Array<{ relId: string; slug: string; name: string; hasPage: boolean; interactive: boolean; surface?: string; memberOf?: string }> =
-      JSON.parse(el.dataset.pathMapData || '[]');
-
-    const hasPaths = pathMapData.length > 0;
+    const hasPaths = el.dataset.hasPaths === 'true';
 
     // Sub-tab toggle
     const toggleEl = document.getElementById('map-layer-toggle');
@@ -108,14 +128,13 @@ const hasPaths = pathMapData.length > 0;
     const gpsLayer = createGpsLayer();
 
     // Tile path layer (lazy-load manifest eagerly)
-    const pathInfoMap = new Map<string, PathInfo>(pathMapData.map(p => [p.relId, p]));
     const manifestPromise = hasPaths
       ? fetch('/bike-paths/geo/tiles/manifest.json').then(r => r.ok ? r.json() : []).catch(() => [])
       : Promise.resolve([]);
     const tilePathLayer = createTilePathLayer({
       manifestPromise,
-      pathInfo: pathInfoMap,
       fetchPath: '/bike-paths/geo/tiles/',
+      foreground: true,
     });
 
     const session = createMapSession({ el, center, zoom: 11, fitBounds: false })
@@ -138,6 +157,7 @@ const hasPaths = pathMapData.length > 0;
       // If initial state wants paths, show them and hide routes
       if (initialShowPaths) {
         polylineLayer.setVisible!(map, false);
+        muteBaseCyclingLayers(map);
       } else if (hasPaths) {
         tilePathLayer.setVisible!(map, false);
       }
@@ -160,6 +180,7 @@ const hasPaths = pathMapData.length > 0;
             // Preserve current view mode after style switch
             if (pathsVisible) {
               polylineLayer.setVisible!(map, false);
+              muteBaseCyclingLayers(map);
             } else if (hasPaths) {
               tilePathLayer.setVisible!(map, false);
             }
@@ -167,6 +188,14 @@ const hasPaths = pathMapData.length > 0;
         }), controlsEl);
       }
     });
+
+    // Dev tuning panel — dynamic import, tree-shaken in production
+    let showTuning = (_show: boolean) => {};
+    if (import.meta.env.DEV) {
+      const { initDevTuningPanel } = await import('../lib/maps/dev-tuning-panel');
+      showTuning = initDevTuningPanel(map);
+      if (initialShowPaths) showTuning(true);
+    }
 
     // Sub-tab toggle
     function switchToView(view: 'routes' | 'paths') {
@@ -185,9 +214,13 @@ const hasPaths = pathMapData.length > 0;
       if (showingPaths) {
         tilePathLayer.setVisible!(map, true);
         polylineLayer.setVisible!(map, false);
+        muteBaseCyclingLayers(map);
+        showTuning(true);
       } else {
         tilePathLayer.setVisible!(map, false);
         polylineLayer.setVisible!(map, true);
+        restoreBaseCyclingLayers(map);
+        showTuning(false);
       }
     }
 

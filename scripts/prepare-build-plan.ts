@@ -149,7 +149,7 @@ function computeContentHashes(): { hashes: Record<string, string>; tourMembershi
   return { hashes, tourMembership };
 }
 
-function scanGpxFiles(baseDir: string, rel: string): string[] {
+export function scanGpxFiles(baseDir: string, rel: string): string[] {
   const results: string[] = [];
   const absDir = rel ? path.join(baseDir, rel) : baseDir;
   if (!fs.existsSync(absDir)) return results;
@@ -161,7 +161,7 @@ function scanGpxFiles(baseDir: string, rel: string): string[] {
   return results;
 }
 
-function scanMarkdownFiles(baseDir: string, rel: string): string[] {
+export function scanMarkdownFiles(baseDir: string, rel: string): string[] {
   const results: string[] = [];
   const absDir = rel ? path.join(baseDir, rel) : baseDir;
   if (!fs.existsSync(absDir)) return results;
@@ -173,7 +173,7 @@ function scanMarkdownFiles(baseDir: string, rel: string): string[] {
   return results;
 }
 
-function hashDirFiles(dir: string, hash: ReturnType<typeof createHash>, prefix = ''): void {
+export function hashDirFiles(dir: string, hash: ReturnType<typeof createHash>, prefix = ''): void {
   if (!fs.existsSync(dir)) return;
   for (const file of fs.readdirSync(dir)) {
     const filePath = path.join(dir, file);
@@ -184,26 +184,30 @@ function hashDirFiles(dir: string, hash: ReturnType<typeof createHash>, prefix =
   }
 }
 
-// --- Main ---
+// --- Exported pure decision logic ---
 
-const previousManifest = loadBuildManifest();
-const currentCodeHash = computeCodeHash();
-const { hashes: currentContentHashes, tourMembership: currentTourMembership } = computeContentHashes();
-const forceFullBuild = process.env.FORCE_FULL_BUILD === '1';
-const buildTrigger = process.env.BUILD_TRIGGER || '';
+export interface BuildDecisionInput {
+  forceFullBuild: boolean;
+  previousManifest: BuildManifest | null;
+  currentCodeHash: string;
+  currentContentHashes: Record<string, string>;
+  buildTrigger: string;
+  previousTourMembership?: Record<string, string>;
+}
 
-let plan: BuildPlan;
+export function decideBuildPlan(input: BuildDecisionInput): BuildPlan {
+  const { forceFullBuild, previousManifest, currentCodeHash, currentContentHashes, buildTrigger, previousTourMembership } = input;
 
-if (forceFullBuild) {
-  console.log('Build plan: FULL (forced via FORCE_FULL_BUILD)');
-  plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
-} else if (!previousManifest) {
-  console.log('Build plan: FULL (no previous manifest)');
-  plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
-} else if (previousManifest.codeHash !== currentCodeHash) {
-  console.log('Build plan: FULL (code changed)');
-  plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
-} else {
+  if (forceFullBuild) {
+    return { mode: 'full', changedSlugs: [], deletedSlugs: [] };
+  }
+  if (!previousManifest) {
+    return { mode: 'full', changedSlugs: [], deletedSlugs: [] };
+  }
+  if (previousManifest.codeHash !== currentCodeHash) {
+    return { mode: 'full', changedSlugs: [], deletedSlugs: [] };
+  }
+
   // Compare content hashes
   const prevHashes = previousManifest.contentHashes;
   const changedSlugs: string[] = [];
@@ -212,12 +216,12 @@ if (forceFullBuild) {
   for (const [key, hash] of Object.entries(currentContentHashes)) {
     if (prevHashes[key] !== hash) changedSlugs.push(key);
   }
-  const prevTourMembership = previousManifest.tourMembership || {};
+  const prevTourMembership_ = previousTourMembership ?? previousManifest.tourMembership ?? {};
   for (const key of Object.keys(prevHashes)) {
     if (!(key in currentContentHashes)) {
       deletedSlugs.push(key);
       // If the deleted ride was in a tour, also mark the tour-ride path for cleanup
-      const tourSlug = prevTourMembership[key];
+      const tourSlug = prevTourMembership_[key];
       if (tourSlug) {
         const rideSlug = key.slice('ride:'.length);
         deletedSlugs.push(`tour-ride:${tourSlug}/${rideSlug}`);
@@ -229,32 +233,61 @@ if (forceFullBuild) {
   const changeRatio = (changedSlugs.length + deletedSlugs.length) / Math.max(totalItems, 1);
 
   if (changeRatio > 0.5) {
-    console.log(`Build plan: FULL (${Math.round(changeRatio * 100)}% of content changed)`);
-    plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
-  } else if (changedSlugs.length === 0 && deletedSlugs.length === 0) {
-    if (buildTrigger === 'schedule') {
-      console.log('Build plan: INCREMENTAL (scheduled rebuild — date-sensitive pages only)');
-      plan = { mode: 'incremental', changedSlugs: [], deletedSlugs: [] };
-    } else {
-      console.log('Build plan: FULL (no content changes detected — rebuild anyway)');
-      plan = { mode: 'full', changedSlugs: [], deletedSlugs: [] };
-    }
-  } else {
-    console.log(`Build plan: INCREMENTAL (${changedSlugs.length} changed, ${deletedSlugs.length} deleted)`);
-    for (const slug of changedSlugs) console.log(`  + ${slug}`);
-    for (const slug of deletedSlugs) console.log(`  - ${slug}`);
-    plan = { mode: 'incremental', changedSlugs, deletedSlugs };
+    return { mode: 'full', changedSlugs: [], deletedSlugs: [] };
   }
+  if (changedSlugs.length === 0 && deletedSlugs.length === 0) {
+    if (buildTrigger === 'schedule') {
+      return { mode: 'incremental', changedSlugs: [], deletedSlugs: [] };
+    }
+    return { mode: 'full', changedSlugs: [], deletedSlugs: [] };
+  }
+
+  return { mode: 'incremental', changedSlugs, deletedSlugs };
 }
 
-writeBuildPlan(plan);
+// --- Main ---
 
-const manifest: BuildManifest = {
-  version: BUILD_MANIFEST_VERSION,
-  codeHash: currentCodeHash,
-  contentHashes: currentContentHashes,
-  tourMembership: Object.keys(currentTourMembership).length > 0 ? currentTourMembership : undefined,
-};
-writeBuildManifest(manifest);
+const _isDirectRun = process.argv[1]?.endsWith('prepare-build-plan.ts');
+if (_isDirectRun) {
+  const previousManifest = loadBuildManifest();
+  const currentCodeHash = computeCodeHash();
+  const { hashes: currentContentHashes, tourMembership: currentTourMembership } = computeContentHashes();
+  const forceFullBuild = process.env.FORCE_FULL_BUILD === '1';
+  const buildTrigger = process.env.BUILD_TRIGGER || '';
 
-console.log(`Content items: ${Object.keys(currentContentHashes).length}`);
+  const plan = decideBuildPlan({
+    forceFullBuild,
+    previousManifest,
+    currentCodeHash,
+    currentContentHashes,
+    buildTrigger,
+  });
+
+  if (plan.mode === 'full') {
+    if (forceFullBuild) console.log('Build plan: FULL (forced via FORCE_FULL_BUILD)');
+    else if (!previousManifest) console.log('Build plan: FULL (no previous manifest)');
+    else if (previousManifest.codeHash !== currentCodeHash) console.log('Build plan: FULL (code changed)');
+    else if (plan.changedSlugs.length === 0 && plan.deletedSlugs.length === 0) console.log('Build plan: FULL (no content changes detected — rebuild anyway)');
+    else console.log('Build plan: FULL (>50% content changed)');
+  } else {
+    if (plan.changedSlugs.length === 0 && plan.deletedSlugs.length === 0) {
+      console.log('Build plan: INCREMENTAL (scheduled rebuild — date-sensitive pages only)');
+    } else {
+      console.log(`Build plan: INCREMENTAL (${plan.changedSlugs.length} changed, ${plan.deletedSlugs.length} deleted)`);
+      for (const slug of plan.changedSlugs) console.log(`  + ${slug}`);
+      for (const slug of plan.deletedSlugs) console.log(`  - ${slug}`);
+    }
+  }
+
+  writeBuildPlan(plan);
+
+  const manifest: BuildManifest = {
+    version: BUILD_MANIFEST_VERSION,
+    codeHash: currentCodeHash,
+    contentHashes: currentContentHashes,
+    tourMembership: Object.keys(currentTourMembership).length > 0 ? currentTourMembership : undefined,
+  };
+  writeBuildManifest(manifest);
+
+  console.log(`Content items: ${Object.keys(currentContentHashes).length}`);
+}

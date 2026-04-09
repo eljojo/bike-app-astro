@@ -33,16 +33,32 @@ export function getRouteToPaths(): Record<string, Array<{ slug: string; name: st
   return {}; // Precomputed in build-data-plugin; empty in dev mode
 }
 
-/** Check if a GPX track passes near any of a bike path's anchor points. */
+/** Check if a GPX track passes near any of a bike path's anchor points.
+ *  Uses a spatial grid index for O(n+m) average performance instead of O(n*m). */
 export function routePassesNearPath(
   trackPoints: GpxPoint[],
   pathAnchors: { lat: number; lng: number }[],
   thresholdM: number = 100,
 ): boolean {
+  if (trackPoints.length === 0 || pathAnchors.length === 0) return false;
+  // ~111m per 0.001° lat — cell size slightly larger than threshold
+  const cellSize = Math.max(0.001, thresholdM / 111_000);
+  const grid = new Map<string, GpxPoint[]>();
+  for (const tp of trackPoints) {
+    const key = `${Math.floor(tp.lat / cellSize)},${Math.floor(tp.lon / cellSize)}`;
+    const cell = grid.get(key);
+    if (cell) cell.push(tp); else grid.set(key, [tp]);
+  }
   for (const anchor of pathAnchors) {
-    for (const tp of trackPoints) {
-      if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) {
-        return true;
+    const cx = Math.floor(anchor.lat / cellSize);
+    const cy = Math.floor(anchor.lng / cellSize);
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const cell = grid.get(`${cx + dx},${cy + dy}`);
+        if (!cell) continue;
+        for (const tp of cell) {
+          if (haversineM(tp.lat, tp.lon, anchor.lat, anchor.lng) <= thresholdM) return true;
+        }
       }
     }
   }

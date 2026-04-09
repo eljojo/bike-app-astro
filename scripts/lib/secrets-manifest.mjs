@@ -227,6 +227,25 @@ export const SECRETS = [
   },
 
   // -------------------------------------------------------------------------
+  // Map image proxy
+  // -------------------------------------------------------------------------
+  {
+    name: 'GOOGLE_MAPS_STATIC_API_KEY',
+    required: false,
+    kind: 'secret',
+    instanceTypes: ['wiki', 'blog'],
+    autoDetect: null,
+    description: 'Google Maps Static API key for map image proxy (og:image thumbnails)',
+    howTo: `1. Go to https://console.cloud.google.com/apis/credentials
+    2. Create credentials → API Key (or reuse your existing Google key)
+    3. Click "Restrict Key":
+       - API restrictions: enable Maps Static API
+    4. Copy the API key
+    Without this, bike path social card images won't be generated on demand.
+    Enter blank to skip if not needed.`,
+  },
+
+  // -------------------------------------------------------------------------
   // Strava (blog only)
   // -------------------------------------------------------------------------
   {

@@ -47,6 +47,8 @@ export const routeSchema = z.object({
     max_gradient_pct: z.number(),
     polyline: z.string(),
   })).default({}),
+  gpxHash: z.string().optional(),
+  gpxHashes: z.record(z.string(), z.string()).default({}),
   gpxRelativePath: z.string().optional(),
   renderedBody: z.string().default(''),
   translations: z.record(z.string(), z.looseObject({

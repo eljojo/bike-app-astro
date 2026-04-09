@@ -1,6 +1,6 @@
 ---
 description: whereto.bike umbrella, instance types, rider-first positioning, naming conventions
-type: guide
+type: vision
 triggers: [writing about the product, naming features, positioning copy, adding branding elements, onboarding text]
 related: [voice-and-feel, instance-types]
 ---

@@ -11,7 +11,7 @@ import yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
-import { isHardExcluded, scoreBikePath, SCORE_THRESHOLD } from './bike-path-scoring.server';
+import { isHardExcluded, scoreBikePath } from './bike-path-scoring.server';
 import type { SluggedBikePathYml } from './bikepaths-yml.server';
 import type { BikePathPage } from './bike-path-entries.server';
 
@@ -22,6 +22,31 @@ interface RouteCard {
   name: string;
   distance_km: number;
   coverKey?: string;
+  distanceOnPathKm?: number;
+}
+
+/** Compute the total distance (km) of track segments where points are near a path.
+ *  Exported for testing. */
+export function computeOverlapDistanceKm(
+  trackPoints: Array<{ lat: number; lng: number }>,
+  isNear: (lat: number, lng: number, index: number) => boolean,
+): number {
+  let totalM = 0;
+  let prevNear = false;
+  let prevLat = 0;
+  let prevLng = 0;
+  for (let i = 0; i < trackPoints.length; i++) {
+    const tp = trackPoints[i];
+    const near = isNear(tp.lat, tp.lng, i);
+    if (near && prevNear) {
+      totalM += haversineM(prevLat, prevLng, tp.lat, tp.lng);
+    }
+    prevNear = near;
+    prevLat = tp.lat;
+    prevLng = tp.lng;
+  }
+  const km = totalM / 1000;
+  return km > 0 ? Math.round(km * 10) / 10 : 0;
 }
 
 interface NearbyPhoto {
@@ -44,8 +69,8 @@ export interface PathRelations {
   overlappingRoutes: RouteCard[];
   nearbyPhotos: NearbyPhoto[];
   nearbyPlaces: NearbyPlace[];
-  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
-  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string }>;
+  nearbyPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
+  connectedPaths: Array<{ slug: string; name: string; surface?: string; memberOf?: string; length_km?: number }>;
 }
 
 /** Bounding box for a set of points, with padding in degrees (~100m ≈ 0.001°). */
@@ -126,6 +151,11 @@ export function computeBikePathRelations(
       const coords = geoCoords[String(relId)];
       if (coords) points = points.concat(coords);
     }
+    // GeoJSON for way IDs
+    if (points.length === 0 && (entry as unknown as { osm_way_ids?: unknown[] }).osm_way_ids?.length) {
+      const coords = geoCoords[`ways-${entry.slug}`];
+      if (coords) points = points.concat(coords);
+    }
     // GeoJSON for named ways
     if (points.length === 0 && entry.osm_names?.length) {
       const coords = geoCoords[`name-${entry.slug}`];
@@ -134,6 +164,11 @@ export function computeBikePathRelations(
     // GeoJSON for segments
     if (points.length === 0 && (entry as unknown as { segments?: unknown[] }).segments?.length) {
       const coords = geoCoords[`seg-${entry.slug}`];
+      if (coords) points = points.concat(coords);
+    }
+    // GeoJSON for parallel lanes
+    if (points.length === 0 && entry.parallel_to) {
+      const coords = geoCoords[`parallel-${entry.slug}`];
       if (coords) points = points.concat(coords);
     }
     // Fall back to YML anchors
@@ -211,20 +246,37 @@ export function computeBikePathRelations(
       if (!bboxOverlap(trackBbox, pathBbox)) continue;
 
       let nearCount = 0;
+      let overlapM = 0;
+      let prevNear = false;
+      let prevLat = 0;
+      let prevLng = 0;
       for (const tp of trackPoints) {
         if (tp.lat < pathBbox.minLat || tp.lat > pathBbox.maxLat ||
-            tp.lng < pathBbox.minLng || tp.lng > pathBbox.maxLng) continue;
-        if (isNearPath(tp.lat, tp.lng, entry.slug, 100)) nearCount++;
+            tp.lng < pathBbox.minLng || tp.lng > pathBbox.maxLng) {
+          prevNear = false;
+          continue;
+        }
+        const near = isNearPath(tp.lat, tp.lng, entry.slug, 100);
+        if (near) {
+          nearCount++;
+          if (prevNear) overlapM += haversineM(prevLat, prevLng, tp.lat, tp.lng);
+        }
+        prevNear = near;
+        prevLat = tp.lat;
+        prevLng = tp.lng;
       }
 
       const routePct = nearCount / trackPoints.length * 100;
       if (routePct >= ROUTE_OVERLAP_MIN_PCT) {
         const meta = routeMeta.get(routeSlug);
         if (meta) {
-          overlappingRoutes.push({ slug: routeSlug, ...meta });
+          const distanceOnPathKm = overlapM > 0 ? Math.round(overlapM / 100) / 10 : undefined;
+          overlappingRoutes.push({ slug: routeSlug, ...meta, distanceOnPathKm });
         }
       }
     }
+    // Sort by overlap distance descending — most-overlapping route first (used for thumbnail selection)
+    overlappingRoutes.sort((a, b) => (b.distanceOnPathKm ?? 0) - (a.distanceOnPathKm ?? 0));
     routeOverlaps[entry.slug] = { count: overlappingRoutes.length };
 
     // Nearby paths (within 2km) — use spatial grid to find candidates
@@ -333,7 +385,7 @@ export function computeBikePathRelations(
  *
  * For markdown pages with `includes`, relations from all included YML entries
  * are merged and deduplicated. YML-only pages are re-scored with the real
- * routeOverlapCount and filtered below SCORE_THRESHOLD.
+ * routeOverlapCount. Listed status is type-based (set in tier 1).
  */
 export function enrichBikePathPages(
   tier1Pages: BikePathPage[],
@@ -352,13 +404,12 @@ export function enrichBikePathPages(
     // Create a shallow copy to avoid mutating the input array's elements
     const page = { ...original };
 
-    // Re-score YML-only pages with real route overlap count and update listed status
+    // Re-score YML-only pages with real route overlap count (listed is type-based, not re-computed)
     if (!page.hasMarkdown) {
       const entry = matchedEntries[0];
       const overlapCount = routeOverlaps[entry.slug]?.count ?? 0;
       const score = scoreBikePath(entry, overlapCount);
       page.score = score;
-      page.listed = score >= SCORE_THRESHOLD;
       page.stub = true; // all YML-only pages are stubs
       page.routeCount = overlapCount;
     } else {
@@ -434,13 +485,21 @@ export function enrichBikePathPages(
         const ele = geoElevation[String(relId)];
         if (ele) totalElevation += ele.gain_m;
       }
-      // Also check name-based and segment-based geo files
+      // Also check way-ID, name-based, segment-based, and parallel geo files
+      if (totalElevation === 0 && (e as unknown as { osm_way_ids?: unknown[] }).osm_way_ids?.length) {
+        const ele = geoElevation[`ways-${e.slug}`];
+        if (ele) totalElevation += ele.gain_m;
+      }
       if (totalElevation === 0 && e.osm_names?.length) {
         const ele = geoElevation[`name-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
       if (totalElevation === 0 && e.segments?.length) {
         const ele = geoElevation[`seg-${e.slug}`];
+        if (ele) totalElevation += ele.gain_m;
+      }
+      if (totalElevation === 0 && e.parallel_to) {
+        const ele = geoElevation[`parallel-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
     }
@@ -512,13 +571,13 @@ export function enrichBikePathPages(
       .filter(p => enrichedBySlug.get(p.slug)?.standalone)
       .map(p => {
         const resolved = enrichedBySlug.get(p.slug)!;
-        return { ...p, memberOf: resolved.memberOf };
+        return { ...p, memberOf: resolved.memberOf, length_km: resolved.length_km };
       });
     page.connectedPaths = page.connectedPaths
       .filter(p => enrichedBySlug.get(p.slug)?.standalone)
       .map(p => {
         const resolved = enrichedBySlug.get(p.slug)!;
-        return { ...p, memberOf: resolved.memberOf };
+        return { ...p, memberOf: resolved.memberOf, length_km: resolved.length_km };
       });
   }
 

@@ -13,7 +13,7 @@ vi.mock('../src/lib/config/city-config', () => ({
 }));
 
 function entry(overrides: Partial<SluggedBikePathYml> & { name: string }): SluggedBikePathYml {
-  return { slug: 'test', ...overrides };
+  return { slug: 'test', type: 'infrastructure' as const, ...overrides };
 }
 
 describe('isHardExcluded', () => {
@@ -58,6 +58,11 @@ describe('isHardExcluded', () => {
   it('does not exclude valid cycling paths', () => {
     expect(isHardExcluded(entry({ name: 'Ottawa River Pathway', highway: 'cycleway', network: 'rcn' }))).toBe(false);
     expect(isHardExcluded(entry({ name: 'Sentier des Voyageurs Pathway', highway: 'cycleway' }))).toBe(false);
+  });
+
+  it('never excludes trail entries (even with mtb network tag)', () => {
+    expect(isHardExcluded(entry({ name: 'Route Verte 1', type: 'long-distance', network: 'ncn' }))).toBe(false);
+    expect(isHardExcluded(entry({ name: 'Gatineau MTB Route', type: 'long-distance', network: 'mtb' }))).toBe(false);
   });
 });
 
@@ -129,45 +134,54 @@ describe('scoreBikePath', () => {
     expect(SCORE_THRESHOLD).toBe(4);
   });
 
-  it('score determines listed vs unlisted', () => {
-    // A cycleway with no extras scores 1 — below SCORE_THRESHOLD (4), so unlisted
+  it('score threshold distinguishes low vs high quality paths', () => {
+    // A cycleway with no extras scores 1 — below SCORE_THRESHOLD (4)
     const low = scoreBikePath(entry({ name: 'Small Path', highway: 'cycleway' }), 0);
     expect(low).toBe(1);
-    expect(low >= SCORE_THRESHOLD).toBe(false); // unlisted
+    expect(low >= SCORE_THRESHOLD).toBe(false);
 
-    // Same path with route overlaps scores 4 — meets threshold, so listed
+    // Same path with route overlaps scores 4 — meets threshold
     const withOverlaps = scoreBikePath(entry({ name: 'Small Path', highway: 'cycleway' }), 2);
     expect(withOverlaps).toBe(4);
-    expect(withOverlaps >= SCORE_THRESHOLD).toBe(true); // listed
+    expect(withOverlaps >= SCORE_THRESHOLD).toBe(true);
   });
 });
 
 describe('isDestination', () => {
-  it('non-hidden paths with markdown get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Short', slug: 'short' }), 0.5, true, false)).toBe(true);
-    expect(isDestination(entry({ name: 'Short', slug: 'short' }), undefined, true, false)).toBe(true);
+  it('non-hidden paths with markdown get standalone pages regardless of type', () => {
+    expect(isDestination(entry({ name: 'Short', slug: 'short', type: 'connector' }), true, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Short', slug: 'short', type: 'infrastructure' }), true, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Short', slug: 'short' }), true, false)).toBe(true);
   });
 
   it('hidden markdown entries do not get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Hidden Path', slug: 'hidden' }), 5.0, true, true)).toBe(false);
-    expect(isDestination(entry({ name: 'Hidden Short', slug: 'hidden-short' }), 0.5, true, true)).toBe(false);
+    expect(isDestination(entry({ name: 'Hidden Path', slug: 'hidden', type: 'destination' }), true, true)).toBe(false);
+    expect(isDestination(entry({ name: 'Hidden Short', slug: 'hidden-short' }), true, true)).toBe(false);
   });
 
   it('networks always get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Capital Pathway', slug: 'capital-pathway', type: 'network' }), undefined, false, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Capital Pathway', slug: 'capital-pathway', type: 'network' }), false, false)).toBe(true);
   });
 
-  it('paths under 1km without markdown do not get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Short Connector', slug: 'short-connector' }), 0.5, false, false)).toBe(false);
-    expect(isDestination(entry({ name: 'Tiny Path', slug: 'tiny' }), 0.1, false, false)).toBe(false);
+  it('trail type gets a standalone page', () => {
+    expect(isDestination(entry({ name: 'Cycloparc PPJ', slug: 'cycloparc-ppj', type: 'long-distance' }), false, false)).toBe(true);
   });
 
-  it('paths >= 1km get standalone pages', () => {
-    expect(isDestination(entry({ name: 'Long Path', slug: 'long' }), 1.0, false, false)).toBe(true);
-    expect(isDestination(entry({ name: 'Longer', slug: 'longer' }), 5.0, false, false)).toBe(true);
+  it('type: destination gets standalone page', () => {
+    expect(isDestination(entry({ name: 'River Trail', slug: 'river-trail', type: 'destination' }), false, false)).toBe(true);
+    expect(isDestination(entry({ name: 'Short Dest', slug: 'short-dest', type: 'destination' }), false, false)).toBe(true);
   });
 
-  it('paths with no length data default to standalone', () => {
-    expect(isDestination(entry({ name: 'Unknown', slug: 'unknown' }), undefined, false, false)).toBe(true);
+  it('type: infrastructure does not get standalone page', () => {
+    expect(isDestination(entry({ name: 'Bike Lane', slug: 'bike-lane', type: 'infrastructure' }), false, false)).toBe(false);
+  });
+
+  it('type: connector does not get standalone page', () => {
+    expect(isDestination(entry({ name: 'Tiny Segment', slug: 'tiny', type: 'connector' }), false, false)).toBe(false);
+  });
+
+  it('entries without type do not get standalone pages', () => {
+    expect(isDestination(entry({ name: 'Unknown', slug: 'unknown' }), false, false)).toBe(false);
+    expect(isDestination(entry({ name: 'Long Path', slug: 'long' }), false, false)).toBe(false);
   });
 });

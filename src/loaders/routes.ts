@@ -16,6 +16,7 @@ import { renderMarkdownHtml } from '../lib/markdown/markdown-render';
 import { loadLocaleTranslations } from './locale-content';
 import { supportedLocales, defaultLocale } from '../lib/i18n/locale-utils';
 import { readRouteDir } from './route-file-reader';
+import { gpxHash } from '../lib/maps/map-generation.server';
 
 /** Re-export RouteMedia — other modules import it from here. */
 export type { RouteMedia } from './route-file-reader';
@@ -56,12 +57,22 @@ export function routeLoader(): Loader {
         const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
         const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);
 
+        // Compute per-variant GPX content hashes (keyed by GPX filename)
+        const gpxHashes: Record<string, string> = {};
+        for (const [filename, content] of Object.entries(parsed.rawContents.gpxFiles)) {
+          gpxHashes[filename] = gpxHash(content);
+        }
+        const gpxFileEntries = Object.values(parsed.rawContents.gpxFiles);
+        const routeGpxHash = gpxFileEntries.length > 0 ? gpxHash(gpxFileEntries[0]) : undefined;
+
         store.set({
           id: slug,
           data: {
             ...parsed.frontmatter,
             media: parsed.media,
             gpxTracks: parsed.gpxTracks,
+            gpxHash: routeGpxHash,
+            gpxHashes,
             renderedBody,
             translations,
           },
