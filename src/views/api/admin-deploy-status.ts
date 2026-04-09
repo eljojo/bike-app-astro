@@ -29,12 +29,12 @@ export async function GET({ locals }: APIContext) {
       .limit(1);
 
     const codeRepo = 'bike-app-astro';
-    const workflowFile = env.ENVIRONMENT === 'staging' ? 'staging.yml' : 'production.yml';
+    const deployWorkflow = env.ENVIRONMENT === 'staging' ? 'staging.yml' : 'production.yml';
     const { latestRun, latestSuccessfulRun } = await getDeployWorkflowRuns({
       token: env.GITHUB_TOKEN,
       owner: env.GIT_OWNER,
       repo: codeRepo,
-      workflowFile,
+      workflowFiles: [deployWorkflow, 'ci.yml'],
     });
 
     // Active workflow takes priority — show progress regardless of contentEdits state.

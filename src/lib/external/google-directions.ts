@@ -75,7 +75,7 @@ export function parseGoogleDirectionsUrl(url: string): DirectionsParseResult | n
   // Decode and filter out viewport (@-prefixed) and data= segments
   const segments = rawSegments
     .map((s) => decodePathSegment(s))
-    .filter((s) => !s.startsWith('@') && !s.startsWith('data='));
+    .filter((s) => !s.startsWith('@') && !s.startsWith('data=') && !/^[a-z]+=/.test(s));
 
   if (segments.length === 0) return null;
 

@@ -12,6 +12,10 @@
 @use 'bike-path-admin';
 @use 'admin-sidebar';
 @use 'admin-preview';
+@use 'wizard';
+@use 'celebration';
+@use 'editor-preamble';
+@use 'location-field';
 
 .auth-page {
   max-width: 420px;

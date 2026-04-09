@@ -3,12 +3,14 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import CommunityEditor from '../../components/admin/CommunityEditor.tsx';
+import CommunityWizard from '../../components/admin/CommunityWizard.tsx';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { loadTagTranslations } from '../../lib/i18n/tag-translations.server';
 import { defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { t } from '@/i18n';
 
 const config = getCityConfig();
@@ -17,6 +19,8 @@ const videosCdnUrl = config.videos_cdn_url;
 const videoPrefix = isBlogInstance() ? VIDEO_PREFIX : CITY;
 const tagTranslations = loadTagTranslations();
 const knownTags = await fetchJson<string[]>(new URL('/admin/data/known-tags.json', Astro.url));
+const fullEditor = Astro.url.searchParams.get('full') === '1';
+const features = getInstanceFeatures();
 
 const initialData = {
   slug: '',
@@ -30,6 +34,10 @@ const initialData = {
 };
 ---
 
-<AdminEditorLayout title="New Community" user={Astro.locals.user} currentTab="organizers">
-  <CommunityEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
+<AdminEditorLayout title="New Community" user={Astro.locals.user} currentTab="organizers" hideTitle={!fullEditor}>
+  {fullEditor ? (
+    <CommunityEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} guestLabel={t('editor.guest_label', Astro.currentLocale)} />
+  ) : (
+    <CommunityWizard client:load cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} showLicenseNotice={features.showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityName={config.name} cityCenter={[config.center.lat, config.center.lng]} cityBounds={config.bounds} />
+  )}
 </AdminEditorLayout>

@@ -32,12 +32,14 @@ interface EditorLayoutProps {
   beforeTabs?: ComponentChildren;
   /** Content after the auth-form div but before EditorActions (extra editor sections) */
   afterForm?: ComponentChildren;
+  /** When provided, redirect to this URL after a successful save (non-guest) */
+  celebrateUrl?: string;
 }
 
 export default function EditorLayout({
   editor, className, contentType, userRole, guestLabel, viewLink,
   showLicenseNotice, disabled, as: Tag = 'div', hideTabs,
-  children, preview, beforeTabs, afterForm,
+  children, preview, beforeTabs, afterForm, celebrateUrl,
 }: EditorLayoutProps) {
   return (
     <Tag class={className} ref={editor.hydratedRef} disabled={disabled}>
@@ -77,6 +79,7 @@ export default function EditorLayout({
             showLicenseNotice={showLicenseNotice}
             licenseDocsUrl="https://whereto.bike/about/licensing/"
             disabled={disabled}
+            celebrateUrl={celebrateUrl}
           />
         </div>
         <div class={`route-editor-preview ${editor.activeTab !== 'preview' ? 'route-editor-pane--hidden' : ''}`}>

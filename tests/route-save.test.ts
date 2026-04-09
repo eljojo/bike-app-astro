@@ -89,6 +89,25 @@ describe('routeHandlers.buildCommitMessage', () => {
   });
 });
 
+describe('routeHandlers.resolveContentId', () => {
+  it('returns newSlug for new routes instead of literal "new"', () => {
+    const id = routeHandlers.resolveContentId(
+      { slug: 'new' },
+      { frontmatter: { name: 'My Fav Route' }, body: '', newSlug: 'my-fav-route' },
+    );
+    expect(id).toBe('my-fav-route');
+    expect(id).not.toBe('new');
+  });
+
+  it('returns slug param for existing routes', () => {
+    const id = routeHandlers.resolveContentId(
+      { slug: 'existing-route' },
+      { frontmatter: { name: 'Existing' }, body: '' },
+    );
+    expect(id).toBe('existing-route');
+  });
+});
+
 describe('routeHandlers.validateSlug', () => {
   it('rejects single character', () => {
     expect(routeHandlers.validateSlug!('a')).toMatch(/must start and end/);

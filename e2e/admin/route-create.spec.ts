@@ -24,7 +24,7 @@ test.describe('Route Creation', () => {
   test('URL import input is visible and shows Import button on input', async ({ page }) => {
     await loginAs(page, token);
 
-    await page.goto('/admin/routes/new');
+    await page.goto('/admin/routes/new?full=1');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 
@@ -50,7 +50,7 @@ test.describe('Route Creation', () => {
   test('Google Directions URL import shows preview with route name', async ({ page }) => {
     await loginAs(page, token);
 
-    await page.goto('/admin/routes/new');
+    await page.goto('/admin/routes/new?full=1');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 
@@ -86,7 +86,7 @@ test.describe('Route Creation', () => {
 
   test('route preview shows map and stats after GPX upload', async ({ page }) => {
     await loginAs(page, token);
-    await page.goto('/admin/routes/new');
+    await page.goto('/admin/routes/new?full=1');
     await page.waitForLoadState('networkidle');
 
     // Upload a GPX file
@@ -116,7 +116,7 @@ test.describe('Route Creation', () => {
   test('upload GPX, name route, save, verify commit', async ({ page }) => {
     await loginAs(page, token);
 
-    await page.goto('/admin/routes/new');
+    await page.goto('/admin/routes/new?full=1');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 

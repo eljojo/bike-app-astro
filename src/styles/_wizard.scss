@@ -1,0 +1,222 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// Metro progress indicator
+.metro-progress {
+  margin-bottom: 2rem;
+  padding: 0 1rem;
+}
+
+.metro-stops {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.metro-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.metro-stop-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid $color-border;
+  background: $color-card-bg;
+  cursor: default;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+
+  .metro-stop--completed & {
+    background: $color-accent;
+    border-color: $color-accent;
+    cursor: pointer;
+    &:hover { opacity: 0.8; }
+  }
+
+  .metro-stop--current & {
+    border-color: $color-accent;
+    background: $color-accent;
+    box-shadow: 0 0 0 3px rgba($color-accent, 0.2);
+  }
+
+  &:disabled { cursor: default; }
+}
+
+.metro-stop-label {
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+  text-align: center;
+  @include muted-text;
+
+  .metro-stop--current & {
+    color: $color-accent;
+    font-weight: 600;
+    opacity: 1;
+  }
+}
+
+.metro-stop-line {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: $color-border;
+  z-index: 0;
+
+  @include dark-mode { background: $color-border-dark; }
+
+  &--filled { background: $color-accent; }
+}
+
+// Wizard layout
+.wizard-layout {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.wizard-step {
+  min-height: 300px;
+}
+
+.wizard-step-heading {
+  font-family: $font-heading;
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.wizard-step-subheading {
+  @include muted-text;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 2rem;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid $color-border;
+  @include dark-mode { border-color: $color-border-dark; }
+}
+
+.wizard-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wizard-nav-skip {
+  @include muted-text;
+  font-size: 0.875rem;
+}
+
+// Welcome step
+.wizard-welcome {
+  text-align: center;
+  max-width: 520px;
+  margin: 3rem auto 0;
+}
+
+.wizard-welcome-heading {
+  font-family: $font-heading;
+  font-size: 2rem;
+  margin: 0 0 1rem;
+}
+
+.wizard-welcome-body {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin: 0 0 2rem;
+  @include muted-text;
+}
+
+.wizard-welcome-begin {
+  margin-bottom: 1.5rem;
+}
+
+.wizard-welcome-skip {
+  @include muted-text;
+  font-size: 0.875rem;
+}
+
+// Field hints (used in wizard steps and editors)
+.form-field-hint {
+  display: block;
+  @include muted-text;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  margin-bottom: 0.25rem;
+}
+
+// Fork step — two clickable cards
+.wizard-fork {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wizard-fork-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.75rem 1.25rem;
+  border: 2px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+
+  &:hover {
+    border-color: $color-accent;
+    background: $color-card-hover;
+
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+}
+
+.wizard-fork-emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.wizard-fork-title {
+  font-family: $font-heading;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $color-text;
+
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.wizard-fork-desc {
+  font-size: 0.875rem;
+  @include muted-text;
+}

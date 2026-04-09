@@ -95,12 +95,12 @@ test.describe('Event Creation', () => {
   test('create new event and save', async ({ page }) => {
     await loginAs(page, token);
 
-    await page.goto('/admin/events/new');
+    await page.goto('/admin/events/new?full=1');
     await page.waitForLoadState('networkidle');
+    await waitForHydration(page);
 
     // Skip the poster upload phase (EventCreator → EventEditor)
     await page.locator('button.btn-link', { hasText: 'Skip' }).click();
-    await waitForHydration(page);
 
     // Screenshot the empty event creation form
     await expect(page.locator('#event-name')).toBeVisible();

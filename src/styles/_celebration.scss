@@ -1,0 +1,123 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.celebration {
+  max-width: 520px;
+  margin: 3rem auto 0;
+  text-align: center;
+}
+
+.celebration-heading {
+  font-family: $font-heading;
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.celebration-message {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  @include muted-text;
+  margin: 0 0 2rem;
+}
+
+.celebration-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.celebration-pulse {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: $color-accent;
+  animation: celebration-breathe 2s ease-in-out infinite;
+}
+
+@keyframes celebration-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+
+.celebration-live {
+  animation: celebration-appear 0.3s ease-out;
+}
+
+@keyframes celebration-appear {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.celebration-live-heading {
+  font-family: $font-heading;
+  font-size: 2rem;
+  margin: 1rem 0;
+}
+
+.celebration-link {
+  display: block;
+  font-size: 1.1rem;
+  margin: 1rem 0;
+  word-break: break-word;
+}
+
+.celebration-share {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.celebration-copied {
+  font-size: 0.875rem;
+  @include muted-text;
+  margin-top: 0.25rem;
+}
+
+.celebration-nudges {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid $color-border;
+  text-align: left;
+  @include dark-mode { border-color: $color-border-dark; }
+
+  h3 { font-family: $font-heading; font-size: 1rem; margin: 0 0 0.75rem; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { margin-bottom: 0.5rem; font-size: 0.9rem; }
+}
+
+.celebration-progress {
+  width: 100%;
+  max-width: 300px;
+}
+
+.celebration-progress-track {
+  height: 4px;
+  background: $color-border;
+  border-radius: 2px;
+  overflow: hidden;
+  @include dark-mode { background: $color-border-dark; }
+}
+
+.celebration-progress-fill {
+  height: 100%;
+  background: $color-accent;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.celebration-progress-text {
+  @include muted-text;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.celebration-upgrade {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: $color-card-bg;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  @include dark-mode { background: $color-card-bg-dark; border-color: $color-border-dark; }
+}

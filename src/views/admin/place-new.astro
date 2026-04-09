@@ -3,10 +3,12 @@ export const prerender = false;
 
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import PlaceEditor from '../../components/admin/PlaceEditor.tsx';
+import PlaceWizard from '../../components/admin/PlaceWizard.tsx';
 import { env } from '../../lib/env/env.service';
 import { CITY, VIDEO_PREFIX } from '../../lib/config/config';
 import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
+import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { t } from '@/i18n';
 import type { AdminOrganizer } from '../../types/admin';
@@ -24,6 +26,9 @@ const mediaLocations = await fetchJson<_MediaLocation[]>(new URL('/admin/data/me
 const allOrganizers = await fetchJson<AdminOrganizer[]>(new URL('/admin/data/organizers.json', Astro.url));
 const organizerOptions = allOrganizers.filter((o: AdminOrganizer) => o.tags.includes('bike-shop')).map((o: AdminOrganizer) => ({ slug: o.slug, name: o.name }));
 
+const fullEditor = Astro.url.searchParams.get('full') === '1';
+const features = getInstanceFeatures();
+
 const initialData = {
   id: '',
   name: '',
@@ -34,6 +39,10 @@ const initialData = {
 };
 ---
 
-<AdminEditorLayout title="New Place" user={Astro.locals.user} currentTab="places">
-  <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} organizers={organizerOptions} />
+<AdminEditorLayout title="New Place" user={Astro.locals.user} currentTab="places" hideTitle={!fullEditor}>
+  {fullEditor ? (
+    <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} organizers={organizerOptions} />
+  ) : (
+    <PlaceWizard client:load cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} showLicenseNotice={features.showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} mapCenter={mapCenter} cityName={cityConfig.name} />
+  )}
 </AdminEditorLayout>
