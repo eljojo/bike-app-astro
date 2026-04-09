@@ -618,7 +618,7 @@
 
 .network-member-link {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   padding: 0.6em 0.5em;
   text-decoration: none;
@@ -636,14 +636,33 @@
 
 .network-member-no-page {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   padding: 0.6em 0.5em;
   @include muted-text;
 }
 
+.network-member-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
 .network-member-name {
   font-weight: 500;
+}
+
+.network-member-overlap-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.25;
+  margin-top: 0.15em;
+  @include muted-text;
+}
+
+.network-member-overlap-route {
+  opacity: 0.75;
 }
 
 .network-member-meta {

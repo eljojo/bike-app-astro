@@ -36,7 +36,11 @@ interface TierableMember {
 export interface TieredMembers<T extends TierableMember> {
   longDistanceMembers: T[];
   ungroupedPrimary: T[];
-  displayOverlapGroups: Array<{ name: string; route: string; members: T[] }>;
+  /** Slugs of primary members whose first overlapping non-cycling relation is shared
+   *  by ≥2 primary members. The render layer uses this set to show the relation
+   *  name as a low-key subtitle under the member's name, instead of grouping them
+   *  into a separate section. */
+  overlapLabelSlugs: Set<string>;
   primaryTier2: T[];
   secondaryMembers: T[];
 }
@@ -82,32 +86,23 @@ export function tierNetworkMembers<T extends TierableMember>(
 
   const secondaryMembers = allSecondary.filter(m => !longDistanceSlugs.has(m.slug));
 
-  // Group primary members by shared non-cycling relation
-  const overlapGroups = new Map<number, { name: string; route: string; members: T[] }>();
-  const ungroupedPrimary: T[] = [];
+  // Detect non-cycling relations shared by ≥2 primary members. Members of such
+  // "groups" are no longer rendered in a separate section — they stay inline
+  // in the main member list and show the relation name as a low-key subtitle.
+  const relationCounts = new Map<number, number>();
   for (const m of primaryMembers) {
-    const rels = m.overlappingRelations ?? [];
-    if (rels.length > 0) {
-      const rel = rels[0];
-      if (!overlapGroups.has(rel.id)) {
-        overlapGroups.set(rel.id, { name: rel.name, route: rel.route, members: [] });
-      }
-      overlapGroups.get(rel.id)!.members.push(m);
-    } else {
-      ungroupedPrimary.push(m);
-    }
+    const rel = m.overlappingRelations?.[0];
+    if (rel) relationCounts.set(rel.id, (relationCounts.get(rel.id) ?? 0) + 1);
   }
-  const displayOverlapGroups: Array<{ name: string; route: string; members: T[] }> = [];
-  for (const [, g] of overlapGroups) {
-    if (g.members.length >= 2) {
-      displayOverlapGroups.push(g);
-    } else {
-      ungroupedPrimary.push(...g.members);
-    }
+  const overlapLabelSlugs = new Set<string>();
+  for (const m of primaryMembers) {
+    const rel = m.overlappingRelations?.[0];
+    if (rel && (relationCounts.get(rel.id) ?? 0) >= 2) overlapLabelSlugs.add(m.slug);
   }
-  ungroupedPrimary.sort((a, b) => a.name.localeCompare(b.name));
 
-  return { longDistanceMembers, ungroupedPrimary, displayOverlapGroups, primaryTier2, secondaryMembers };
+  const ungroupedPrimary = [...primaryMembers].sort((a, b) => a.name.localeCompare(b.name));
+
+  return { longDistanceMembers, ungroupedPrimary, overlapLabelSlugs, primaryTier2, secondaryMembers };
 }
 
 // ── Infrastructure grouping ─────────────────────────────────────────

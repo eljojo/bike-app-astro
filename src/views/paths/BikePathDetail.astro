@@ -73,7 +73,7 @@ const useNetworkFacts = networkFacts.length > 0;
 
 // --- Network-specific data ---
 const isMtbNetwork = memberMeta ? memberMeta.filter(m => m.path_type === 'mtb-trail').length > memberMeta.length / 2 : false;
-const { longDistanceMembers, ungroupedPrimary, displayOverlapGroups, primaryTier2, secondaryMembers } =
+const { longDistanceMembers, ungroupedPrimary, overlapLabelSlugs, primaryTier2, secondaryMembers } =
   tierNetworkMembers(page.memberRefs ?? [], page.slug, isMtbNetwork);
 const memberRefs = (page.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= 0.5);
 
@@ -307,53 +307,45 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
               </div>
             )}
 
-            {/* Tier 1: significant members (≥5km or has markdown), sorted by length */}
+            {/* Tier 1: significant members (≥5km or has markdown), sorted by length.
+                Members that share a non-cycling OSM relation (e.g. a hiking/piste route)
+                show the relation name as a low-key subtitle instead of being grouped. */}
             {ungroupedPrimary.length > 0 && (
               <ul class="network-members-list">
-                {ungroupedPrimary.map(m => (
-                  <li data-slug={m.slug}>
-                    {m.standalone ? (
-                      <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
-                        <span class="network-member-name">{m.name}</span>
-                        {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
-                      </a>
-                    ) : (
-                      <span class="network-member-no-page">
-                        <span class="network-member-name">{m.name}</span>
-                        {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Overlap groups — members grouped by shared non-cycling relation */}
-            {displayOverlapGroups.map(group => (
-              <div class="network-overlap-group">
-                <h3 class="network-overlap-heading">
-                  {group.name}
-                  <span class="network-overlap-route-type">({group.route})</span>
-                </h3>
-                <ul class="network-members-list">
-                  {group.members.map(m => (
+                {ungroupedPrimary.map(m => {
+                  const overlapRel = overlapLabelSlugs.has(m.slug) ? m.overlappingRelations?.[0] : undefined;
+                  return (
                     <li data-slug={m.slug}>
                       {m.standalone ? (
                         <a href={paths.bikePath(m.slug, m.memberOf ?? page.slug, locale)} class="network-member-link">
-                          <span class="network-member-name">{m.name}</span>
+                          <span class="network-member-primary">
+                            <span class="network-member-name">{m.name}</span>
+                            {overlapRel && (
+                              <span class="network-member-overlap-label">
+                                {overlapRel.name} <span class="network-member-overlap-route">({overlapRel.route})</span>
+                              </span>
+                            )}
+                          </span>
                           {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
                         </a>
                       ) : (
                         <span class="network-member-no-page">
-                          <span class="network-member-name">{m.name}</span>
+                          <span class="network-member-primary">
+                            <span class="network-member-name">{m.name}</span>
+                            {overlapRel && (
+                              <span class="network-member-overlap-label">
+                                {overlapRel.name} <span class="network-member-overlap-route">({overlapRel.route})</span>
+                              </span>
+                            )}
+                          </span>
                           {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
                         </span>
                       )}
                     </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+                  );
+                })}
+              </ul>
+            )}
 
             {/* Tier 2: shorter segments, expandable */}
             {primaryTier2.length > 0 && (
