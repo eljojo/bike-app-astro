@@ -18,10 +18,10 @@
     "staging": {
       "name": "bike-ottawa-staging",
       "observability": {
-        "enabled": true
-      },
-      "traces": {
-        "enabled": true
+        "enabled": true,
+        "traces": {
+          "enabled": true
+        }
       },
       "ai": {
         "binding": "AI"
@@ -59,10 +59,10 @@
     "production": {
       "name": "bike-ottawa-production",
       "observability": {
-        "enabled": true
-      },
-      "traces": {
-        "enabled": true
+        "enabled": true,
+        "traces": {
+          "enabled": true
+        }
       },
       "ai": {
         "binding": "AI"
@@ -102,9 +102,6 @@
       "observability": {
         "enabled": true
       },
-      "traces": {
-        "enabled": true
-      },
       "ai": {
         "binding": "AI"
       },
@@ -141,9 +138,6 @@
       "observability": {
         "enabled": true
       },
-      "traces": {
-        "enabled": true
-      },
       "ai": {
         "binding": "AI"
       },
@@ -178,9 +172,6 @@
     "santiago-production": {
       "name": "bike-santiago-production",
       "observability": {
-        "enabled": true
-      },
-      "traces": {
         "enabled": true
       },
       "ai": {
