@@ -43,6 +43,8 @@ interface EventDraftResponse {
   uncertain: string[];
   poster_key?: string;
   poster_content_type?: string;
+  poster_width?: number;
+  poster_height?: number;
 }
 
 const REVIEW_FIELDS = ['name', 'series', 'start_date', 'end_date', 'start_time', 'meet_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
@@ -230,6 +232,8 @@ export default function EventWizard({
     if (data.poster_key) {
       setPosterKey(data.poster_key);
       setPosterContentType(data.poster_content_type || 'image/jpeg');
+      if (data.poster_width) setPosterWidth(data.poster_width);
+      if (data.poster_height) setPosterHeight(data.poster_height);
     }
     setEventDraft(data);
     const hasFields = Object.keys(data.draft).length > 0;
@@ -278,6 +282,8 @@ export default function EventWizard({
     }
     const results = await upload.upload(file);
     if (results && results.length > 0) {
+      setPosterWidth(results[0].width);
+      setPosterHeight(results[0].height);
       await handlePosterUploaded(results[0].key, results[0].contentType || file.type);
     }
   }

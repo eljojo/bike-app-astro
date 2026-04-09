@@ -25,6 +25,8 @@ interface EventDraftResponse {
   uncertain: string[];
   poster_key?: string;
   poster_content_type?: string;
+  poster_width?: number;
+  poster_height?: number;
 }
 
 const REVIEW_FIELDS = ['name', 'series', 'start_date', 'end_date', 'start_time', 'meet_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
@@ -88,6 +90,8 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
   const [dragOver, setDragOver] = useState(false);
   const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
   const [posterContentType, setPosterContentType] = useState(copyData?.poster_content_type || '');
+  const [posterWidth, setPosterWidth] = useState<number | undefined>(copyData?.poster_width);
+  const [posterHeight, setPosterHeight] = useState<number | undefined>(copyData?.poster_height);
   const [extracting, setExtracting] = useState(false);
   const [eventDraft, setEventDraft] = useState<EventDraftResponse | null>(null);
   const [error, setError] = useState('');
@@ -102,6 +106,8 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     if (data.poster_key) {
       setPosterKey(data.poster_key);
       setPosterContentType(data.poster_content_type || 'image/jpeg');
+      if (data.poster_width) setPosterWidth(data.poster_width);
+      if (data.poster_height) setPosterHeight(data.poster_height);
     }
 
     const hasFields = Object.keys(data.draft).length > 0;
@@ -145,6 +151,8 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     }
     const results = await upload.upload(file);
     if (results && results.length > 0) {
+      setPosterWidth(results[0].width);
+      setPosterHeight(results[0].height);
       await handlePosterUploaded(results[0].key, results[0].contentType || file.type);
     }
   }
@@ -222,8 +230,8 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       map_url: source.map_url as string | undefined,
       poster_key: posterKey,
       poster_content_type: posterContentType,
-      poster_width: source.poster_width as number | undefined,
-      poster_height: source.poster_height as number | undefined,
+      poster_width: posterWidth ?? (source.poster_width as number | undefined),
+      poster_height: posterHeight ?? (source.poster_height as number | undefined),
       tags: (source.tags as string[]) || [],
       body: (source.body as string) || '',
       routes: (source.routes as string[]) || [],
