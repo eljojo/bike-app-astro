@@ -6,6 +6,8 @@ import CelebrationIsland from '../../components/admin/CelebrationIsland.tsx';
 import { getCityConfig } from '../../lib/config/city-config';
 import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
 import { eventDetailFromCache } from '../../lib/models/event-model';
+import { organizerDetailFromCache } from '../../lib/models/organizer-model';
+import { placeDetailFromCache } from '../../lib/models/place-model';
 import { routeDetailFromCache } from '../../lib/models/route-model';
 
 const { contentType, id } = Astro.params;
@@ -16,15 +18,23 @@ const skipped = Astro.url.searchParams.get('skipped')?.split(',').filter(Boolean
 // Slug-derived fallback: strip year prefix (e.g. "2026/bike-workshop" → "Bike Workshop")
 const slugPart = contentId.includes('/') ? contentId.split('/').pop()! : contentId;
 let contentName = slugPart.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+const contentTypeMap: Record<string, { collection: string; fromCache: (blob: string) => { name?: string } }> = {
+  event: { collection: 'events', fromCache: eventDetailFromCache },
+  route: { collection: 'routes', fromCache: routeDetailFromCache },
+  place: { collection: 'places', fromCache: placeDetailFromCache },
+  community: { collection: 'organizers', fromCache: organizerDetailFromCache },
+};
 try {
-  const fromCache = contentType === 'event' ? eventDetailFromCache : routeDetailFromCache;
-  const result = await loadDetailFromJson({
-    contentType: contentType === 'event' ? 'events' : 'routes',
-    id: contentId,
-    jsonUrl: new URL(`/admin/data/${contentType}s/${contentId}.json`, Astro.url),
-    fromCache,
-  });
-  if (!result.notFound && result.data?.name) contentName = result.data.name;
+  const typeConfig = contentType ? contentTypeMap[contentType] : undefined;
+  if (typeConfig) {
+    const result = await loadDetailFromJson({
+      contentType: typeConfig.collection,
+      id: contentId,
+      jsonUrl: new URL(`/admin/data/${typeConfig.collection}/${contentId}.json`, Astro.url),
+      fromCache: typeConfig.fromCache,
+    });
+    if (!result.notFound && result.data?.name) contentName = result.data.name;
+  }
 } catch {
   // Fallback to slug-derived name
 }
@@ -32,12 +42,27 @@ try {
 const cityConfig = getCityConfig();
 const domain = cityConfig.domain;
 const cityName = cityConfig.name;
-const publicPath = contentType === 'event' ? `/events/${contentId}` : `/${contentType}s/${contentId}`;
+let publicPath: string;
+if (contentType === 'event') {
+  publicPath = `/events/${contentId}`;
+} else if (contentType === 'place') {
+  publicPath = `/places`;
+} else if (contentType === 'community') {
+  publicPath = `/communities/${contentId}`;
+} else {
+  publicPath = `/${contentType}s/${contentId}`;
+}
 const publicUrl = `https://${domain}${publicPath}`;
 
 const user = Astro.locals.user;
 const isGuest = user?.role === 'guest';
-const currentTab = contentType === 'event' ? 'events' : 'routes';
+const tabMap: Record<string, string> = {
+  event: 'events',
+  route: 'routes',
+  place: 'places',
+  community: 'organizers',
+};
+const currentTab = contentType ? (tabMap[contentType] ?? 'routes') : 'routes';
 ---
 
 <AdminEditorLayout title="Contribution saved" user={user} currentTab={currentTab} hideTitle>
