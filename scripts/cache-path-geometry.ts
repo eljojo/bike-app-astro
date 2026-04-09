@@ -405,7 +405,7 @@ if (parallelEntries.length > 0) {
     }
 
     const bbox = anchorBbox(entry.anchors as Array<[number, number]>);
-    const roadName = entry.parallel_to!.replace(/'/g, "\\'");
+    const roadName = entry.parallel_to!.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
     const q = `[out:json][timeout:60];
 way["name"="${roadName}"](${bbox}) -> .road;

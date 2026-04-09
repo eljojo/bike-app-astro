@@ -299,24 +299,32 @@ function buildContextSuffix(): string {
   return ctx;
 }
 
+/** Loop a global replacement until the output stabilizes (handles nested constructs). */
+function loopReplace(text: string, pattern: RegExp, replacement: string): string {
+  let prev;
+  do { prev = text; text = text.replace(pattern, replacement); } while (text !== prev);
+  return text;
+}
+
 /** Strip HTML to plain text for AI processing. */
 export function htmlToText(html: string): string {
   let text = html;
   // Remove JSON data blobs (Wix viewer model, warmup data, etc.) — before general script removal
-  text = text.replace(/<script[^>]*type="application\/json"[^>]*>[\s\S]*?<\/script>/gi, '');
+  text = loopReplace(text, /<script[^>]*type="application\/json"[^>]*>[\s\S]*?<\/script[^>]*>/gi, '');
   // Remove script and style blocks
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, '');
-  text = text.replace(/<nav[\s\S]*?<\/nav>/gi, '');
-  text = text.replace(/<footer[\s\S]*?<\/footer>/gi, '');
+  text = loopReplace(text, /<script[\s\S]*?<\/script[^>]*>/gi, '');
+  text = loopReplace(text, /<style[\s\S]*?<\/style[^>]*>/gi, '');
+  text = loopReplace(text, /<nav[\s\S]*?<\/nav[^>]*>/gi, '');
+  text = loopReplace(text, /<footer[\s\S]*?<\/footer[^>]*>/gi, '');
   // Preserve links as "text (url)"
   text = text.replace(/<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '$2 ($1)');
   // Block elements → newlines
   text = text.replace(/<\/?(p|div|br|h[1-6]|li|tr|section|article|header|blockquote)[^>]*>/gi, '\n');
   // Strip remaining tags
-  text = text.replace(/<[^>]+>/g, '');
-  // Decode common entities
-  text = text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
+  text = loopReplace(text, /<[^>]+>/g, '');
+  // Decode common entities (single pass to avoid double-decoding e.g. &amp;lt; → &lt; → <)
+  const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
+  text = text.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e) => ENTITIES[e] ?? '');
   // Collapse whitespace
   text = text.replace(/[ \t]+/g, ' ');
   text = text.replace(/\n{3,}/g, '\n\n');
@@ -427,8 +435,8 @@ async function extractFromHtml(
   return { extracted: parseAiResponse(result.response), durationMs };
 }
 
-/** Stage an image buffer to R2, returning the media key and content type. */
-async function stageImage(imageBuffer: ArrayBuffer): Promise<{ key: string; contentType: string }> {
+/** Stage an image buffer to R2, returning the media key, content type, and dimensions. */
+async function stageImage(imageBuffer: ArrayBuffer): Promise<{ key: string; contentType: string; width: number; height: number }> {
   if (!env.BUCKET) throw new Error('Storage not configured');
   const prefix = env.STORAGE_KEY_PREFIX || '';
   const key = await generateMediaKey(env.BUCKET, prefix);
@@ -519,6 +527,8 @@ export async function POST({ request, locals }: APIContext) {
           draft, uncertain, durationMs,
           poster_key: staged.key,
           poster_content_type: staged.contentType,
+          poster_width: staged.width,
+          poster_height: staged.height,
         });
       }
 

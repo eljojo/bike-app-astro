@@ -25,7 +25,7 @@ export function parseGoogleMapsUrl(url: string): { mid: string } | null {
   }
 
   // Must be a google.com domain
-  if (!parsed.hostname.endsWith('google.com')) return null;
+  if (parsed.hostname !== 'google.com' && !parsed.hostname.endsWith('.google.com')) return null;
 
   // Must match /maps/d/(edit|viewer|embed) path pattern
   const myMapsPattern = /^\/maps\/d\/(edit|viewer|embed)\/?$/;

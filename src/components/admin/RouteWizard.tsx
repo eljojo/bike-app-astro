@@ -169,8 +169,8 @@ export default function RouteWizard({
       setImportUrl('');
       setVariants([{
         name: routeName, gpx: 'main.gpx', isNew: true, gpxContent: content,
-        ...(resolvedUrl.includes('ridewithgps.com') && { rwgps_url: resolvedUrl }),
-        ...((resolvedUrl.includes('google.com/maps/d/') || resolvedUrl.includes('google.com/maps/dir/')) && { google_maps_url: resolvedUrl }),
+        ...(() => { try { const h = new URL(resolvedUrl).hostname; return (h === 'ridewithgps.com' || h.endsWith('.ridewithgps.com')) ? { rwgps_url: resolvedUrl } : {}; } catch { return {}; } })(),
+        ...(() => { try { const h = new URL(resolvedUrl).hostname; return (h === 'google.com' || h.endsWith('.google.com')) && /\/maps\/d(ir)?\//.test(resolvedUrl) ? { google_maps_url: resolvedUrl } : {}; } catch { return {}; } })(),
       }]);
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : 'Import failed');

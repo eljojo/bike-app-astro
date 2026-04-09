@@ -26,7 +26,7 @@ export function isGoogleDirectionsUrl(url: string): boolean {
   } catch {
     return false;
   }
-  if (!parsed.hostname.endsWith('google.com')) return false;
+  if (parsed.hostname !== 'google.com' && !parsed.hostname.endsWith('.google.com')) return false;
   return parsed.pathname.startsWith('/maps/dir/');
 }
 
@@ -65,7 +65,7 @@ export function parseGoogleDirectionsUrl(url: string): DirectionsParseResult | n
     return null;
   }
 
-  if (!parsed.hostname.endsWith('google.com')) return null;
+  if (parsed.hostname !== 'google.com' && !parsed.hostname.endsWith('.google.com')) return null;
   if (!parsed.pathname.startsWith('/maps/dir/')) return null;
 
   // Extract path segments after /maps/dir/

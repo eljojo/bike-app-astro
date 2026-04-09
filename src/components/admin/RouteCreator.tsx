@@ -254,6 +254,10 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
   }
 
   // Phase 2: Full editor with pre-filled data
+  const sourceHost = (() => { try { return new URL(sourceUrl).hostname; } catch { return ''; } })();
+  const hostIs = (d: string) => sourceHost === d || sourceHost.endsWith(`.${d}`);
+  const isRwgps = hostIs('ridewithgps.com');
+  const isGoogleMaps = hostIs('google.com') && /\/maps\/d(ir)?\//.test(sourceUrl);
   const initialData = {
     slug,
     name,
@@ -268,8 +272,8 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
       gpx: 'main.gpx',
       isNew: true,
       gpxContent,
-      ...(sourceUrl.includes('ridewithgps.com') && { rwgps_url: sourceUrl }),
-      ...((sourceUrl.includes('google.com/maps/d/') || sourceUrl.includes('google.com/maps/dir/')) && { google_maps_url: sourceUrl }),
+      ...(isRwgps && { rwgps_url: sourceUrl }),
+      ...(isGoogleMaps && { google_maps_url: sourceUrl }),
     }] as VariantItem[],
     translations: {} as Record<string, { name?: string; tagline?: string; body?: string }>,
     isNew: true,

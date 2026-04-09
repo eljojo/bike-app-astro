@@ -16,7 +16,7 @@ export function generateUsernameFromEmail(email: string): string {
   let username = sanitizeUsername(prefix);
 
   if (username.length < 2) {
-    const hex = Math.random().toString(16).slice(2, 6);
+    const hex = Array.from(crypto.getRandomValues(new Uint8Array(2)), b => b.toString(16).padStart(2, '0')).join('');
     username = sanitizeUsername(`${prefix}-${hex}`);
   }
 

@@ -49,10 +49,13 @@ const PLATFORM_MAP = {
 
 // Detect platform from a reference URL
 function detectPlatformFromUrl(url) {
-  if (url.includes('reddit.com'))    return PLATFORM_MAP.Q984;
-  if (url.includes('x.com') || url.includes('twitter.com')) return PLATFORM_MAP.Q918;
-  if (url.includes('instagram.com')) return PLATFORM_MAP.Q209330;
-  if (url.includes('facebook.com'))  return PLATFORM_MAP.Q355;
+  let host;
+  try { host = new URL(url).hostname; } catch { return null; }
+  const match = (domain) => host === domain || host.endsWith(`.${domain}`);
+  if (match('reddit.com'))    return PLATFORM_MAP.Q984;
+  if (match('x.com') || match('twitter.com')) return PLATFORM_MAP.Q918;
+  if (match('instagram.com')) return PLATFORM_MAP.Q209330;
+  if (match('facebook.com'))  return PLATFORM_MAP.Q355;
   return null;
 }
 
