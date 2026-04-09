@@ -90,3 +90,93 @@ describe('TaskGraph — sequential', () => {
     await expect(g.run({ goal: 'a', context: {}, concurrency: 1 })).rejects.toThrow(/cycle detected/);
   });
 });
+
+describe('TaskGraph — parallel', () => {
+  it('runs independent steps in parallel up to concurrency', async () => {
+    const g = new TaskGraph();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const slow = async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 20));
+      inFlight--;
+      return 1;
+    };
+    g.define({ name: 'a', run: slow });
+    g.define({ name: 'b', run: slow });
+    g.define({ name: 'c', run: slow });
+    g.define({ name: 'd', run: slow });
+    g.define({
+      name: 'sink',
+      deps: { a: 'a', b: 'b', c: 'c', d: 'd' },
+      run: async ({ a, b, c, d }) => a + b + c + d,
+    });
+    const result = await g.run({ goal: 'sink', context: {}, concurrency: 2 });
+    expect(result).toBe(4);
+    expect(maxInFlight).toBeLessThanOrEqual(2);
+    expect(maxInFlight).toBeGreaterThanOrEqual(2); // confirm we DID parallelize
+  });
+
+  it('respects deps — dependent steps wait for inputs', async () => {
+    const g = new TaskGraph();
+    const order = [];
+    g.define({ name: 'fetch', run: async () => { order.push('fetch'); return 'data'; } });
+    g.define({
+      name: 'transform',
+      deps: { data: 'fetch' },
+      run: async ({ data }) => { order.push('transform'); return data.toUpperCase(); },
+    });
+    g.define({
+      name: 'write',
+      deps: { result: 'transform' },
+      run: async ({ result }) => { order.push('write'); return result; },
+    });
+    const out = await g.run({ goal: 'write', context: {}, concurrency: 4 });
+    expect(out).toBe('DATA');
+    expect(order).toEqual(['fetch', 'transform', 'write']);
+  });
+
+  it('cascade-fails dependents when a step throws', async () => {
+    const g = new TaskGraph();
+    const skipped = [];
+    g.define({ name: 'broken', run: async () => { throw new Error('boom'); } });
+    g.define({
+      name: 'dependent',
+      deps: { x: 'broken' },
+      run: async () => { skipped.push('dependent'); return 'never'; },
+    });
+    g.define({ name: 'sibling', run: async () => 'ok' });
+    g.define({
+      name: 'sink',
+      deps: { d: 'dependent', s: 'sibling' },
+      run: async () => { skipped.push('sink'); return 'never'; },
+    });
+
+    const events = [];
+    await expect(
+      g.run({ goal: 'sink', context: {}, concurrency: 4, onEvent: (e) => events.push(e) })
+    ).rejects.toThrow('boom');
+
+    // Sibling should still have run (it doesn't depend on broken)
+    const sibling = events.find((e) => e.type === 'done' && e.step === 'sibling');
+    expect(sibling).toBeDefined();
+    // Dependent and sink should have been skipped, not run
+    expect(skipped).toEqual([]);
+    const skipEvents = events.filter((e) => e.type === 'skip');
+    expect(skipEvents.map((e) => e.step).sort()).toEqual(['dependent', 'sink']);
+  });
+
+  it('emits start/done events for each step', async () => {
+    const g = new TaskGraph();
+    g.define({ name: 'a', run: async () => 1 });
+    g.define({ name: 'b', deps: { x: 'a' }, run: async ({ x }) => x + 1 });
+    const events = [];
+    await g.run({ goal: 'b', context: {}, concurrency: 4, onEvent: (e) => events.push(e) });
+    expect(events.filter((e) => e.type === 'start').map((e) => e.step)).toEqual(['a', 'b']);
+    expect(events.filter((e) => e.type === 'done').map((e) => e.step)).toEqual(['a', 'b']);
+    for (const e of events.filter((e) => e.type === 'done')) {
+      expect(typeof e.ms).toBe('number');
+    }
+  });
+});

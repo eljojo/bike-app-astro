@@ -90,7 +90,7 @@ export class TaskGraph {
       throw new Error(`Task graph: goal "${goal}" not defined`);
     }
 
-    // Topo sort from goal — only run reachable steps
+    // Topo sort from goal (cycle detection inside visit())
     const reachable = new Set();
     const order = [];
     const visiting = new Set();
@@ -111,22 +111,92 @@ export class TaskGraph {
     };
     visit(goal);
 
-    // Sequential execution: just walk topo order, await each step
-    const values = new Map();
-    for (const name of order) {
-      const step = this.steps.get(name);
-      const inputs = { ctx: context };
-      for (const [alias, depName] of Object.entries(step.deps)) {
-        inputs[alias] = values.get(depName);
-      }
-      const start = performance.now();
-      onEvent?.({ type: 'start', step: name });
-      const value = await step.run(inputs);
-      const end = performance.now();
-      onEvent?.({ type: 'done', step: name, ms: end - start });
-      values.set(name, value);
+    // Wrap context.queryOverpass with a global semaphore so in-step
+    // Promise.all calls also respect the concurrency budget.
+    const sem = new Semaphore(concurrency);
+    const wrappedContext = { ...context };
+    if (typeof context.queryOverpass === 'function') {
+      const base = context.queryOverpass;
+      wrappedContext.queryOverpass = (q) => sem.with(() => base(q));
     }
 
-    return values.get(goal);
+    // Per-step state
+    const status = new Map();
+    const values = new Map();
+    for (const name of reachable) status.set(name, 'pending');
+
+    let inFlight = 0;
+    const failures = [];
+    let resolveAll;
+    let rejectAll;
+    const finished = new Promise((res, rej) => { resolveAll = res; rejectAll = rej; });
+
+    const checkDone = () => {
+      const allTerminal = [...status.values()].every((s) => s === 'done' || s === 'failed');
+      if (allTerminal && inFlight === 0) {
+        if (status.get(goal) === 'failed') {
+          rejectAll(failures[0] || new Error(`Task graph: goal "${goal}" failed`));
+        } else {
+          resolveAll(values.get(goal));
+        }
+      }
+    };
+
+    const launchReady = () => {
+      let launched = false;
+      for (const name of order) {
+        if (status.get(name) !== 'pending') continue;
+        const step = this.steps.get(name);
+
+        // Skip if any dep failed
+        const anyDepFailed = Object.values(step.deps).some((d) => status.get(d) === 'failed');
+        if (anyDepFailed) {
+          status.set(name, 'failed');
+          onEvent?.({ type: 'skip', step: name, reason: 'dep failed' });
+          launched = true;
+          continue;
+        }
+
+        const allDepsDone = Object.values(step.deps).every((d) => status.get(d) === 'done');
+        if (!allDepsDone) continue;
+
+        if (inFlight >= concurrency) break;
+
+        status.set(name, 'running');
+        inFlight++;
+        launched = true;
+        runStep(step);
+      }
+      // After this round of launches, check whether everything is done
+      if (launched || inFlight === 0) checkDone();
+    };
+
+    const runStep = async (step) => {
+      const start = performance.now();
+      onEvent?.({ type: 'start', step: step.name });
+      try {
+        const inputs = { ctx: wrappedContext };
+        for (const [alias, depName] of Object.entries(step.deps)) {
+          inputs[alias] = values.get(depName);
+        }
+        const value = await step.run(inputs);
+        values.set(step.name, value);
+        const end = performance.now();
+        status.set(step.name, 'done');
+        onEvent?.({ type: 'done', step: step.name, ms: end - start });
+      } catch (err) {
+        failures.push(err);
+        status.set(step.name, 'failed');
+        const end = performance.now();
+        onEvent?.({ type: 'fail', step: step.name, error: err, ms: end - start });
+      } finally {
+        inFlight--;
+        // Recurse to launch newly-ready steps
+        launchReady();
+      }
+    };
+
+    launchReady();
+    return finished;
   }
 }
