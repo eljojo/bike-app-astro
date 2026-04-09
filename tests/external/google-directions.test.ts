@@ -161,6 +161,18 @@ describe('parseGoogleDirectionsUrl', () => {
     expect(result!.waypoints[2].name).toBe('Another Place');
     expect(result!.travelMode).toBeNull();
   });
+
+  it('ignores /am=t/ path parameter in redirected short URLs', () => {
+    // This URL comes from resolving maps.app.goo.gl short links — Google adds /am=t/
+    const url = 'https://www.google.com/maps/dir/Heartbreakers+Pizza+-+Parkdale+Ave,+465+Parkdale+Ave,+Ottawa,+ON+K1Y+1H5/Westboro+Beach,+Ottawa,+ON+K2A+4B1/@45.3959485,-75.7550087,4256m/am=t/data=!3m2!1e3!4b1!4m14!4m13!1m5!1m1!1s0x4cce054909cb42a7:0x281d63db54a3d982!2m2!1d-75.7277733!2d45.3988082!1m5!1m1!1s0x4cce03ff633450f7:0xd853ddca6454ca62!2m2!1d-75.7612863!2d45.3953366!3e1?entry=tts&g_ep=EgoyMDI2MDQwNi4wIPu8ASoASAFQAw%3D%3D&skid=04e4a08b-5fcd-4275-abd6-6ff5fda11bb8';
+    const result = parseGoogleDirectionsUrl(url);
+    expect(result).not.toBeNull();
+    // Should have exactly 2 waypoints, not 3 (am=t should not be a waypoint)
+    expect(result!.waypoints).toHaveLength(2);
+    expect(result!.waypoints[0]).toMatchObject({ type: 'stop', name: 'Heartbreakers Pizza - Parkdale Ave' });
+    expect(result!.waypoints[1]).toMatchObject({ type: 'stop', name: 'Westboro Beach' });
+    expect(result!.travelMode).toBe('cycling');
+  });
 });
 
 describe('normalizeStopName', () => {
