@@ -169,7 +169,7 @@ test.describe('Community Admin — Create', () => {
 
   test('create new community via UI and verify file created', async ({ page }) => {
     await loginAs(page, token);
-    await page.goto('/admin/communities/new');
+    await page.goto('/admin/communities/new?full=1');
     await page.waitForLoadState('networkidle');
 
     await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
