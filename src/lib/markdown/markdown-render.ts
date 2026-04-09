@@ -13,20 +13,22 @@ function stripBlockedTags(html: string): string {
   return safe;
 }
 
+/** Loop a global replacement until the output stabilizes (handles nested constructs). */
+function loopReplace(text: string, pattern: RegExp, replacement: string): string {
+  let prev;
+  do { prev = text; text = text.replace(pattern, replacement); } while (text !== prev);
+  return text;
+}
+
 function stripDangerousAttributes(html: string): string {
   let safe = html;
-  let prev;
-  do {
-    prev = safe;
-    safe = safe
-      // Remove inline event handlers like onclick/onerror.
-      .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      // Remove inline style attributes to align with stricter CSP.
-      .replace(/\sstyle\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      // Remove javascript: URLs in common URL-bearing attributes.
-      .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, '')
-      .replace(/\s(href|src|xlink:href|action|formaction)\s*=\s*javascript:[^\s>]+/gi, '');
-  } while (safe !== prev);
+  // Remove inline event handlers like onclick/onerror.
+  safe = loopReplace(safe, /\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // Remove inline style attributes to align with stricter CSP.
+  safe = loopReplace(safe, /\sstyle\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // Remove javascript: URLs in common URL-bearing attributes.
+  safe = loopReplace(safe, /\s(href|src|xlink:href|action|formaction)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, '');
+  safe = loopReplace(safe, /\s(href|src|xlink:href|action|formaction)\s*=\s*javascript:[^\s>]+/gi, '');
   return safe;
 }
 
