@@ -5,9 +5,10 @@ import { t } from '@/i18n';
 interface Props {
   polylines: { name: string; encoded: string; key?: string }[];
   locale?: string;
+  mapLabel?: string;
 }
 
-const { polylines, locale } = Astro.props;
+const { polylines, locale, mapLabel } = Astro.props;
 const hintText = t('paths.tap_to_explore', locale);
 const closeLabel = t('paths.close_map', locale);
 const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
@@ -23,6 +24,7 @@ const cdnUrl = import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url;
     role="button"
     tabindex="0"
     aria-expanded="false"
+    aria-label={mapLabel || hintText}
   >
     <div class="expandable-map-gl" id="route-detail-map-gl"></div>
     <div class="expandable-map-controls" id="route-detail-map-controls"></div>

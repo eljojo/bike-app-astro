@@ -9,6 +9,23 @@
 @use 'variant-selector';
 @use 'expandable-map';
 
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1em;
+  z-index: 1000;
+  padding: 0.5em 1em;
+  background: $color-text;
+  color: $color-bg;
+  border-radius: 0 0 4px 4px;
+  text-decoration: none;
+  font-size: 0.875rem;
+
+  &:focus {
+    top: 0;
+  }
+}
+
 * { box-sizing: border-box; }
 body {
   font-family: $font-body;
@@ -222,7 +239,7 @@ a.go-back-button {
   text-decoration: none;
   padding: 0.25em 0.5em;
 
-  &.nav-active {
+  &[aria-current="page"] {
     color: $color-accent;
   }
 

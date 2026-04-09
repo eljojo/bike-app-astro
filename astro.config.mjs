@@ -10,6 +10,9 @@ export default defineConfig({
   site: process.env.SITE_URL || 'https://ottawabybike.ca',
   adapter: await getAdapter(process.env.RUNTIME),
   security: cspConfig(),
+  prefetch: {
+    defaultStrategy: 'tap',
+  },
   build: {
     concurrency: 4,
   },

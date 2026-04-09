@@ -474,6 +474,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
               hintText={t('paths.tap_to_explore', locale)}
               closeLabel={t('paths.close_map', locale)}
               cdnUrl={config.cdn_url}
+              mapLabel={t('paths.map_of', locale, { name: localeName })}
             />
           </div>
         )}

@@ -763,5 +763,8 @@
   "admin.sidebar.no_social": "pas de liens sociaux",
   "admin.sidebar.draft": "brouillon",
   "admin.sidebar.most_visited": "Les plus visités",
-  "admin.sidebar.popular_tags": "Tags populaires"
+  "admin.sidebar.popular_tags": "Tags populaires",
+  "a11y.skip_to_content": "Aller au contenu",
+  "a11y.main_navigation": "Navigation principale",
+  "paths.map_of": "Carte de {name}"
 }

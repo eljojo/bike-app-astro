@@ -125,6 +125,7 @@ const routes = [
   { pattern: '/rss.xml', entrypoint: view('rss.xml.ts') },
   { pattern: '/llms.txt', entrypoint: view('llms.txt.ts') },
   { pattern: '/llms-full.txt', entrypoint: view('llms-full.txt.ts') },
+  { pattern: '/manifest.webmanifest', entrypoint: view('manifest.webmanifest.ts') },
   { pattern: '/calendar.ics', entrypoint: view('calendar.ics.ts') },
 ];
 
