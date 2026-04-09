@@ -59,6 +59,7 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" href="/bicycle.png" />
     <link rel="apple-touch-icon" href="/bicycle.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="alternate" type="application/rss+xml" title={config.display_name} href="/rss.xml" />
     <link rel="llms-txt" href="/llms.txt" />
     {import.meta.env.PROD && <script>import '../lib/external/analytics';</script>}
@@ -66,6 +67,7 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
     <LocaleRedirect cspNonce={cspNonce} />
   </head>
   <body class:list={[fullbleed && 'fullbleed']}>
+    <a href="#main-content" class="skip-link">{t('a11y.skip_to_content', locale)}</a>
     <header class="site-header">
       <a href={logoHref} class="site-title" set:html={config.site_title_html} />
       {isWiki && <p class="site-subtitle">{t('home.subtitle', locale)}</p>}
@@ -76,7 +78,7 @@ const switchPath = computeSwitchPath(Astro.url.pathname, locale, otherLocale, al
       )}
     </header>
     {!admin && <Nav alternateUrls={alternateUrls} />}
-    <main>
+    <main id="main-content">
       <slot />
     </main>
     {!fullbleed && <Footer alternateUrls={alternateUrls} />}

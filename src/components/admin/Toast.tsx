@@ -25,7 +25,7 @@ export default function Toast() {
   if (toasts.length === 0) return null;
 
   return (
-    <div class="toast-container">
+    <div class="toast-container" role="status" aria-live="polite">
       {toasts.map(t => (
         <div
           key={t.id}

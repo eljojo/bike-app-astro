@@ -146,13 +146,11 @@ describe.skipIf(!HAS_BUILD)('member page facts', () => {
     'fact-length',
     'fact-path-type',
     'fact-surface',
-    'fact-surface-quality',
     'fact-traffic',
     'fact-lighting',
     'fact-network',
     'fact-operator',
-    'fact-alongside',
-    'fact-ref',
+    'fact-parallel-to',
     'fact-established',
   ];
 
@@ -206,6 +204,15 @@ describe.skipIf(!HAS_BUILD)('standalone page', () => {
     const back = q(standalonePage, '.bike-path-back a');
     expect(back).not.toBeNull();
     expect(back!.getAttribute('href')).toMatch(/\/bike-paths\/$/);
+  });
+
+  it('surface fact includes roughness from bad smoothness', () => {
+    if (!standalonePage) return;
+    const surface = q(standalonePage, '.bike-path-facts-table .fact-surface');
+    expect(surface, 'missing .fact-surface').not.toBeNull();
+    // Demo default locale is es-CL: fine_gravel → "Grava", bad smoothness → "áspero"
+    // Template: "{surface} {adj}" → "grava áspero"
+    expect(surface!.textContent).toBe('Superficiegrava áspero');
   });
 });
 

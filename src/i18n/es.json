@@ -759,5 +759,8 @@
   "admin.sidebar.no_social": "sin redes sociales",
   "admin.sidebar.draft": "borrador",
   "admin.sidebar.most_visited": "Más visitados",
-  "admin.sidebar.popular_tags": "Tags populares"
+  "admin.sidebar.popular_tags": "Tags populares",
+  "a11y.skip_to_content": "Ir al contenido",
+  "a11y.main_navigation": "Navegación principal",
+  "paths.map_of": "Mapa de {name}"
 }

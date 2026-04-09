@@ -8,8 +8,9 @@ interface Props {
   cdnUrl?: string;
   /** CSS selector for list items with data-slug to wire up hover highlight */
   highlightSelector?: string;
+  mapLabel?: string;
 }
-const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', highlightSelector } = Astro.props;
+const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = '', highlightSelector, mapLabel } = Astro.props;
 ---
 
 <div class="expandable-map-wrapper">
@@ -25,6 +26,7 @@ const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = 
     role="button"
     tabindex="0"
     aria-expanded="false"
+    aria-label={mapLabel || hintText}
   >
     <div class="expandable-map-gl" id="bike-path-map-gl"></div>
     <div class="expandable-map-controls" id="bike-path-map-controls"></div>

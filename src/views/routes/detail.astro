@@ -306,7 +306,7 @@ const variantElevationData = variants.map(v => {
 
         {/* Interactive MapLibre map */}
         {mapPolylines.length > 0 && (
-          <RouteDetailMap polylines={mapPolylines} locale={locale} />
+          <RouteDetailMap polylines={mapPolylines} locale={locale} mapLabel={t('route.view_map', locale, { name: localeName })} />
         )}
 
         {/* Elevation profile (one per variant, collapsible) */}

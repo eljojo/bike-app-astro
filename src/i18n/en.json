@@ -763,5 +763,8 @@
   "admin.sidebar.no_social": "no social links",
   "admin.sidebar.draft": "draft",
   "admin.sidebar.most_visited": "Most visited",
-  "admin.sidebar.popular_tags": "Popular tags"
+  "admin.sidebar.popular_tags": "Popular tags",
+  "a11y.skip_to_content": "Skip to content",
+  "a11y.main_navigation": "Main navigation",
+  "paths.map_of": "Map of {name}"
 }

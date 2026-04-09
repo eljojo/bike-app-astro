@@ -28,26 +28,26 @@ const communityHref = trail(isActive('/communities') ? localePath('/communities'
   : isActive('/bike-shops') ? localePath('/bike-shops', locale)
   : localePath('/calendar', locale));
 ---
-<nav class="top-nav">
+<nav class="top-nav" aria-label={t('a11y.main_navigation', locale)}>
   <ul>
     {features.hasRides ? (
       <>
-        <li><a href="/rides/" class={isActive('/rides') ? 'nav-active' : ''}>{t('nav.rides', locale)}</a></li>
-        <li><a href="/tours/" class={isActive('/tours') ? 'nav-active' : ''}>{t('nav.tours', locale)}</a></li>
-        <li><a href="/stats/" class={isActive('/stats') ? 'nav-active' : ''}>{t('nav.stats', locale)}</a></li>
-        <li class="nav-about"><a href={trail(localePath('/about', locale))} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
+        <li><a href="/rides/" aria-current={isActive('/rides') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.rides', locale)}</a></li>
+        <li><a href="/tours/" aria-current={isActive('/tours') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.tours', locale)}</a></li>
+        <li><a href="/stats/" aria-current={isActive('/stats') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.stats', locale)}</a></li>
+        <li class="nav-about"><a href={trail(localePath('/about', locale))} aria-current={isActive('/about') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.about', locale)}</a></li>
       </>
     ) : features.hasEnrichedEvents ? (
       <>
-        <li><a href={trail(localePath('/events', locale))} class={isActive('/events') ? 'nav-active' : ''}>{t('nav.events', locale)}</a></li>
-        <li><a href={trail(localePath('/places', locale))} class={isActive('/places') ? 'nav-active' : ''}>{t('nav.places', locale)}</a></li>
-        <li class="nav-about"><a href={trail(localePath('/about', locale))} class={isActive('/about') ? 'nav-active' : ''}>{t('nav.about', locale)}</a></li>
+        <li><a href={trail(localePath('/events', locale))} aria-current={isActive('/events') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.events', locale)}</a></li>
+        <li><a href={trail(localePath('/places', locale))} aria-current={isActive('/places') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.places', locale)}</a></li>
+        <li class="nav-about"><a href={trail(localePath('/about', locale))} aria-current={isActive('/about') ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.about', locale)}</a></li>
       </>
     ) : (
       <>
-        <li><a href={rideHref} class={rideActive ? 'nav-active' : ''} data-nav-ride>{t('nav.ride', locale)}</a></li>
-        <li><a href={mapHref} class={isActive('/map') ? 'nav-active' : ''} data-nav-map>{t('nav.map', locale)}</a></li>
-        <li><a href={communityHref} class={communityActive ? 'nav-active' : ''}>{t('nav.community', locale)}</a></li>
+        <li><a href={rideHref} aria-current={rideActive ? 'page' : undefined} data-nav-ride data-astro-prefetch="hover">{t('nav.ride', locale)}</a></li>
+        <li><a href={mapHref} aria-current={isActive('/map') ? 'page' : undefined} data-nav-map data-astro-prefetch="hover">{t('nav.map', locale)}</a></li>
+        <li><a href={communityHref} aria-current={communityActive ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.community', locale)}</a></li>
       </>
     )}
     <li class="nav-admin"><a href="/admin/">Admin</a></li>
