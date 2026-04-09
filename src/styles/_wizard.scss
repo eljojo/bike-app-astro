@@ -163,3 +163,60 @@
   line-height: 1.4;
   margin-bottom: 0.25rem;
 }
+
+// Fork step — two clickable cards
+.wizard-fork {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+
+  @media (max-width: $breakpoint-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wizard-fork-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.75rem 1.25rem;
+  border: 2px solid $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+
+  &:hover {
+    border-color: $color-accent;
+    background: $color-card-hover;
+
+    @include dark-mode { background: $color-card-hover-dark; }
+  }
+}
+
+.wizard-fork-emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.wizard-fork-title {
+  font-family: $font-heading;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $color-text;
+
+  @include dark-mode { color: $color-text-dark; }
+}
+
+.wizard-fork-desc {
+  font-size: 0.875rem;
+  @include muted-text;
+}
