@@ -78,6 +78,12 @@ export function extractOsmMetadata(tags: Tags | null | undefined): Tags {
   if (tags.foot) meta.foot = tags.foot;
   if (tags.sport) meta.sport = tags.sport;
 
+  // Ski/piste signals — transient (stripped from YAML via writeYaml).
+  // Consumed by deriveEntryType as a belt-and-suspenders check. The primary
+  // defence against ski-only entries is the discover.ts ingestion filter.
+  if (tags['piste:type']) meta._piste_type = tags['piste:type'];
+  if (tags['piste:name']) meta._piste_name = tags['piste:name'];
+
   // Pipeline-computed distributions (from mergeWayTags)
   if (tags.surface_mix) meta.surface_mix = tags.surface_mix;
   if (tags.lit_mix) meta.lit_mix = tags.lit_mix;
@@ -86,15 +92,45 @@ export function extractOsmMetadata(tags: Tags | null | undefined): Tags {
 }
 
 /**
+ * Per-segment characterization tags: these describe the nature of a specific
+ * way, not the entry as a whole. If they only cover a minority of the entry's
+ * length, propagating them up is misleading (a 1km ski-groomed segment inside
+ * a 10km path does not make the whole path a ski trail; a single tunneled
+ * segment does not make the whole corridor a tunnel).
+ *
+ * For these keys, a value must cover at least `MAJORITY_KM_THRESHOLD` of the
+ * entry's total length to be propagated to the merged entry tags. Minority
+ * values are dropped. See `_ctx/tag-propagation.md`.
+ */
+const PER_SEGMENT_TAGS = new Set([
+  // Ski/piste — per-segment grooming metadata
+  'piste:type', 'piste:name', 'piste:difficulty', 'piste:grooming', 'piste:ref',
+  'ski', 'snowmobile', 'horse',
+  // Structures — a single tunneled/bridged segment doesn't describe the whole
+  'tunnel', 'bridge', 'ford', 'embankment', 'cutting',
+  // Rail heritage — per-segment fact, not entry-wide identity
+  'railway', 'abandoned:railway',
+]);
+const MAJORITY_KM_THRESHOLD = 0.5;
+
+/**
  * For named ways grouped by name, pick the most common value for each tag
  * across all ways in the group.
+ *
+ * Most tags are merged by km-weighted majority: the value with the most
+ * distance wins. Per-segment characterization tags (`PER_SEGMENT_TAGS`) are
+ * held to a stricter standard: the winning value must cover at least half of
+ * the entry's total length, otherwise the tag is dropped. This prevents
+ * minority segment characteristics from bleeding up to the entry level.
  */
 export function mergeWayTags(ways: WayElement[]): Tags {
   // Weight each tag value by way length (km) instead of way count
   const tagKm: Record<string, Record<string, number>> = {};
+  let entryTotalKm = 0;
   for (const way of ways) {
     const tags = way.tags || {};
     const km = wayLengthKm(way);
+    entryTotalKm += km;
     for (const [key, val] of Object.entries(tags)) {
       if (!tagKm[key]) tagKm[key] = {};
       tagKm[key][val] = (tagKm[key][val] || 0) + km;
@@ -103,11 +139,20 @@ export function mergeWayTags(ways: WayElement[]): Tags {
   // Pick the value with the most distance for each tag
   const merged: Tags = {};
   const losses: string[] = [];
+  const minorityDrops: string[] = [];
   for (const [key, vals] of Object.entries(tagKm)) {
     let bestVal: string | null = null, bestKm = 0, totalKm = 0;
     for (const [val, km] of Object.entries(vals)) {
       totalKm += km;
       if (km > bestKm) { bestKm = km; bestVal = val; }
+    }
+    // Per-segment tags must cover a majority of the ENTRY length (not just
+    // the ways that happen to have the tag). This keeps a minority segment
+    // feature from becoming an entry-level fact.
+    if (PER_SEGMENT_TAGS.has(key) && entryTotalKm > 0 && bestKm / entryTotalKm < MAJORITY_KM_THRESHOLD) {
+      const pct = Math.round((bestKm / entryTotalKm) * 100);
+      minorityDrops.push(`${key}="${bestVal}" (${pct}% of entry)`);
+      continue;
     }
     merged[key] = bestVal;
     // Flag when >30% of distance disagrees on a physical tag
@@ -120,6 +165,10 @@ export function mergeWayTags(ways: WayElement[]): Tags {
   if (losses.length > 0) {
     const name = ways[0]?.tags?.name || ways[0]?.name || '?';
     console.log(`  [tag-merge] ${name}: ${losses.join('; ')}`);
+  }
+  if (minorityDrops.length > 0) {
+    const name = ways[0]?.tags?.name || ways[0]?.name || '?';
+    console.log(`  [tag-merge] ${name}: dropped minority ${minorityDrops.join('; ')}`);
   }
 
   // --- Compute distributions for surface and lit (reuse tagKm) ---

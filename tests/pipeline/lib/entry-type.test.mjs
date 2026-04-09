@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveEntryType, waysLengthM, isLongDistance } from '../../../scripts/pipeline/lib/entry-type.mjs';
+import { deriveEntryType, waysLengthM, isLongDistance, isSkiOnlyEntry } from '../../../scripts/pipeline/lib/entry-type.mjs';
 
 // Helper: make a simple straight-line _ways array of ~N metres
 // 1 degree lat ≈ 111,320m, so 0.001° ≈ 111m
@@ -304,5 +304,123 @@ describe('deriveEntryType', () => {
     expect(deriveEntryType({
       path_type: 'bike-lane', _ways: makeWays(0.03), // ~3.3km
     })).toBe('infrastructure');
+  });
+
+  // --- Ski-only belt (ski/piste trails should never become page-worthy) ---
+
+  it('Piste 12 (Gatineau Park Nordic trail, slipped through) → connector', () => {
+    // highway=path, piste:type=nordic, no bicycle tag, assigned to a park
+    // by auto-grouping. Without the belt this would be a 'destination' page.
+    expect(deriveEntryType({
+      name: 'Piste 12',
+      _piste_type: 'nordic',
+      highway: 'path',
+      member_of: 'parc-de-la-gatineau',
+      path_type: 'mtb-trail',
+      _ways: makeWays(0.02),
+    })).toBe('connector');
+  });
+
+  it('entry with explicit bicycle=no → connector', () => {
+    // Trail 18 case — piste:type=nordic bicycle=no. Even without a piste
+    // signal present, bicycle=no alone is enough to exclude.
+    expect(deriveEntryType({
+      name: 'Trail 18',
+      bicycle: 'no',
+      highway: 'path',
+      path_type: 'trail',
+      _ways: makeWays(0.02),
+    })).toBe('connector');
+  });
+
+  it('Trail #3 (piste:type=nordic + bicycle=designated + mtb:scale) → destination', () => {
+    // Summer MTB / winter groomed trail. The piste signal alone must not
+    // trigger the belt — cycling evidence makes this a legitimate entry.
+    expect(deriveEntryType({
+      name: 'Trail #3',
+      _piste_type: 'nordic',
+      bicycle: 'designated',
+      highway: 'path',
+      mtb: true,
+      member_of: 'parc-de-la-gatineau',
+      path_type: 'mtb-trail',
+      _ways: makeWays(0.02),
+    })).toBe('destination');
+  });
+
+  it('Ottawa River Pathway (piste:type=nordic + highway=cycleway) → destination', () => {
+    // A real cycleway groomed for cross-country skiing in winter. The
+    // cycleway highway tag is implicit bicycle=designated; must not trip
+    // the belt.
+    expect(deriveEntryType({
+      name: 'Ottawa River Pathway',
+      _piste_type: 'nordic',
+      highway: 'cycleway',
+      path_type: 'mup',
+      _ways: makeWays(0.134), // ~14.9km
+      osm_relations: [9502633],
+    })).toBe('destination');
+  });
+
+  it("Le P'tit Train du Nord (promoted route=piste relation) → destination", () => {
+    // Relation 6871774 is tagged route=piste piste:type=nordic but 56 of 61
+    // member ways are highway=cycleway bicycle=designated. resolve.ts
+    // promotes it when ≥90% of members are bikeable. The promoted entry has
+    // no _piste_type (promotion doesn't run extractOsmMetadata) so the belt
+    // must not fire, AND the belt must respect osm_relations as cycling
+    // evidence anyway.
+    expect(deriveEntryType({
+      name: "Le P'tit Train du Nord",
+      osm_relations: [6871774],
+      route_type: 'piste',
+      path_type: 'mup',
+      _ways: makeWays(0.1),
+    })).toBe('destination');
+  });
+
+  it('hypothetical promoted relation that still has piste leakage → destination', () => {
+    // Defensive: even if a future enrichment path leaks _piste_type onto a
+    // promoted relation entry, osm_relations is treated as cycling evidence.
+    expect(deriveEntryType({
+      name: "Le P'tit Train du Nord",
+      osm_relations: [6871774],
+      _piste_type: 'nordic',
+      route_type: 'piste',
+      path_type: 'mup',
+      _ways: makeWays(0.1),
+    })).toBe('destination');
+  });
+});
+
+describe('isSkiOnlyEntry', () => {
+  it('returns false for nullish / empty entries', () => {
+    expect(isSkiOnlyEntry(null)).toBe(false);
+    expect(isSkiOnlyEntry(undefined)).toBe(false);
+    expect(isSkiOnlyEntry({})).toBe(false);
+  });
+
+  it('explicit bicycle=no → true', () => {
+    expect(isSkiOnlyEntry({ bicycle: 'no', highway: 'path' })).toBe(true);
+  });
+
+  it('piste signal without cycling evidence → true', () => {
+    expect(isSkiOnlyEntry({ _piste_type: 'nordic', highway: 'path' })).toBe(true);
+    expect(isSkiOnlyEntry({ _piste_name: '12', highway: 'path' })).toBe(true);
+  });
+
+  it('piste signal with bicycle=designated → false', () => {
+    expect(isSkiOnlyEntry({ _piste_type: 'nordic', bicycle: 'designated', highway: 'path' })).toBe(false);
+  });
+
+  it('piste signal on highway=cycleway → false', () => {
+    expect(isSkiOnlyEntry({ _piste_type: 'nordic', highway: 'cycleway' })).toBe(false);
+  });
+
+  it('piste signal with osm_relations present → false (relation promotion path)', () => {
+    expect(isSkiOnlyEntry({ _piste_type: 'nordic', osm_relations: [6871774] })).toBe(false);
+  });
+
+  it('no piste signal and no bicycle deny → false', () => {
+    expect(isSkiOnlyEntry({ highway: 'path', path_type: 'trail' })).toBe(false);
   });
 });

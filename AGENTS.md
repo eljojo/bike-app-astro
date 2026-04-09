@@ -135,6 +135,7 @@ How the app works. Read to understand *what* things are.
 - [path-types](_ctx/path-types.md) — path_type field: classifies infrastructure by safety and bike requirements
 - [entry-types](_ctx/entry-types.md) — type field: long-distance, network, destination, infrastructure, connector, unknown
 - [tag-merge-losses](_ctx/tag-merge-losses.md) — mergeWayTags loses minority tag values; paths need mixed-surface/mixed-width facts
+- [tag-propagation](_ctx/tag-propagation.md) — per-segment tags (piste:type, tunnel, bridge) need majority-km coverage to propagate to the entry
 - [markdown-overrides](_ctx/markdown-overrides.md) — how markdown frontmatter is consumed by pipeline and app
 - [adding-new-things](_ctx/adding-new-things.md) — checklists for content types, endpoints, routes, tables, virtual modules, islands
 - [ci-cd](_ctx/ci-cd.md) — workflows, deploy matrix, screenshot auto-update

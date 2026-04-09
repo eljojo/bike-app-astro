@@ -15,6 +15,13 @@ export interface CityAdapter {
   namedWayQueries: (bbox: string) => Array<{ label: string; q: string }>;
   parallelLaneFilter?: (tags: Record<string, string>) => boolean;
   discoverNetworks?: boolean;
+  /**
+   * Comparator for ordering a network's members in bikepaths.yml. Runs once
+   * at the final member emission step (resolve.ts). Receives full entry
+   * objects so adapters can sort on name, ref, distance, or anything else.
+   * If omitted, the default natural-name sort is used.
+   */
+  memberSort?: (a: any, b: any) => number;
 }
 
 /** Input to buildBikepathsPipeline */

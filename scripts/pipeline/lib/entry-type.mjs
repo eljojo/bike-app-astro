@@ -34,6 +34,38 @@ const LONG_DISTANCE_M = 50_000;
 const MEGATRAIL_M = 30_000;
 
 /**
+ * Belt-and-suspenders ski-only detector.
+ *
+ * The primary defence is in `scripts/pipeline/lib/discover.ts` — ski-only
+ * ways (bicycle=no, or piste-tagged without bicycle=designated|yes) are
+ * filtered out at named-way ingestion and blocked from junction-way
+ * promotion. This check exists for entries that slip through: manual
+ * markdown entries, relation enrichment paths, or future pipeline additions.
+ *
+ * An entry is ski-only when either:
+ * - It carries an explicit bicycle=no, OR
+ * - It has a piste signal (`_piste_type` / `_piste_name` transient fields
+ *   set from merged way tags) AND no cycling evidence.
+ *
+ * Cycling evidence is any of: bicycle=designated|yes, highway=cycleway, or
+ * a non-empty osm_relations (relation-derived entries are either cycling
+ * relations or non-cycling relations promoted at ≥90% bikeable ways —
+ * both signal real cycling infrastructure).
+ */
+export function isSkiOnlyEntry(entry) {
+  if (!entry) return false;
+  if (entry.bicycle === 'no') return true;
+  const hasPisteSignal = entry._piste_type || entry._piste_name;
+  if (!hasPisteSignal) return false;
+  const hasCyclingEvidence =
+    entry.bicycle === 'designated' ||
+    entry.bicycle === 'yes' ||
+    entry.highway === 'cycleway' ||
+    (entry.osm_relations?.length ?? 0) > 0;
+  return !hasCyclingEvidence;
+}
+
+/**
  * Check if an entry qualifies as long-distance.
  * Usable before deriveEntryType runs (e.g. during network member resolution).
  *
@@ -69,6 +101,9 @@ export function isLongDistance(entry) {
  */
 export function deriveEntryType(entry, thresholds = {}) {
   if (entry.type === 'network' || entry.type === 'long-distance') return undefined;
+
+  // Belt-and-suspenders: never give ski-only entries a page or map presence.
+  if (isSkiOnlyEntry(entry)) return 'connector';
 
   const {
     destinationLengthM = 1000,

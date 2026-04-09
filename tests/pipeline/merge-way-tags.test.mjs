@@ -89,4 +89,74 @@ describe('mergeWayTags', () => {
       expect(result.surface_mix[0].km).toBeGreaterThanOrEqual(result.surface_mix[1].km);
     }
   });
+
+  // --- Per-segment tags require majority-km coverage to propagate ---
+
+  it('drops minority piste:type that covers <50% of entry length (Dewberry Trail)', () => {
+    // Real case: 3 ways of roughly equal length, only 1 has piste:type=nordic.
+    // The tag describes that segment, not the whole trail. Propagating it
+    // would make the entry look ski-only.
+    const result = mergeWayTags([
+      { tags: { highway: 'path', foot: 'yes' }, geometry: [[0,45],[0.01,45]] },
+      { tags: { highway: 'path', foot: 'yes', ski: 'yes' }, geometry: [[0.01,45],[0.02,45]] },
+      { tags: { highway: 'path', 'piste:type': 'nordic' }, geometry: [[0.02,45],[0.03,45]] },
+    ]);
+    expect(result['piste:type'], 'minority piste:type must be dropped').toBeUndefined();
+    expect(result.ski, 'minority ski=yes must be dropped').toBeUndefined();
+    expect(result.foot, 'majority foot=yes must be kept').toBe('yes');
+    expect(result.highway, 'unanimous highway=path must be kept').toBe('path');
+  });
+
+  it('keeps majority piste:type that covers ≥50% of entry length', () => {
+    // 3 ways, 2 with piste:type=nordic → 67% of entry length.
+    const result = mergeWayTags([
+      { tags: { highway: 'path', 'piste:type': 'nordic' }, geometry: [[0,45],[0.01,45]] },
+      { tags: { highway: 'path', 'piste:type': 'nordic' }, geometry: [[0.01,45],[0.02,45]] },
+      { tags: { highway: 'path' }, geometry: [[0.02,45],[0.03,45]] },
+    ]);
+    expect(result['piste:type'], 'majority piste:type must be kept').toBe('nordic');
+  });
+
+  it('drops minority tunnel=yes (single tunneled segment)', () => {
+    // A 1km tunnel in a 10km path should not make the entry tunnel=yes.
+    const result = mergeWayTags([
+      { tags: { highway: 'cycleway', tunnel: 'yes' }, geometry: [[0,45],[0.01,45]] }, // ~1km
+      { tags: { highway: 'cycleway' }, geometry: [[0.01,45],[0.1,45]] }, // ~9km
+    ]);
+    expect(result.tunnel, 'minority tunnel must be dropped').toBeUndefined();
+    expect(result.highway).toBe('cycleway');
+  });
+
+  it('drops minority bridge=yes and railway=abandoned', () => {
+    const result = mergeWayTags([
+      { tags: { highway: 'path', bridge: 'yes' }, geometry: [[0,45],[0.005,45]] }, // short
+      { tags: { highway: 'path', 'abandoned:railway': 'rail' }, geometry: [[0.005,45],[0.01,45]] },
+      { tags: { highway: 'path' }, geometry: [[0.01,45],[0.1,45]] }, // long
+    ]);
+    expect(result.bridge).toBeUndefined();
+    expect(result['abandoned:railway']).toBeUndefined();
+  });
+
+  it('keeps majority bicycle tag even when some ways lack it (access tags exempt)', () => {
+    // Access tags (bicycle, foot) are not per-segment in the problematic
+    // sense — they're access semantics. The existing majority-by-tagged-km
+    // rule applies: any propagation on presence is OK here.
+    const result = mergeWayTags([
+      { tags: { highway: 'path', bicycle: 'designated' }, geometry: [[0,45],[0.01,45]] },
+      { tags: { highway: 'path' }, geometry: [[0.01,45],[0.05,45]] },
+    ]);
+    expect(result.bicycle, 'access tags are not in PER_SEGMENT_TAGS').toBe('designated');
+  });
+
+  it('keeps majority surface even though it is not in the per-segment set', () => {
+    // Physical tags like surface already use the loss-warning system; they
+    // are intentionally NOT in PER_SEGMENT_TAGS and should still propagate.
+    // Use km-scale values so surface_mix rounding doesn't drop minorities.
+    const result = mergeWayTags([
+      { tags: { surface: 'asphalt' }, geometry: [[0,45],[0.02,45]] },
+      { tags: { surface: 'gravel' }, geometry: [[0.02,45],[0.035,45]] },
+    ]);
+    expect(result.surface).toBe('asphalt');
+    expect(result.surface_mix).toBeDefined();
+  });
 });
