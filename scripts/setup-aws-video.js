@@ -28,7 +28,7 @@
  *     --wrangler-env production
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -86,6 +86,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export function safeExec(cmd, opts = {}) {
   try {
     return execSync(cmd, opts);
+  } catch (err) {
+    if (err.signal === 'SIGINT' || err.status === 130) {
+      exitOnSigint();
+    }
+    throw err;
+  }
+}
+
+/** Like safeExec but uses execFileSync (no shell interpretation) — use for commands built from file paths. */
+export function safeExecFile(bin, args, opts = {}) {
+  try {
+    return execFileSync(bin, args, opts);
   } catch (err) {
     if (err.signal === 'SIGINT' || err.status === 130) {
       exitOnSigint();
@@ -466,7 +478,7 @@ export function ensureLambda(name, roleArn, config) {
     const lambdaDir = resolve(__dirname, '..', 'aws', 'video-agent');
     run('npm ci --production', { cwd: lambdaDir, stdio: 'pipe' });
     run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
-    aws(`lambda update-function-code --function-name ${name} --zip-file fileb://${lambdaDir}/function.zip --publish`, { silent: true });
+    safeExecFile('aws', ['--no-cli-pager', 'lambda', 'update-function-code', '--function-name', name, '--zip-file', `fileb://${lambdaDir}/function.zip`, '--publish'], { stdio: ['ignore', 'pipe', 'pipe'] });
     log(`Updated Lambda code: ${name}`);
     return false;
   }
@@ -476,7 +488,6 @@ export function ensureLambda(name, roleArn, config) {
   run('zip -r function.zip handler.mjs package.json node_modules/', { cwd: lambdaDir, stdio: 'pipe' });
 
   const layerArn = ensureFfprobeLayer(region);
-  const layerArg = `--layers ${layerArn}`;
 
   const envVars = JSON.stringify({
     Variables: {
@@ -489,15 +500,16 @@ export function ensureLambda(name, roleArn, config) {
     },
   });
 
-  aws([
-    `lambda create-function --function-name ${name}`,
-    `--runtime nodejs22.x --handler handler.handler`,
-    `--role ${roleArn}`,
-    `--zip-file fileb://${lambdaDir}/function.zip`,
-    `--timeout 60 --memory-size 512`,
-    `--environment '${envVars}'`,
-    layerArg,
-  ].filter(Boolean).join(' '));
+  safeExecFile('aws', [
+    '--no-cli-pager', 'lambda', 'create-function',
+    '--function-name', name,
+    '--runtime', 'nodejs22.x', '--handler', 'handler.handler',
+    '--role', roleArn,
+    '--zip-file', `fileb://${lambdaDir}/function.zip`,
+    '--timeout', '60', '--memory-size', '512',
+    '--environment', envVars,
+    ...(layerArn ? ['--layers', layerArn] : []),
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   log(`Created Lambda function: ${name}`);
   return true;
@@ -904,14 +916,30 @@ export function storeGitHubSecrets(repo, creds) {
 
 // --- CLI ---
 
+// Allowlist of safe characters for CLI argument values — letters, digits,
+// and a small set of punctuation used in bucket names, regions, repo slugs, etc.
+// Prevents shell metacharacter injection when values flow into shell commands.
+const SAFE_ARG_CHARS = /^[A-Za-z0-9._/:@=+,-]*$/;
+
 function parseArgs(args) {
   const opts = {};
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith('--')) {
       const key = args[i].slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-      opts[key] = args[i + 1] || true;
-      if (typeof opts[key] === 'string') i++;
+      const next = args[i + 1];
+      if (next && !next.startsWith('--')) {
+        if (!SAFE_ARG_CHARS.test(next)) {
+          throw new Error(`Invalid characters in --${key} value`);
+        }
+        opts[key] = next;
+        i++;
+      } else {
+        opts[key] = true;
+      }
     } else {
+      if (!SAFE_ARG_CHARS.test(args[i])) {
+        throw new Error(`Invalid characters in command argument`);
+      }
       opts._command = args[i];
     }
   }
@@ -1028,7 +1056,7 @@ export async function configureInstance(opts = {}) {
     console.error('    Or set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN env vars');
     process.exit(1);
   }
-  log(`Cloudflare account: ${cfAccountId}`);
+  log('Cloudflare credentials detected');
 
   // --- AWS-side ---
   console.log('\n  AWS:\n');

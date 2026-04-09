@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -165,8 +165,9 @@ function loadUsers(): UserData[] {
   // CI: query production D1 via wrangler (needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID).
   // --config is required: wrangler won't auto-discover .jsonc files.
   try {
-    const output = execSync(
-      'npx wrangler d1 execute DB --config wrangler.jsonc --env production --remote --json --command "SELECT id, username, email, banned_at as bannedAt FROM users"',
+    const output = execFileSync(
+      'npx',
+      ['wrangler', 'd1', 'execute', 'DB', '--config', 'wrangler.jsonc', '--env', 'production', '--remote', '--json', '--command', 'SELECT id, username, email, banned_at as bannedAt FROM users'],
       { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const parsed = JSON.parse(output);
@@ -185,8 +186,9 @@ const isDirectRun = process.argv[1] && (
 );
 
 if (isDirectRun) {
-  const gitLog = execSync(
-    `git -C "${CONTENT_DIR}" log --format="%ae%n%an%n%b%x00" -- "${CITY}/"`,
+  const gitLog = execFileSync(
+    'git',
+    ['-C', CONTENT_DIR, 'log', '--format=%ae%n%an%n%b%x00', '--', `${CITY}/`],
     { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },
   );
   const records = gitLog.split('\0').map(r => r.trim()).filter(Boolean);

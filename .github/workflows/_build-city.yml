@@ -66,6 +66,9 @@ on:
       GOOGLE_MAPS_STATIC_API_KEY:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   build-deploy:
     if: inputs.cities-to-build == '' || contains(fromJSON(inputs.cities-to-build), inputs.city)

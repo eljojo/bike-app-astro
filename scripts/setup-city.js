@@ -38,12 +38,17 @@ const ROOT = resolve(__dirname, '..');
 // City Discovery
 // ---------------------------------------------------------------------------
 
+// City directory names must be a safe slug — prevents shell metacharacter
+// injection when city names flow into wrangler commands downstream.
+const SAFE_CITY_NAME = /^[a-z0-9][a-z0-9-]*$/;
+
 function discoverCities(contentDir) {
   const entries = readdirSync(contentDir, { withFileTypes: true });
   const cities = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
+    if (!SAFE_CITY_NAME.test(entry.name)) continue;
     const configPath = join(contentDir, entry.name, 'config.yml');
     if (!existsSync(configPath)) continue;
 
@@ -472,7 +477,7 @@ async function main() {
     console.error('    Make sure wrangler is logged in: wrangler login');
     process.exit(1);
   }
-  if (accountId) log(`Cloudflare account: ${accountId}`);
+  if (accountId) log('Cloudflare credentials detected');
 
   const cities = discoverCities(opts.contentDir);
   console.log(`  Discovered ${cities.length} cities: ${cities.map(c => c.name).join(', ')}\n`);

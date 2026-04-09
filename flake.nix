@@ -13,7 +13,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfreePredicate = pkg:
-            builtins.elem (pkgs.lib.getName pkg) [ "corefonts" ];
+            builtins.elem (pkgs.lib.getName pkg) [ "corefonts" "codeql" ];
         };
         pw = playwright.packages.${system};
       in
@@ -27,6 +27,7 @@
             corefonts  # Arial Black (site title)
             awscli2  # needed by scripts/setup-aws-video.js
             hurl     # needed for recording API response fixtures
+            codeql   # static analysis (mirrors GitHub CodeQL checks)
           ];
 
           shellHook = ''

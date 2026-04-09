@@ -95,7 +95,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
     if (existingUsername.length > 0) {
       // Append random suffix to avoid collision
-      const hex = Math.random().toString(16).slice(2, 6);
+      const hex = Array.from(crypto.getRandomValues(new Uint8Array(2)), b => b.toString(16).padStart(2, '0')).join('');
       username = sanitizeUsername(`${username}-${hex}`);
     }
 
