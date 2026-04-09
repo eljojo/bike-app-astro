@@ -582,6 +582,10 @@ export async function resolve(opts: {
   }
 
   const slugMap = computeSlugs(grouped);
+  // Order network members by the city adapter's comparator (falls back to a
+  // natural-name sort). This is the last write to `members`, so downstream
+  // consumers (Astro render, tests, tiles) see a stable, sorted order.
+  const memberSort = opts.ctx.adapter.memberSort;
   for (const entry of grouped) {
     if (entry._networkRef) {
       entry.member_of = slugMap.get(entry._networkRef);
@@ -592,6 +596,7 @@ export async function resolve(opts: {
       delete entry._superNetworkRef;
     }
     if (entry._memberRefs) {
+      if (memberSort) entry._memberRefs.sort(memberSort);
       entry.members = entry._memberRefs.map((ref: any) => slugMap.get(ref)).filter(Boolean);
       delete entry._memberRefs;
     }

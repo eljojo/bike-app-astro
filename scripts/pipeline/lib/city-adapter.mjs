@@ -5,9 +5,44 @@
  *   - relationNamePattern: regex string for OSM relation name matching
  *   - namedWayQueries(bbox): array of { label, q } Overpass queries for named ways
  *   - externalData: optional external data source config (e.g. catastro)
+ *   - memberSort(a, b): comparator for ordering a network's members
  *
  * Add new cities by adding a case to the switch below.
  */
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+// Locale-aware natural-name comparator. Two-bucket sort:
+//
+//   1. Named trails first (no digits in the name), alphabetical.
+//   2. Numbered trails after (anything containing a digit), natural numeric
+//      order — "Trail #3" before "Trail #24", "Piste 12" before "Piste 60".
+//
+// The bucket split matches how people browse a park's trail list: memorable
+// named trails like "Hermit" or "Salamander" rise to the top, then the
+// anonymous numbered grid flows below them in order. OSM tags are
+// inconsistent about whether numbered refs get a "#" prefix ("Trail #3" vs
+// "Trail 3") — normalising "#" out of the sort key lets both styles
+// interleave within the numbered bucket.
+//
+// Sort is diacritic- and case-insensitive so "Écluse" and "ecluse" sort
+// together and "sentier" next to "Sentier". Cities with specific needs
+// (ref order, distance order) can override `memberSort` on their adapter.
+const naturalNameCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+function normaliseForSort(name) {
+  return (name || '').replace(/#\s*/g, '').replace(/\s+/g, ' ').trim();
+}
+function isNumbered(name) {
+  return /\d/.test(name || '');
+}
+function naturalNameSort(a, b) {
+  const aNum = isNumbered(a?.name);
+  const bNum = isNumbered(b?.name);
+  if (aNum !== bNum) return aNum ? 1 : -1; // named first, numbered after
+  return naturalNameCollator.compare(normaliseForSort(a?.name), normaliseForSort(b?.name));
+}
 
 // ---------------------------------------------------------------------------
 // Santiago
@@ -33,6 +68,8 @@ const santiago = {
   },
 
   parallelLaneFilter: null,
+
+  memberSort: naturalNameSort,
 };
 
 // ---------------------------------------------------------------------------
@@ -61,6 +98,8 @@ const ottawa = {
   parallelLaneFilter: null,
 
   discoverNetworks: true,
+
+  memberSort: naturalNameSort,
 };
 
 // ---------------------------------------------------------------------------
