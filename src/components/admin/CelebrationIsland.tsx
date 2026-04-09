@@ -85,7 +85,7 @@ export default function CelebrationIsland({
   const adminEditUrl = contentType === 'event'
     ? `/admin/events/${contentId}`
     : `/admin/${contentType}s/${contentId}`;
-  const supportsFocusMode = contentType === 'route';
+  const supportsFocusMode = contentType === 'route' || contentType === 'event';
 
   if (phase === 'waiting') {
     return (

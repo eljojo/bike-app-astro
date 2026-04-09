@@ -22,6 +22,8 @@ import LocationField from './LocationField';
 import type { EventDetail, EventSeries } from '../../lib/models/event-model';
 import { slugify } from '../../lib/slug';
 import type { EventUpdate } from '../../views/api/event-save'; // type-only import: compile-time check, no runtime bundle impact
+import EditorFocusWrapper from './EditorFocusWrapper';
+import { FocusHeader } from './EditorFocusWrapper';
 import type { AdminOrganizer, RouteOption } from '../../types/admin';
 
 interface Props {
@@ -43,6 +45,8 @@ interface Props {
   cityBounds?: { north: number; south: number; east: number; west: number };
   cityName?: string;
   countryCode?: string;
+  focusMode?: 'description' | null;
+  focusLabels?: { description: string; showAll: string };
 }
 
 /** Resolve the initial organizer state from the union field */
@@ -81,7 +85,7 @@ function resolveOrganizer(
   };
 }
 
-export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel, cityCenter, cityBounds, cityName, countryCode }: Props) {
+export default function EventEditor({ initialData, organizers, cdnUrl, readOnly, userRole, showLicenseNotice, isClub, routeOptions = [], placeOptions = [], eventOptions = [], tagTranslations = {}, knownTags = [], defaultLocale = '', guestLabel, cityCenter, cityBounds, cityName, countryCode, focusMode, focusLabels }: Props) {
   const [name, setName] = useState(initialData.name);
   const [startDate, setStartDate] = useState(initialData.start_date);
   const [startTime, setStartTime] = useState(initialData.start_time || '');
@@ -280,14 +284,29 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
 
   const activeLocale = defaultLocale; // events don't have per-editor locale switching
 
-  const beforeTabs = initialData.id ? (
-    <div class="editor-preamble">
-      <h1>{initialData.name || 'Event'}</h1>
-      <div class="editor-preamble-meta">
-        <a href={`/events/${initialData.id}`} target="_blank" rel="noopener">View live</a>
-      </div>
-    </div>
-  ) : null;
+  const [focusExpanded, setFocusExpanded] = useState(false);
+  const effectiveFocus = focusExpanded ? null : (focusMode || null);
+
+  const beforeTabs = (
+    <>
+      {initialData.id && (
+        <div class="editor-preamble">
+          <h1>{initialData.name || 'Event'}</h1>
+          <div class="editor-preamble-meta">
+            <a href={`/events/${initialData.id}`} target="_blank" rel="noopener">View live</a>
+          </div>
+        </div>
+      )}
+      {effectiveFocus && focusLabels && (
+        <FocusHeader
+          focusSection={effectiveFocus}
+          labels={{ description: focusLabels.description }}
+          showAllLabel={focusLabels.showAll}
+          onExpand={() => setFocusExpanded(true)}
+        />
+      )}
+    </>
+  );
 
   return (
     <EditorLayout
@@ -300,6 +319,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       showLicenseNotice={showLicenseNotice !== false}
       disabled={readOnly}
       as="fieldset"
+      hideTabs={!!effectiveFocus}
       beforeTabs={beforeTabs}
       preview={
         <EventPreview
@@ -321,7 +341,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
         />
       }
       afterForm={
-        <>
+        <EditorFocusWrapper focused={false} focusActive={!!effectiveFocus}>
           {isClub && routeOptions.length > 0 && (
             <EventRouteSection
               routeOptions={routeOptions}
@@ -415,9 +435,10 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               )}
             </div>
           </section>
-        </>
+        </EditorFocusWrapper>
       }
     >
+      <EditorFocusWrapper focused={false} focusActive={!!effectiveFocus}>
           <div class="form-field">
             <label for="event-name">Name</label>
             <input id="event-name" type="text" {...bindText(name, setName)} />
@@ -706,6 +727,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
             </div>
           )}
 
+      </EditorFocusWrapper>
+      <EditorFocusWrapper focused={effectiveFocus === 'description'} focusActive={!!effectiveFocus}>
           <div class="form-field">
             <label for="event-body">Description</label>
             <span class="form-field-hint">What should people know about this event?</span>
@@ -716,7 +739,8 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               rows={6}
             />
           </div>
-
+      </EditorFocusWrapper>
+      <EditorFocusWrapper focused={false} focusActive={!!effectiveFocus}>
           <PhotoField
             photoKey={posterKey}
             cdnUrl={cdnUrl}
@@ -728,6 +752,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               setPosterHeight(height);
             }}
           />
+      </EditorFocusWrapper>
     </EditorLayout>
   );
 }
