@@ -82,4 +82,11 @@ describe('TaskGraph — sequential', () => {
     g.define({ name: 'a', run: async () => 1 });
     expect(() => g.define({ name: 'a', run: async () => 2 })).toThrow(/already defined/);
   });
+
+  it('detects cycles via the deps graph', async () => {
+    const g = new TaskGraph();
+    g.define({ name: 'a', deps: { fromB: 'b' }, run: async () => 1 });
+    g.define({ name: 'b', deps: { fromA: 'a' }, run: async () => 2 });
+    await expect(g.run({ goal: 'a', context: {}, concurrency: 1 })).rejects.toThrow(/cycle detected/);
+  });
 });
