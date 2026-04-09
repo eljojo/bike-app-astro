@@ -3,7 +3,7 @@ export const SOCIAL_PLATFORMS = [
   'instagram', 'facebook', 'strava', 'youtube',
   'meetup', 'tiktok', 'bluesky', 'threads', 'website',
   'discord', 'google_form', 'linktree', 'rwgps', 'komoot', 'newsletter', 'mastodon',
-  'booking', 'telephone', 'email',
+  'booking', 'telephone', 'phone', 'email',
 ] as const;
 
 export interface SocialLink {
