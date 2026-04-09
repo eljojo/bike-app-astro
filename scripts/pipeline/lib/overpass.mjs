@@ -68,23 +68,59 @@ function saveCassette(name, entries) {
  * Create an additive recorder. Loads existing cassette entries (if any),
  * returns cached data for known hashes, fetches and appends for misses.
  *
- * Record new entries: RECORD_OVERPASS=ottawa node scripts/pipeline/build-bikepaths.mjs --city ottawa
+ * @param {string} name cassette filename
+ * @param {object} [opts]
+ * @param {(query: string) => Promise<{elements: any[]}>} [opts.underlying]
+ *   override the network fetcher (defaults to module-level queryOverpass)
+ * @param {string} [opts.cacheDir] override the cassette directory
+ *
+ * Record new entries:
+ *   RECORD_OVERPASS=ottawa node scripts/pipeline/build-bikepaths.mjs --city ottawa
  */
-export function createRecorder(name) {
-  const existing = loadCassette(name);
+export function createRecorder(name, opts = {}) {
+  const underlying = opts.underlying || queryOverpass;
+  const dir = opts.cacheDir || CACHE_DIR;
+  const cassettePath = join(dir, `cassette-${name}.json`);
+  const existing = loadCassetteFrom(cassettePath);
   const entries = existing || {};
   let newCount = 0;
+  // In-flight dedupe: parallel fetches for the same query share one Promise
+  const inFlight = new Map();
   const recorder = async (query) => {
     const key = cacheKey(normQ(query));
     if (entries[key]) return entries[key].data;
-    const data = await queryOverpass(query);
-    entries[key] = { query, data };
-    newCount++;
-    saveCassette(name, entries);
-    return data;
+    if (inFlight.has(key)) return inFlight.get(key);
+    const promise = (async () => {
+      try {
+        const data = await underlying(query);
+        entries[key] = { query, data };
+        newCount++;
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(cassettePath, JSON.stringify(entries));
+        return data;
+      } finally {
+        inFlight.delete(key);
+      }
+    })();
+    inFlight.set(key, promise);
+    return promise;
   };
   recorder.stats = () => ({ total: Object.keys(entries).length, new: newCount });
   return recorder;
+}
+
+function loadCassetteFrom(cassettePath) {
+  if (!existsSync(cassettePath)) return null;
+  const raw = JSON.parse(readFileSync(cassettePath, 'utf8'));
+  if (Array.isArray(raw)) {
+    const migrated = {};
+    for (const entry of raw) {
+      const key = cacheKey(normQ(entry.query));
+      migrated[key] = { query: entry.query, data: entry.data };
+    }
+    return migrated;
+  }
+  return raw;
 }
 
 /**
