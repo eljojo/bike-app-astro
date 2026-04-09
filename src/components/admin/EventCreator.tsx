@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'preact/hooks';
 import EventEditor from './EventEditor';
-import { useFileUpload } from '../../lib/hooks';
+import { useFileUpload, useHydrated } from '../../lib/hooks';
 import { buildImageUrl } from '../../lib/media/image-service';
 import type { EventDetail } from '../../lib/models/event-model';
 import type { AdminOrganizer } from '../../types/admin';
@@ -83,6 +83,7 @@ function getOrganizerDisplay(organizer: EventDetail['organizer']): string {
 }
 
 export default function EventCreator({ cdnUrl, organizers, copyData, eventOptions, tagTranslations, knownTags, defaultLocale, cityCenter, cityBounds, cityName, countryCode }: Props) {
+  const hydratedRef = useHydrated<HTMLDivElement>();
   const [phase, setPhase] = useState<'upload' | 'review' | 'edit'>(copyData ? 'edit' : 'upload');
   const [dragOver, setDragOver] = useState(false);
   const [posterKey, setPosterKey] = useState(copyData?.poster_key || '');
@@ -239,7 +240,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     const isLoading = upload.uploading || extracting || fetchingUrl;
 
     return (
-      <div class="event-creator">
+      <div ref={hydratedRef} class="event-creator">
         {isLoading ? (
           <div class="event-creator-loading">
             <div class="event-creator-spinner" />
@@ -303,7 +304,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     const hasUncertainFields = uncertain.length > 0;
 
     return (
-      <div class="event-creator">
+      <div ref={hydratedRef} class="event-creator">
         <div class={`event-creator-review ${posterKey ? '' : 'event-creator-review--no-poster'}`}>
           {posterKey && (
             <div class="event-creator-review-poster">

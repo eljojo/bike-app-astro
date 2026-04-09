@@ -56,7 +56,7 @@ test.describe('Admin Screenshots — Editor Pages', () => {
   });
 
   test('route creation preview', async ({ page }) => {
-    await page.goto('/admin/routes/new');
+    await page.goto('/admin/routes/new?full=1');
     await page.waitForLoadState('networkidle');
 
     // Upload a GPX file to trigger the preview
