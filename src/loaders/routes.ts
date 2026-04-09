@@ -57,7 +57,11 @@ export function routeLoader(): Loader {
         const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
         const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);
 
-        // Use the first variant's GPX content hash as the route's gpxHash
+        // Compute per-variant GPX content hashes (keyed by GPX filename)
+        const gpxHashes: Record<string, string> = {};
+        for (const [filename, content] of Object.entries(parsed.rawContents.gpxFiles)) {
+          gpxHashes[filename] = gpxHash(content);
+        }
         const gpxFileEntries = Object.values(parsed.rawContents.gpxFiles);
         const routeGpxHash = gpxFileEntries.length > 0 ? gpxHash(gpxFileEntries[0]) : undefined;
 
@@ -68,6 +72,7 @@ export function routeLoader(): Loader {
             media: parsed.media,
             gpxTracks: parsed.gpxTracks,
             gpxHash: routeGpxHash,
+            gpxHashes,
             renderedBody,
             translations,
           },

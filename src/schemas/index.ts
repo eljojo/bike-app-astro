@@ -48,6 +48,7 @@ export const routeSchema = z.object({
     polyline: z.string(),
   })).default({}),
   gpxHash: z.string().optional(),
+  gpxHashes: z.record(z.string(), z.string()).default({}),
   gpxRelativePath: z.string().optional(),
   renderedBody: z.string().default(''),
   translations: z.record(z.string(), z.looseObject({
