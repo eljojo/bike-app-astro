@@ -77,7 +77,8 @@ export function createRouteHandlers(sharedKeysData: Record<string, Array<{ type:
       return routeUpdateSchema.parse(body);
     },
 
-    resolveContentId(params): string {
+    resolveContentId(params, update): string {
+      if (params.slug === 'new' && update.newSlug) return update.newSlug;
       return params.slug!;
     },
 
