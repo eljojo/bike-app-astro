@@ -210,7 +210,11 @@ export default function CommunityWizard({
     setPrefilling(true);
     editor.setError('');
     try {
-      const res = await fetch(`/api/places/prefill?url=${encodeURIComponent(query)}`);
+      const res = await fetch('/api/places/prefill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
       const data = await res.json();
       if (!res.ok) {
         editor.setError(data.error || 'Prefill failed');
