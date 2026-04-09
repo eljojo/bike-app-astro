@@ -191,7 +191,7 @@ export default function PlaceWizard({
       markerRef.current = null;
       createMarkerRef.current = null;
     };
-  }, [showMap]);
+  }, [showMap, step]);
 
   async function handlePrefill() {
     const query = googleMapsUrl.trim();
