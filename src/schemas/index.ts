@@ -85,7 +85,7 @@ export const socialLinkSchema = z.object({
     'meetup', 'tiktok', 'bluesky', 'threads', 'website',
     'discord', 'google_form', 'linktree',
     'rwgps', 'komoot', 'newsletter', 'mastodon', 'booking',
-    'telephone', 'phone', 'email',
+    'telephone', 'email',
   ]),
   url: z.string(),
 });
