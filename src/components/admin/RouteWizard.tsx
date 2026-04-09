@@ -126,7 +126,7 @@ export default function RouteWizard({
         first: 'true',
         ...(skippedSteps.length > 0 ? { skipped: skippedSteps.join(',') } : {}),
       });
-      window.location.href = `/admin/celebrate/route/${encodeURIComponent(id)}?${qs}`;
+      window.location.href = `/admin/celebrate/route/${id}?${qs}`;
     },
   });
 

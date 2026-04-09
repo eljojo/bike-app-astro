@@ -449,7 +449,7 @@ export default function EventWizard({
         first: 'true',
         ...(skippedSteps.length > 0 ? { skipped: skippedSteps.join(',') } : {}),
       });
-      window.location.href = `/admin/celebrate/event/${encodeURIComponent(id)}?${qs}`;
+      window.location.href = `/admin/celebrate/event/${id}?${qs}`;
     },
   });
 
