@@ -105,8 +105,10 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
 
       const { gpxContent, sourceUrl, name: routeName } = await res.json();
 
-      const isRwgps = sourceUrl.includes('ridewithgps.com');
-      const isGoogleMaps = sourceUrl.includes('google.com/maps/d/') || sourceUrl.includes('google.com/maps/dir/');
+      const sourceHost = (() => { try { return new URL(sourceUrl).hostname; } catch { return ''; } })();
+      const hostMatch = (d: string) => sourceHost === d || sourceHost.endsWith(`.${d}`);
+      const isRwgps = hostMatch('ridewithgps.com');
+      const isGoogleMaps = hostMatch('google.com') && /\/maps\/d(ir)?\//.test(sourceUrl);
 
       const gpxFileName = routeVariantGpxPath(routeName, variants.length === 0);
 

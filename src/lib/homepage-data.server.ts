@@ -138,15 +138,19 @@ const HTML_ENTITIES: Record<string, string> = {
 };
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, '')
-    .replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(\w+));/g, (_, dec, hex, named) => {
-      if (dec) return String.fromCodePoint(Number(dec));
-      if (hex) return String.fromCodePoint(parseInt(hex, 16));
-      return HTML_ENTITIES[named] ?? '';
-    })
-    .replace(/\s+/g, ' ')
-    .trim();
+  let text = html;
+  // Loop tag removal to handle nested/re-formed tags
+  let prev;
+  do { prev = text; text = text.replace(/<[^>]+>/g, ''); } while (text !== prev);
+  // Decode entities
+  text = text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(\w+));/g, (_, dec, hex, named) => {
+    if (dec) return String.fromCodePoint(Number(dec));
+    if (hex) return String.fromCodePoint(parseInt(hex, 16));
+    return HTML_ENTITIES[named] ?? '';
+  });
+  // Strip any tags formed by entity decoding
+  do { prev = text; text = text.replace(/<[^>]+>/g, ''); } while (text !== prev);
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 function getAllFeaturedRoutes(routes: RouteEntry[], locale?: string): FeaturedRoute[] {

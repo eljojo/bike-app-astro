@@ -13,7 +13,7 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfreePredicate = pkg:
-            builtins.elem (pkgs.lib.getName pkg) [ "corefonts" ];
+            builtins.elem (pkgs.lib.getName pkg) [ "corefonts" "codeql" ];
         };
         pw = playwright.packages.${system};
       in
@@ -21,13 +21,13 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             nodejs_22
-            nodePackages.npm
             vips  # needed by sharp for image processing
             imagemagick  # needed for HEIC dhash in match-photo-coords
             noto-fonts-color-emoji
             corefonts  # Arial Black (site title)
             awscli2  # needed by scripts/setup-aws-video.js
             hurl     # needed for recording API response fixtures
+            codeql   # static analysis (mirrors GitHub CodeQL checks)
           ];
 
           shellHook = ''

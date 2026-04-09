@@ -11,6 +11,9 @@ on:
   repository_dispatch:
     types: [data-updated]
 
+permissions:
+  contents: read
+
 concurrency:
   group: production
   cancel-in-progress: false
