@@ -147,6 +147,102 @@ describe('organizerHandlers.buildCommitMessage', () => {
   });
 });
 
+describe('organizerHandlers.parseRequest — bike shop wizard payload', () => {
+  it('accepts the exact payload from the bike shop wizard', () => {
+    const payload = {
+      frontmatter: {
+        name: 'my bike shop',
+        tags: ['bike-shop'],
+        photo_key: 'staging/uusnam6b',
+        photo_content_type: 'image/png',
+        photo_width: 152,
+        photo_height: 140,
+        social_links: [
+          { platform: 'email', url: 'my@bike.shop' },
+          { platform: 'telephone', url: '+1 613 353 2442' },
+          { platform: 'website', url: 'https://eljojo.net' },
+        ],
+      },
+      body: 'my bike shop is all about **fairness**',
+      place: {
+        name: 'my bike shop',
+        category: 'bike-shop',
+        lat: 45.417873,
+        lng: -75.701673,
+        address: 'TD, 180, Kent Street, Centretown, Somerset, Ottawa, Eastern Ontario, Ontario, K1A 0E6, Canada',
+        phone: '+1 613 353 2442',
+        website: 'https://eljojo.net',
+      },
+    };
+    const update = organizerHandlers.parseRequest(payload);
+    expect(update.frontmatter.name).toBe('my bike shop');
+    expect(update.frontmatter.tags).toEqual(['bike-shop']);
+    expect(update.frontmatter.social_links).toHaveLength(3);
+    expect(update.frontmatter.social_links![0].platform).toBe('email');
+    expect(update.frontmatter.social_links![1].platform).toBe('telephone');
+    expect(update.frontmatter.social_links![2].platform).toBe('website');
+    expect(update.place).toBeDefined();
+    expect(update.place!.lat).toBe(45.417873);
+    expect(update.place!.category).toBe('bike-shop');
+  });
+
+  it('uses telephone (not phone) as the platform for phone numbers', () => {
+    // The save endpoint schema accepts any string for platform, but the
+    // collection schema (src/schemas/index.ts) enforces an enum. The wizard
+    // must send 'telephone' not 'phone' to pass collection validation.
+    const update = organizerHandlers.parseRequest({
+      frontmatter: {
+        name: 'test',
+        social_links: [{ platform: 'telephone', url: '+1 613 555 0000' }],
+      },
+    });
+    expect(update.frontmatter.social_links![0].platform).toBe('telephone');
+  });
+});
+
+describe('organizerHandlers.buildFileChanges — bike shop with place', () => {
+  const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+
+  it('creates organizer and linked place files in one commit', async () => {
+    const update: OrganizerUpdate = {
+      frontmatter: {
+        name: 'my bike shop',
+        tags: ['bike-shop'],
+        social_links: [
+          { platform: 'email', url: 'my@bike.shop' },
+          { platform: 'telephone', url: '+1 613 353 2442' },
+          { platform: 'website', url: 'https://eljojo.net' },
+        ],
+      },
+      body: 'my bike shop is all about **fairness**',
+      place: {
+        name: 'my bike shop',
+        category: 'bike-shop',
+        lat: 45.417873,
+        lng: -75.701673,
+        address: 'TD, 180, Kent Street, Centretown',
+        phone: '+1 613 353 2442',
+        website: 'https://eljojo.net',
+      },
+    };
+    const result = await organizerHandlers.buildFileChanges(
+      update, 'my-bike-shop', { primaryFile: null }, mockGit as any,
+    );
+    expect(result.files.length).toBeGreaterThanOrEqual(2);
+
+    const orgFile = result.files.find(f => f.path.includes('organizers/'));
+    expect(orgFile).toBeDefined();
+    expect(orgFile!.content).toContain('name: my bike shop');
+    expect(orgFile!.content).toContain('bike-shop');
+
+    const placeFile = result.files.find(f => f.path.includes('places/'));
+    expect(placeFile).toBeDefined();
+    expect(placeFile!.content).toContain('category: bike-shop');
+    expect(placeFile!.content).toContain('lat: 45.417873');
+    expect(placeFile!.content).toContain('organizer: my-bike-shop');
+  });
+});
+
 describe('organizerHandlers.buildFileChanges', () => {
   const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
 

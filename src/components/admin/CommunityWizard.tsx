@@ -281,7 +281,7 @@ export default function CommunityWizard({
 
       if (mode === 'bike-shop') {
         if (email.trim()) allSocialLinks.push({ platform: 'email', url: email.trim() });
-        if (phone.trim()) allSocialLinks.push({ platform: 'phone', url: phone.trim() });
+        if (phone.trim()) allSocialLinks.push({ platform: 'telephone', url: phone.trim() });
         if (website.trim()) allSocialLinks.push({ platform: 'website', url: website.trim() });
       } else {
         allSocialLinks.push(...socialLinks.filter(l => l.url.trim()));

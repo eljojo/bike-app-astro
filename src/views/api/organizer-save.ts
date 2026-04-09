@@ -241,10 +241,8 @@ export function createOrganizerHandlers(sharedKeysData: Record<string, Array<{ t
 export async function POST({ params, request, locals }: APIContext) {
   const sharedKeysData = await fetchSharedKeysData(new URL(request.url));
   const handlers = createOrganizerHandlers(sharedKeysData);
-  if (params.slug === 'new') {
-    return saveContent(request, locals, params, 'organizers', handlers);
-  }
-  // For edits, omit checkExistence — only check when creating new organizers
-  const { checkExistence: _checkExistence, ...editHandlers } = handlers;
-  return saveContent(request, locals, params, 'organizers', editHandlers);
+  // Omit checkExistence for all organizer saves — wizard retries and edits both
+  // need idempotent behavior. buildFileChanges handles new vs existing correctly.
+  const { checkExistence: _checkExistence, ...idempotentHandlers } = handlers;
+  return saveContent(request, locals, params, 'organizers', idempotentHandlers);
 }
