@@ -270,7 +270,6 @@ export default function RouteEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       hideTabs={!!effectiveFocus}
       beforeTabs={beforeTabs}
       afterForm={afterForm}
-      celebrateUrl={initialData.isNew ? undefined : `/admin/celebrate/route/${initialData.slug}`}
       preview={
         <RoutePreview
           name={getField('name')}

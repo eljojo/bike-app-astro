@@ -301,7 +301,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
       disabled={readOnly}
       as="fieldset"
       beforeTabs={beforeTabs}
-      celebrateUrl={initialData.id ? `/admin/celebrate/event/${initialData.id}` : undefined}
       preview={
         <EventPreview
           name={name}
