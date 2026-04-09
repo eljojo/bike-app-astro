@@ -4,18 +4,27 @@ export const prerender = false;
 import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
 import CelebrationIsland from '../../components/admin/CelebrationIsland.tsx';
 import { getCityConfig } from '../../lib/config/city-config';
-import { fetchJson } from '../../lib/content/load-admin-content.server';
+import { loadDetailFromJson } from '../../lib/content/load-admin-content.server';
+import { eventDetailFromCache } from '../../lib/models/event-model';
+import { routeDetailFromCache } from '../../lib/models/route-model';
 
 const { contentType, id } = Astro.params;
 const contentId = id || '';
 const isFirst = Astro.url.searchParams.get('first') === 'true';
 const skipped = Astro.url.searchParams.get('skipped')?.split(',').filter(Boolean) || [];
 
-let contentName = contentId.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+// Slug-derived fallback: strip year prefix (e.g. "2026/bike-workshop" → "Bike Workshop")
+const slugPart = contentId.includes('/') ? contentId.split('/').pop()! : contentId;
+let contentName = slugPart.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
 try {
-  const detailUrl = new URL(`/admin/data/${contentType}s/${contentId}.json`, Astro.url);
-  const detail = await fetchJson<{ name?: string }>(detailUrl);
-  if (detail?.name) contentName = detail.name;
+  const fromCache = contentType === 'event' ? eventDetailFromCache : routeDetailFromCache;
+  const result = await loadDetailFromJson({
+    contentType: contentType === 'event' ? 'events' : 'routes',
+    id: contentId,
+    jsonUrl: new URL(`/admin/data/${contentType}s/${contentId}.json`, Astro.url),
+    fromCache,
+  });
+  if (!result.notFound && result.data?.name) contentName = result.data.name;
 } catch {
   // Fallback to slug-derived name
 }
