@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths: ['docs/**', '.github/workflows/docs.yml']
 
+permissions:
+  contents: read
+
 jobs:
   changes:
     runs-on: ubuntu-latest

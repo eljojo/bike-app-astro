@@ -5,6 +5,9 @@ on:
   repository_dispatch:
     types: [staging-data-updated]
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     uses: ./.github/workflows/_build-city.yml
