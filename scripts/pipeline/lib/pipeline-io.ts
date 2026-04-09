@@ -84,6 +84,8 @@ export function writeYaml(
     delete entry._parkName;
     delete entry._discovery_source;
     delete entry._isUnnamedChain;
+    delete entry._piste_type;
+    delete entry._piste_name;
   }
   // Compact anchors to bbox
   for (const entry of entries) {

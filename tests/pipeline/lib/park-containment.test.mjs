@@ -46,20 +46,22 @@ describe('pipeline park containment — real Ottawa data', () => {
   // THE BUG: Gatineau Park trails must NOT be in Greenbelt networks
   // -----------------------------------------------------------------------
 
-  it('Trail 22 (Gatineau Park, ~45.50°N) is NOT in a Greenbelt network', () => {
+  it('Trail 22 (Gatineau Park Nordic ski trail) is filtered out entirely', () => {
+    // Trail 22 is OSM way 294415463: highway=path, piste:type=nordic,
+    // no bicycle tag. It's a ski-only trail and must never form a bike
+    // path entry. Previously it snuck in via junction-node discovery
+    // and had to be protected from Greenbelt cross-contamination; now
+    // it's filtered out at ingestion so the cross-contamination check
+    // is moot — no entry can be mis-assigned.
     const trail = entries.find(e => e.name === 'Trail 22');
-    expect(trail, 'Trail 22 should exist').toBeDefined();
-    if (trail.member_of) {
-      expect(trail.member_of, 'Trail 22 should not be in Greenbelt').not.toMatch(/greenbelt/i);
-    }
+    expect(trail, 'Trail 22 is ski-only and should not exist').toBeUndefined();
   });
 
-  it('Sentier des Loups (Gatineau Park, ~45.53°N) is NOT in a Greenbelt network', () => {
+  it('Sentier des Loups (Gatineau Park hiking/ski trail) is filtered out entirely', () => {
+    // OSM way 380171607: highway=path, piste:type=nordic, bicycle=no.
+    // Explicit bicycle deny — filtered at ingestion.
     const trail = entries.find(e => e.name === 'Sentier des Loups');
-    expect(trail, 'Sentier des Loups should exist').toBeDefined();
-    if (trail.member_of) {
-      expect(trail.member_of).not.toMatch(/greenbelt/i);
-    }
+    expect(trail, 'Sentier des Loups has bicycle=no and should not exist').toBeUndefined();
   });
 
   it('Trail #1 Ridge Road (Gatineau Park, ~45.50°N) is NOT in a Greenbelt network', () => {

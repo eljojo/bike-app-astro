@@ -18,6 +18,29 @@ import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bike
 // ---------------------------------------------------------------------------
 
 /**
+ * A way is ski-only when it has explicit bicycle=no, or when it is a
+ * path/footway carrying a `piste:type` / `piste:name` tag without explicit
+ * cycling permission (bicycle=designated|yes). highway=cycleway is implicitly
+ * bicycle=designated by OSM convention and never counts as ski-only even if
+ * groomed in winter. Roads (highway=residential|tertiary|…) have implicit
+ * cycling access and are never classified as ski-only on piste tags alone.
+ *
+ * Pure Nordic/piste infrastructure (e.g. Parc de la Gatineau's numbered
+ * pistes) was slipping into bikepaths.yml via junction-node lookups. Ski
+ * trails must not become bike path entries.
+ */
+export function isSkiOnlyWay(tags: Record<string, any> | undefined): boolean {
+  if (!tags) return false;
+  if (tags.bicycle === 'no') return true;
+  // The piste filter only applies to path/footway highways. Cycleways are
+  // implicit cycling infrastructure; roads have implicit bike access.
+  if (tags.highway !== 'path' && tags.highway !== 'footway') return false;
+  const isPiste = tags['piste:type'] || tags['piste:name'];
+  if (!isPiste) return false;
+  return tags.bicycle !== 'designated' && tags.bicycle !== 'yes';
+}
+
+/**
  * Group chains with the same road name only if their bboxes are within proximityM of each other.
  * Same road name far apart = separate entries.
  */
@@ -379,7 +402,7 @@ out tags;`;
 async function discoverNamedWays(ctx: PipelineContext, osmRelations: OsmRelation[], wayRegistry: WayRegistry): Promise<NamedWayEntry[]> {
   console.log('Discovering named cycling ways from OSM...');
   const namedWayQueries = ctx.adapter.namedWayQueries(ctx.bbox);
-  const allWayElements: any[] = [];
+  let allWayElements: any[] = [];
   for (const { label, q } of namedWayQueries) {
     try {
       const data = await ctx.queryOverpass(q);
@@ -388,6 +411,16 @@ async function discoverNamedWays(ctx: PipelineContext, osmRelations: OsmRelation
     } catch (err: any) {
       console.error(`  ${label}: failed (${err.message})`);
     }
+  }
+
+  // Filter ski-only ways from named-way ingestion. Defensive — the Ottawa
+  // adapter's queries already require bicycle=designated|yes for highway=path,
+  // but this catches any future adapter that's looser, and any highway=cycleway
+  // tagged bicycle=no.
+  const preSkiFilter = allWayElements.length;
+  allWayElements = allWayElements.filter((w: any) => !isSkiOnlyWay(w.tags));
+  if (allWayElements.length < preSkiFilter) {
+    console.log(`  Dropped ${preSkiFilter - allWayElements.length} ski-only ways`);
   }
 
   const waysByName = new Map<string, any[]>();
@@ -421,8 +454,20 @@ out geom tags;`;
       }
 
       let junctionCount = 0;
+      let skippedSkiClusters = 0;
       for (const [name, ways] of allWaysByName) {
         if (waysByName.has(name)) continue;
+        // Don't promote ski-only junction-way clusters to standalone entries.
+        // Example: "Piste 12" in Parc de la Gatineau is a Nordic ski trail
+        // (highway=path piste:type=nordic, no bicycle tag) that shares a node
+        // with Trail #3 (a real MTB trail). Without this guard, the junction
+        // query promotes it into bikepaths.yml as a destination page.
+        // The ways stay in allWaysByName so same-named cycling clusters can
+        // still pick up genuine junction connectivity at line 469 below.
+        if (ways.every((w: any) => isSkiOnlyWay(w.tags))) {
+          skippedSkiClusters++;
+          continue;
+        }
         const anchors: any[] = [];
         for (const w of ways) {
           if (w.geometry?.length >= 2) {
@@ -436,6 +481,7 @@ out geom tags;`;
         }
       }
       if (junctionCount > 0) console.log(`  Found ${junctionCount} non-cycling junction trails`);
+      if (skippedSkiClusters > 0) console.log(`  Skipped ${skippedSkiClusters} ski-only junction-way clusters`);
     } catch (err: any) {
       console.error(`  Junction ways fetch failed: ${err.message}`);
     }

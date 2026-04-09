@@ -697,4 +697,137 @@ describe('buildBikepathsPipeline', () => {
       'surface_mix km must reflect actual way lengths, not way count',
     ).toBeGreaterThan(gravel.km * 3);
   });
+
+  it('does not promote ski-only junction-way clusters (Piste 12 regression)', async () => {
+    // Motivating case: OSM way 278992292 "Piste 12" in Parc de la Gatineau
+    // is a pure Nordic ski trail (highway=path, piste:type=nordic, no
+    // bicycle tag). It shares a node with Trail #3 (a real dual-use
+    // MTB/piste trail with bicycle=designated). The junction-node discovery
+    // would otherwise promote Piste 12 to a standalone destination page.
+    //
+    // The filter must:
+    //   1. Keep Trail #3 (dual-use cycling infrastructure)
+    //   2. Drop Piste 12 (ski-only junction-way cluster)
+    const TRAIL3 = {
+      type: 'way',
+      id: 636602417,
+      tags: {
+        highway: 'path',
+        name: 'Trail #3',
+        bicycle: 'designated',
+        foot: 'designated',
+        'mtb:scale': '2',
+        'piste:type': 'nordic',
+        surface: 'gravel',
+      },
+      geometry: [
+        { lat: 45.55, lon: -75.90 },
+        { lat: 45.56, lon: -75.89 },
+      ],
+      nodes: [9001, 9002],
+    };
+    const PISTE12 = {
+      type: 'way',
+      id: 278992292,
+      tags: {
+        highway: 'path',
+        name: 'Piste 12',
+        'piste:type': 'nordic',
+        'piste:name': '12',
+        'piste:difficulty': 'intermediate',
+        'piste:grooming': 'backcountry',
+      },
+      geometry: [
+        { lat: 45.56, lon: -75.89 },
+        { lat: 45.57, lon: -75.88 },
+      ],
+      nodes: [9002, 9003], // shares node 9002 with Trail #3
+    };
+
+    const adapterWithPathQuery = {
+      ...OTTAWA_ADAPTER,
+      namedWayQueries: (bbox) => [
+        {
+          label: 'bike paths',
+          q: `[out:json];way["highway"="path"]["bicycle"~"designated|yes"]["name"](${bbox});out geom tags;`,
+        },
+      ],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [] }],
+      // Named-way query picks up Trail #3 (dual-use cycling path)
+      ['highway"="path"]["bicycle"', { elements: [TRAIL3] }],
+      // Junction-node query finds Piste 12 sharing a node with Trail #3
+      ['way(bn)', { elements: [PISTE12] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.4,-76.1,45.7,-75.5',
+      adapter: adapterWithPathQuery,
+      manualEntries: [],
+    });
+
+    // Trail #3 must remain — it's a real dual-use cycling trail
+    const trail3 = entries.find((e) => e.name === 'Trail #3');
+    expect(trail3, 'Trail #3 dual-use MTB/piste trail must survive').toBeDefined();
+
+    // Piste 12 must not become an entry
+    const piste12 = entries.find((e) => e.name === 'Piste 12');
+    expect(piste12, 'Piste 12 ski-only junction-way must not form an entry').toBeUndefined();
+
+    // Defensive: no slug collision either
+    const bySlug = entries.find((e) => e.slug === 'piste-12');
+    expect(bySlug, 'no piste-12 slug should exist').toBeUndefined();
+  });
+
+  it('filters a ski-only named way with bicycle=no at ingestion', async () => {
+    // Regression: Trail 18 (OSM way 278785839) in Parc de la Gatineau is
+    // highway=path piste:type=nordic bicycle=no. Even if a future adapter's
+    // named-way query is looser and returns it, the ingestion filter must
+    // drop it.
+    const TRAIL18 = {
+      type: 'way',
+      id: 278785839,
+      tags: {
+        highway: 'path',
+        name: 'Trail 18',
+        bicycle: 'no',
+        'piste:type': 'nordic',
+      },
+      geometry: [
+        { lat: 45.58, lon: -75.85 },
+        { lat: 45.59, lon: -75.84 },
+      ],
+      nodes: [9100, 9101],
+    };
+
+    // An intentionally loose adapter that fetches any named path (no
+    // bicycle filter). The ingestion filter is the only defence here.
+    const looseAdapter = {
+      ...OTTAWA_ADAPTER,
+      namedWayQueries: (bbox) => [
+        {
+          label: 'loose paths',
+          q: `[out:json];way["highway"="path"]["name"](${bbox});out geom tags;`,
+        },
+      ],
+    };
+
+    const queryOverpass = makeFixtureOverpass([
+      ['relation["route"="bicycle"]', { elements: [] }],
+      ['highway"="path"]["name"', { elements: [TRAIL18] }],
+    ]);
+
+    const { entries } = await buildBikepathsPipeline({
+      queryOverpass,
+      bbox: '45.4,-76.1,45.7,-75.5',
+      adapter: looseAdapter,
+      manualEntries: [],
+    });
+
+    const trail18 = entries.find((e) => e.name === 'Trail 18');
+    expect(trail18, 'Trail 18 with bicycle=no must not form an entry').toBeUndefined();
+  });
 });
