@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'preact/hooks';
 import { useHydrated, useFileUpload } from '../../lib/hooks';
 import WizardLayout, { WizardNav } from './WizardLayout';
+import { useWizardSkips, buildCelebrateUrl } from './wizard-helpers';
 import { useProgressiveDisclosure } from './useProgressiveDisclosure';
 import { useFormValidation } from './useFormValidation';
 import { useEditorForm } from './useEditorForm';
@@ -117,14 +118,7 @@ export default function EventWizard({
   countryCode,
 }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
-  const [step, setStep] = useState(0);
-
-  // Track skipped steps
-  const [skippedSteps, setSkippedSteps] = useState<string[]>([]);
-  function skipStep(field: string, nextStep: number) {
-    setSkippedSteps(prev => [...prev, field]);
-    setStep(nextStep);
-  }
+  const { step, setStep, skippedSteps, skipStep } = useWizardSkips();
 
   // Poster step state
   const upload = useFileUpload();
@@ -445,11 +439,7 @@ export default function EventWizard({
     },
     onSuccess: (result) => {
       const id = result?.id || '';
-      const qs = new URLSearchParams({
-        first: 'true',
-        ...(skippedSteps.length > 0 ? { skipped: skippedSteps.join(',') } : {}),
-      });
-      window.location.href = `/admin/celebrate/event/${id}?${qs}`;
+      window.location.href = buildCelebrateUrl('event', id, skippedSteps);
     },
   });
 

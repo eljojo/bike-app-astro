@@ -11,6 +11,8 @@ import { categoryEmoji } from '../../lib/geo/place-categories';
 import { goodForEnum } from '../../schemas/index';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
+import { throttle } from '../../lib/throttle';
+import { isGoogleMapsUrl } from '../../lib/google-maps-url';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import polyline from '@mapbox/polyline';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
@@ -35,38 +37,6 @@ interface Props {
 }
 
 const categories = Object.entries(categoryEmoji);
-
-// Throttle: at most one call per interval
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let last = 0;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: Parameters<T>) => {
-    const now = Date.now();
-    const remaining = ms - (now - last);
-    if (remaining <= 0) {
-      last = now;
-      fn(...args);
-    } else if (!timer) {
-      timer = setTimeout(() => {
-        last = Date.now();
-        timer = null;
-        fn(...args);
-      }, remaining);
-    }
-  }) as T;
-}
-
-const GMAPS_PATTERNS = [
-  'maps.google.com',
-  'google.com/maps',
-  'goo.gl/maps',
-  'maps.app.goo.gl',
-];
-
-function isGoogleMapsUrl(text: string): boolean {
-  return GMAPS_PATTERNS.some(p => text.includes(p));
-}
 
 export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPrefix, userRole, secondaryLocales, mapCenter, nearRouteSlug, detailsToggleLabel, mediaLocations = [], guestLabel, organizers }: Props) {
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };

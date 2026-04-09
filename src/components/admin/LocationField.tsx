@@ -1,26 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
+import { throttle } from '../../lib/throttle';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
-
-// Throttle: at most one call per interval (Nominatim requires 1 req/sec)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let last = 0;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: Parameters<T>) => {
-    const now = Date.now();
-    const remaining = ms - (now - last);
-    if (remaining <= 0) {
-      last = now;
-      fn(...args);
-    } else if (!timer) {
-      timer = setTimeout(() => {
-        last = Date.now();
-        timer = null;
-        fn(...args);
-      }, remaining);
-    }
-  }) as T;
-}
 
 interface NominatimResult {
   display_name: string;

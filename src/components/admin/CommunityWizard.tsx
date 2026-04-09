@@ -1,14 +1,16 @@
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Key: use class not className, useHydrated required, all styles in admin.scss.
-import { useState, useRef, useEffect } from 'preact/hooks';
+import { useState, useRef } from 'preact/hooks';
 import WizardLayout, { WizardNav } from './WizardLayout';
 import { useFormValidation } from './useFormValidation';
 import { useEditorForm } from './useEditorForm';
 import { bindText } from './field-helpers';
 import PhotoField from './PhotoField';
 import MarkdownEditor from './MarkdownEditor';
+import MapPinPicker from './MapPinPicker';
+import { useWizardSkips, buildCelebrateUrl } from './wizard-helpers';
+import { isGoogleMapsUrl } from '../../lib/google-maps-url';
 import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
-import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import { slugify } from '../../lib/slug';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
 
@@ -16,38 +18,6 @@ type Mode = 'community' | 'bike-shop' | null;
 
 const COMMUNITY_STOPS = ['Profile', 'Online', 'About', 'Go Live'];
 const BIKE_SHOP_STOPS = ['Profile', 'Contact', 'Location', 'About', 'Go Live'];
-
-const GMAPS_PATTERNS = [
-  'maps.google.com',
-  'google.com/maps',
-  'goo.gl/maps',
-  'maps.app.goo.gl',
-];
-
-function isGoogleMapsUrl(text: string): boolean {
-  return GMAPS_PATTERNS.some(p => text.includes(p));
-}
-
-// Throttle: at most one call per interval
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let last = 0;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: Parameters<T>) => {
-    const now = Date.now();
-    const remaining = ms - (now - last);
-    if (remaining <= 0) {
-      last = now;
-      fn(...args);
-    } else if (!timer) {
-      timer = setTimeout(() => {
-        last = Date.now();
-        timer = null;
-        fn(...args);
-      }, remaining);
-    }
-  }) as T;
-}
 
 interface Props {
   cdnUrl: string;
@@ -73,13 +43,7 @@ export default function CommunityWizard({
   cityCenter,
 }: Props) {
   const [mode, setMode] = useState<Mode>(null);
-  const [step, setStep] = useState(0);
-  const [skippedSteps, setSkippedSteps] = useState<string[]>([]);
-
-  function skipStep(field: string, nextStep: number) {
-    setSkippedSteps(prev => [...prev, field]);
-    setStep(nextStep);
-  }
+  const { step, setStep, skippedSteps, skipStep } = useWizardSkips();
 
   // --- Shared fields (Profile step) ---
   const [name, setName] = useState('');
@@ -105,103 +69,13 @@ export default function CommunityWizard({
   const [lng, setLng] = useState(0);
   const [address, setAddress] = useState('');
 
-  // Map refs
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
-  const markerRef = useRef<import('maplibre-gl').Marker | null>(null);
-  const createMarkerRef = useRef<((position: [number, number]) => import('maplibre-gl').Marker) | null>(null);
-
   // --- About step ---
   const [body, setBody] = useState('');
 
-  // Reverse geocode on map click (throttled to 1 req/sec per Nominatim policy)
-  const reverseGeocode = useRef(throttle(async (latitude: number, longitude: number) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
-        { headers: { 'User-Agent': 'whereto.bike/1.0' } }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.display_name) {
-        setAddress(data.display_name);
-      }
-    } catch {
-      // Geocoding is best-effort
-    }
-  }, 1100));
-
   function updateLocation(latitude: number, longitude: number) {
-    setLat(Math.round(latitude * 1000000) / 1000000);
-    setLng(Math.round(longitude * 1000000) / 1000000);
-    reverseGeocode.current(latitude, longitude);
-
-    if (mapInstanceRef.current) {
-      if (markerRef.current) {
-        markerRef.current.setLngLat([longitude, latitude]);
-      } else if (createMarkerRef.current) {
-        markerRef.current = createMarkerRef.current([latitude, longitude]);
-      }
-    }
+    setLat(latitude);
+    setLng(longitude);
   }
-
-  // Initialize map when showMap becomes true
-  useEffect(() => {
-    if (!showMap || !mapContainerRef.current) return;
-
-    import('maplibre-gl').then(async (maplibregl) => {
-      const { initMap } = await import('../../lib/maps/map-init');
-
-      const defaultCenter: [number, number] = lat && lng ? [lat, lng] : (cityCenter ?? [45.42, -75.69]);
-      const defaultZoom = lat && lng ? 15 : 11;
-
-      const map = initMap({
-        el: mapContainerRef.current!,
-        center: defaultCenter,
-        zoom: defaultZoom,
-        styleUrl: getStyleUrl(loadStylePreference()),
-      });
-
-      function createDraggableMarker(position: [number, number]) {
-        const el = document.createElement('div');
-        el.className = 'place-picker-marker';
-
-        const marker = new maplibregl.default.Marker({ element: el, draggable: true })
-          .setLngLat([position[1], position[0]])
-          .addTo(map);
-        marker.on('dragend', () => {
-          const lngLat = marker.getLngLat();
-          updateLocation(lngLat.lat, lngLat.lng);
-        });
-        return marker;
-      }
-
-      createMarkerRef.current = createDraggableMarker;
-
-      if (lat && lng) {
-        markerRef.current = createDraggableMarker([lat, lng]);
-      }
-
-      map.on('click', (e) => {
-        const { lat: clickLat, lng: clickLng } = e.lngLat;
-        if (markerRef.current) {
-          markerRef.current.setLngLat([clickLng, clickLat]);
-        } else {
-          markerRef.current = createDraggableMarker([clickLat, clickLng]);
-        }
-        updateLocation(clickLat, clickLng);
-      });
-
-      mapInstanceRef.current = map;
-    });
-
-    return () => {
-      mapInstanceRef.current?.remove();
-      mapInstanceRef.current = null;
-      markerRef.current = null;
-      createMarkerRef.current = null;
-    };
-  }, [showMap, step]);
 
   async function handlePrefill() {
     const query = googleMapsUrl.trim();
@@ -226,9 +100,6 @@ export default function CommunityWizard({
       if (data.website && !website.trim()) setWebsite(data.website);
       if (data.lat && data.lng) {
         updateLocation(data.lat, data.lng);
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo({ center: [data.lng, data.lat], zoom: 15 });
-        }
       }
     } catch {
       editor.setError('Prefill request failed');
@@ -324,11 +195,7 @@ export default function CommunityWizard({
     },
     onSuccess: (result) => {
       const slug = result?.id || slugify(name);
-      const qs = new URLSearchParams({
-        first: 'true',
-        ...(skippedSteps.length > 0 ? { skipped: skippedSteps.join(',') } : {}),
-      });
-      window.location.href = `/admin/celebrate/community/${slug}?${qs}`;
+      window.location.href = buildCelebrateUrl('community', slug, skippedSteps);
     },
   });
 
@@ -529,15 +396,13 @@ export default function CommunityWizard({
               Place a pin manually
             </button>
           ) : (
-            <div class="form-field">
-              <label>Pin location <span class="field-hint">(click map to place)</span></label>
-              <div ref={mapContainerRef} class="place-map-picker" />
-              {(lat !== 0 || lng !== 0) && (
-                <div class="place-coords">
-                  {lat.toFixed(6)}, {lng.toFixed(6)}
-                </div>
-              )}
-            </div>
+            <MapPinPicker
+              center={cityCenter ?? [45.42, -75.69]}
+              lat={lat}
+              lng={lng}
+              onChange={updateLocation}
+              onAddressChange={setAddress}
+            />
           )}
         </div>
         {editor.error && <div class="auth-error">{editor.error}</div>}

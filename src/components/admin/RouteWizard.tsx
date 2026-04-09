@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'preact/hooks';
 import { useHydrated } from '../../lib/hooks';
 import WizardLayout, { WizardNav } from './WizardLayout';
+import { useWizardSkips, buildCelebrateUrl } from './wizard-helpers';
 import type { MediaItem } from './MediaManager';
 import type { VariantItem } from './VariantManager';
 import { slugify } from '../../lib/slug';
@@ -43,7 +44,7 @@ export default function RouteWizard({
 }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const thumbConfig: MediaThumbnailConfig = { cdnUrl, videosCdnUrl, videoPrefix };
-  const [step, setStep] = useState(0);
+  const { step, setStep, skippedSteps, skipStep } = useWizardSkips();
 
   // Step 1: Route data
   const [gpxContent, setGpxContent] = useState('');
@@ -68,13 +69,6 @@ export default function RouteWizard({
 
   // Variant (from GPX)
   const [variants, setVariants] = useState<VariantItem[]>([]);
-
-  // Track skipped steps for celebration nudges
-  const [skippedSteps, setSkippedSteps] = useState<string[]>([]);
-  function skipStep(field: string, nextStep: number) {
-    setSkippedSteps(prev => [...prev, field]);
-    setStep(nextStep);
-  }
 
   // GPX-derived data
   const track = useMemo(() => gpxContent ? parseGpx(gpxContent) : null, [gpxContent]);
@@ -122,11 +116,7 @@ export default function RouteWizard({
     },
     onSuccess: (result) => {
       const id = result?.id || slug;
-      const qs = new URLSearchParams({
-        first: 'true',
-        ...(skippedSteps.length > 0 ? { skipped: skippedSteps.join(',') } : {}),
-      });
-      window.location.href = `/admin/celebrate/route/${id}?${qs}`;
+      window.location.href = buildCelebrateUrl('route', id, skippedSteps);
     },
   });
 

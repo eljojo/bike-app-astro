@@ -10,7 +10,6 @@ import { supportedLocales, defaultLocale } from '../../lib/i18n/locale-utils';
 import { getCityConfig, isBlogInstance } from '../../lib/config/city-config';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
-import { categoryEmoji } from '../../lib/geo/place-categories';
 import { t } from '@/i18n';
 import type { AdminOrganizer } from '../../types/admin';
 
@@ -29,7 +28,6 @@ const organizerOptions = allOrganizers.filter((o: AdminOrganizer) => o.tags.incl
 
 const fullEditor = Astro.url.searchParams.get('full') === '1';
 const features = getInstanceFeatures();
-const categories = Object.entries(categoryEmoji);
 
 const initialData = {
   id: '',
@@ -45,6 +43,6 @@ const initialData = {
   {fullEditor ? (
     <PlaceEditor client:load initialData={initialData} cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} secondaryLocales={secondaryLocales} mapCenter={mapCenter} nearRouteSlug={nearSlug} detailsToggleLabel={detailsToggleLabel} mediaLocations={mediaLocations} guestLabel={t('editor.guest_label', Astro.currentLocale)} organizers={organizerOptions} />
   ) : (
-    <PlaceWizard client:load cdnUrl={cdnUrl} videosCdnUrl={videosCdnUrl} videoPrefix={videoPrefix} userRole={Astro.locals.user?.role} showLicenseNotice={features.showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} mapCenter={mapCenter} cityName={cityConfig.name} mediaLocations={mediaLocations} organizers={organizerOptions} categories={categories} />
+    <PlaceWizard client:load cdnUrl={cdnUrl} userRole={Astro.locals.user?.role} showLicenseNotice={features.showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} mapCenter={mapCenter} cityName={cityConfig.name} />
   )}
 </AdminEditorLayout>
