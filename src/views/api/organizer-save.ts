@@ -7,8 +7,10 @@ import { CITY } from '../../lib/config/config';
 import { saveContent } from '../../lib/content/content-save';
 import type { SaveHandlers, BuildResult, WithSlugValidation, WithExistenceCheck, WithAfterCommit } from '../../lib/content/content-save';
 import type { FileChange } from '../../lib/git/git.adapter-github';
-import { organizerOps } from '../../lib/content/content-ops.server';
+import { organizerOps, placeOps } from '../../lib/content/content-ops.server';
 import { normalizeSocialLinks } from '../../lib/models/organizer-model';
+import { upsertContentCache } from '../../lib/content/cache';
+import { computeBlobSha } from '../../lib/git/git.adapter-github';
 import { slugify } from '../../lib/slug';
 import { buildSingleMediaKeyChanges, afterCommitMediaCleanup, mergeFrontmatter, buildSimpleCommitMessage, buildGitHubUrl, checkSlugExistence } from '../../lib/content/save-helpers.server';
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
@@ -20,6 +22,16 @@ export const prerender = false;
 const socialLinkSchema = z.object({
   platform: z.string(),
   url: z.string(),
+});
+
+const placeDataSchema = z.object({
+  name: z.string(),
+  category: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  website: z.string().optional(),
 });
 
 const organizerUpdateSchema = z.object({
@@ -40,6 +52,7 @@ const organizerUpdateSchema = z.object({
   }),
   body: z.string().optional(),
   contentHash: z.string().optional(),
+  place: placeDataSchema.optional(),
 });
 
 export interface OrganizerUpdate {
@@ -60,6 +73,15 @@ export interface OrganizerUpdate {
   };
   body?: string;
   contentHash?: string;
+  place?: {
+    name: string;
+    category: string;
+    lat: number;
+    lng: number;
+    address?: string;
+    phone?: string;
+    website?: string;
+  };
 }
 
 interface OrganizerBuildResult extends BuildResult {
@@ -67,6 +89,7 @@ interface OrganizerBuildResult extends BuildResult {
   newPhotoKey: string | undefined;
   organizerSlug: string;
   mergedParked: ParkedMediaEntry[] | undefined;
+  linkedPlace?: { slug: string; fileContent: string };
 }
 
 /**
@@ -159,13 +182,50 @@ export function createOrganizerHandlers(sharedKeysData: Record<string, Array<{ t
 
       files.push({ path: filePath, content: serializeMdFile(merged, update.body) });
 
-      return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, organizerSlug: slug, mergedParked };
+      // If a place was submitted alongside the organizer (e.g. from the wizard),
+      // build its markdown file and include it in the same commit.
+      let linkedPlace: OrganizerBuildResult['linkedPlace'];
+      if (update.place) {
+        const placeSlug = slugify(update.place.name);
+        const placeFm: Record<string, unknown> = {
+          name: update.place.name,
+          category: update.place.category,
+          lat: update.place.lat,
+          lng: update.place.lng,
+          organizer: slug,
+        };
+        if (update.place.address) placeFm.address = update.place.address;
+        if (update.place.phone) placeFm.phone = update.place.phone;
+        if (update.place.website) placeFm.website = update.place.website;
+        const placePath = placeOps.getFilePaths(placeSlug).primary;
+        const placeFileContent = serializeMdFile(placeFm);
+        files.push({ path: placePath, content: placeFileContent });
+        linkedPlace = { slug: placeSlug, fileContent: placeFileContent };
+      }
+
+      return { files, deletePaths: [], isNew, oldPhotoKey, newPhotoKey, organizerSlug: slug, mergedParked, linkedPlace };
     },
 
     async afterCommit(result, database) {
-      const { oldPhotoKey, newPhotoKey, organizerSlug, mergedParked } = result;
+      const { oldPhotoKey, newPhotoKey, organizerSlug, mergedParked, linkedPlace } = result;
       const changes = buildSingleMediaKeyChanges(oldPhotoKey, newPhotoKey, 'organizer', organizerSlug);
       await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
+
+      // Write linked place to D1 cache if one was created alongside the organizer.
+      if (linkedPlace) {
+        try {
+          const placeFiles = { primaryFile: { content: linkedPlace.fileContent, sha: computeBlobSha(linkedPlace.fileContent) }, auxiliaryFiles: {} };
+          const placeCacheData = placeOps.buildFreshData(linkedPlace.slug, placeFiles);
+          await upsertContentCache(database, {
+            contentType: 'places',
+            contentSlug: linkedPlace.slug,
+            data: placeCacheData,
+            githubSha: placeFiles.primaryFile.sha,
+          });
+        } catch (err) {
+          console.error('Failed to cache linked place after organizer commit:', err);
+        }
+      }
     },
 
     buildCommitMessage(update, slug, isNew): string {
