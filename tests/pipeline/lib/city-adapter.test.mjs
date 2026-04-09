@@ -1,8 +1,9 @@
 // Tests for the city adapter's memberSort comparator.
 //
-// Two-bucket sort: named trails first (no digits), alphabetical; numbered
-// trails second, natural numeric order. This is what the bike path detail
-// page renders in its "children" list.
+// Two-bucket sort:
+//   1. Named trails first (no digit in name), alphabetical.
+//   2. Numbered trails after, sorted by the FIRST number in the name
+//      (ignoring prefix text and "#"), tiebroken alphabetically.
 
 import { describe, it, expect } from 'vitest';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
@@ -21,66 +22,81 @@ describe('ottawa adapter memberSort', () => {
     expect(ottawa.memberSort).toBeTypeOf('function');
   });
 
-  it('puts named trails before numbered trails (two-bucket sort)', () => {
+  it('matches the spec: named first alphabetical, numbered by extracted number', () => {
+    // The canonical expected ordering the user described.
     const sorted = sortNames([
-      'Trail 14', 'Hermit', 'Trail #3', 'Salamander', 'Piste 60 (Raquette)',
-      'Bypass', 'Trail #24', 'Chemin Cowden',
+      'Trail 5', '2', 'a numberless thing', 'Trail #4', 'Piste 3',
+      'ab another numberless thing', 'Sentier 5', 'Trail 1', '58 Konnektor',
     ]);
     expect(sorted).toEqual([
-      // Named bucket — no digits, alphabetical
+      'a numberless thing',
+      'ab another numberless thing',
+      'Trail 1',
+      '2',
+      'Piste 3',
+      'Trail #4',
+      'Sentier 5',
+      'Trail 5',
+      '58 Konnektor',
+    ]);
+  });
+
+  it('puts named trails before numbered trails', () => {
+    const sorted = sortNames([
+      'Trail 14', 'Hermit', 'Trail #3', 'Salamander', 'Bypass', 'Piste 60 (Raquette)',
+    ]);
+    expect(sorted).toEqual([
       'Bypass',
-      'Chemin Cowden',
       'Hermit',
       'Salamander',
-      // Numbered bucket — natural name sort across prefixes ("Piste" < "Trail")
-      // and natural numeric order within a prefix.
+      'Trail #3',
+      'Trail 14',
       'Piste 60 (Raquette)',
-      'Trail #3',
-      'Trail 14',
-      'Trail #24',
     ]);
   });
 
-  it('sorts "Trail #3" before "Trail #24" within the numbered bucket', () => {
-    const sorted = sortNames(['Trail #24', 'Trail #3', 'Trail #33', 'Trail #9']);
-    expect(sorted).toEqual(['Trail #3', 'Trail #9', 'Trail #24', 'Trail #33']);
-  });
-
-  it('sorts mixed numeric trail refs in natural order', () => {
+  it('sorts numbered trails across prefixes by their number alone', () => {
+    // Prefix text does not affect the ordering — only the embedded number.
     const sorted = sortNames([
-      'Trail 47', 'Trail 14', 'Trail 22', 'Trail 36b', 'Trail 19', 'Trail 20', 'Trail 28',
+      'Piste 12', 'Trail #3', 'Sentier 5', 'Trail #24', 'Piste 60',
+      'Trail 7', 'Trail #1 Ridge Road',
     ]);
     expect(sorted).toEqual([
-      'Trail 14', 'Trail 19', 'Trail 20', 'Trail 22', 'Trail 28', 'Trail 36b', 'Trail 47',
+      'Trail #1 Ridge Road', // 1
+      'Trail #3',            // 3
+      'Sentier 5',           // 5
+      'Trail 7',             // 7
+      'Piste 12',            // 12
+      'Trail #24',           // 24
+      'Piste 60',            // 60
     ]);
   });
 
-  it('interleaves "Trail #N" and "Trail N" within the numbered bucket', () => {
-    // OSM mixes these styles. Within the numbered bucket they should form
-    // one ordered sequence, not two.
-    const sorted = sortNames([
-      'Trail 14', 'Trail #3', 'Trail 7', 'Trail #24', 'Trail 22B', 'Trail #1 Ridge Road',
-    ]);
+  it('tiebreaks entries with the same number alphabetically', () => {
+    const sorted = sortNames(['Trail 5', 'Sentier 5', 'Piste 5']);
+    // Same extracted number; case-insensitive alphabetical order.
+    expect(sorted).toEqual(['Piste 5', 'Sentier 5', 'Trail 5']);
+  });
+
+  it('treats a standalone numeric name as its own number', () => {
+    const sorted = sortNames(['Hermit', '2', 'Piste 1', 'Trail 3']);
+    expect(sorted).toEqual(['Hermit', 'Piste 1', '2', 'Trail 3']);
+  });
+
+  it('uses the first number when multiple are present', () => {
+    const sorted = sortNames(['Trail 50B', 'Trail 3', 'Trail 20-2', 'Trail 5 (part 2)']);
     expect(sorted).toEqual([
-      'Trail #1 Ridge Road',
-      'Trail #3',
-      'Trail 7',
-      'Trail 14',
-      'Trail 22B',
-      'Trail #24',
+      'Trail 3',           // 3
+      'Trail 5 (part 2)',  // 5 (not 2)
+      'Trail 20-2',        // 20 (not 2)
+      'Trail 50B',         // 50
     ]);
-  });
-
-  it('sorts Piste entries naturally within the numbered bucket', () => {
-    const sorted = sortNames(['Piste 60 (Raquette)', 'Piste 12', 'Piste 25']);
-    expect(sorted).toEqual(['Piste 12', 'Piste 25', 'Piste 60 (Raquette)']);
   });
 
   it('sorts named French trails alphabetically', () => {
     const sorted = sortNames([
       'Sentier des Loups', 'Sentier Horizon', 'Sentier de la Rivière',
     ]);
-    // All three are named (no digits). Collation: "de la" < "des" < "Horizon".
     expect(sorted).toEqual([
       'Sentier de la Rivière',
       'Sentier des Loups',
@@ -95,21 +111,6 @@ describe('ottawa adapter memberSort', () => {
       'beaver trail',
       'Écluse Nord',
       'Écluse Sud',
-    ]);
-  });
-
-  it('treats any name with a digit as numbered', () => {
-    const sorted = sortNames([
-      'Sentier 52 du Parc de la Gatineau Parkway',
-      'Hermit',
-      'Trail 22B',
-    ]);
-    // Hermit (named) first. Then numbered bucket: "Sentier 52…" < "Trail 22B"
-    // because S < T.
-    expect(sorted).toEqual([
-      'Hermit',
-      'Sentier 52 du Parc de la Gatineau Parkway',
-      'Trail 22B',
     ]);
   });
 

@@ -14,34 +14,49 @@
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-// Locale-aware natural-name comparator. Two-bucket sort:
+// Two-bucket member sort for bike-path detail pages:
 //
-//   1. Named trails first (no digits in the name), alphabetical.
-//   2. Numbered trails after (anything containing a digit), natural numeric
-//      order — "Trail #3" before "Trail #24", "Piste 12" before "Piste 60".
+//   1. Named entries first (no digit in the name), alphabetical:
+//        "a numberless thing", "ab another thing", "Hermit", "Salamander"…
+//   2. Numbered entries after, ordered by the FIRST number in the name
+//      (irrespective of prefix text), tiebroken alphabetically:
+//        "Trail 1", "2", "Piste 3", "Trail #4", "Sentier 5", "Trail 5",
+//        "58 Konnektor"…
 //
-// The bucket split matches how people browse a park's trail list: memorable
-// named trails like "Hermit" or "Salamander" rise to the top, then the
-// anonymous numbered grid flows below them in order. OSM tags are
-// inconsistent about whether numbered refs get a "#" prefix ("Trail #3" vs
-// "Trail 3") — normalising "#" out of the sort key lets both styles
-// interleave within the numbered bucket.
+// This matches how people browse a park's trail list: memorable named
+// trails rise to the top, then the numbered grid flows below them purely
+// by trail number. "Trail #3" and "Trail 3" and "Piste 3" all share the
+// same sort key, so the prefix style (OSM inconsistency) doesn't matter.
 //
-// Sort is diacritic- and case-insensitive so "Écluse" and "ecluse" sort
-// together and "sentier" next to "Sentier". Cities with specific needs
-// (ref order, distance order) can override `memberSort` on their adapter.
-const naturalNameCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
-function normaliseForSort(name) {
-  return (name || '').replace(/#\s*/g, '').replace(/\s+/g, ' ').trim();
+// Collation for the name-bucket fallback is locale-aware, case- and
+// diacritic-insensitive. Cities with specific needs (ref order, distance
+// order) can override `memberSort` on their adapter.
+const namedBucketCollator = new Intl.Collator('en', { sensitivity: 'base' });
+const tiebreakCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+function firstNumberIn(name) {
+  if (!name) return null;
+  const m = String(name).match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
 }
-function isNumbered(name) {
-  return /\d/.test(name || '');
-}
+
 function naturalNameSort(a, b) {
-  const aNum = isNumbered(a?.name);
-  const bNum = isNumbered(b?.name);
-  if (aNum !== bNum) return aNum ? 1 : -1; // named first, numbered after
-  return naturalNameCollator.compare(normaliseForSort(a?.name), normaliseForSort(b?.name));
+  const aNum = firstNumberIn(a?.name);
+  const bNum = firstNumberIn(b?.name);
+
+  // Named bucket first.
+  if (aNum === null && bNum !== null) return -1;
+  if (aNum !== null && bNum === null) return 1;
+
+  // Both named: alphabetical.
+  if (aNum === null && bNum === null) {
+    return namedBucketCollator.compare(a?.name || '', b?.name || '');
+  }
+
+  // Both numbered: sort by extracted number; tiebreak alphabetically so
+  // "Sentier 5" and "Trail 5" sit next to each other in a stable order.
+  if (aNum !== bNum) return aNum - bNum;
+  return tiebreakCollator.compare(a?.name || '', b?.name || '');
 }
 
 // ---------------------------------------------------------------------------
