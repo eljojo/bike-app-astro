@@ -131,6 +131,7 @@ How the app works. Read to understand *what* things are.
 - [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
 - [bike-path-tiles](_ctx/bike-path-tiles.md) — adaptive quadtree tiles with baked metadata, client-side tile loading
 - [pipeline-overview](_ctx/pipeline-overview.md) — how the bikepaths pipeline discovers, names, clusters, and networks cycling infrastructure
+- [pipeline-graph](_ctx/pipeline-graph.md) — auto-generated phase graph + trace workflow (per-subject timelines via `make bikepaths --trace way:N`)
 - [naming-unnamed-chains](_ctx/naming-unnamed-chains.md) — how the pipeline names unnamed chains from nearby parks/roads
 - [path-types](_ctx/path-types.md) — path_type field: classifies infrastructure by safety and bike requirements
 - [entry-types](_ctx/entry-types.md) — type field: long-distance, network, destination, infrastructure, connector, unknown

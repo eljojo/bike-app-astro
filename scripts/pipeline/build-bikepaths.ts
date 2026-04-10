@@ -71,6 +71,8 @@ if (isMain) {
   for (let i = 2; i < process.argv.length; i++) {
     if (process.argv[i] === '--city') args.city = process.argv[++i];
     if (process.argv[i] === '--dry-run') args.dryRun = true;
+    if (process.argv[i] === '--trace') args.trace = process.argv[++i];
+    if (process.argv[i].startsWith('--trace=')) args.trace = process.argv[i].slice('--trace='.length);
   }
   if (!args.city) {
     console.error('Usage: node scripts/build-bikepaths.ts --city <city>');
@@ -315,6 +317,29 @@ ${mermaid}
 }
 
 // ---------------------------------------------------------------------------
+// Trace CLI helper — prints a per-subject timeline from a loaded trace dump.
+// Invoked by main() when --trace=<subject> is passed on the command line.
+// ---------------------------------------------------------------------------
+
+function printSubjectTimeline(trace: Trace, id: string): void {
+  const subj = trace.subject(id);
+  console.log(`${id}${subj.displayName ? `  "${subj.displayName}"` : ''}`);
+  console.log('');
+  let lastPhase: string | null = null;
+  for (const event of subj.events) {
+    if (event.phase !== lastPhase) {
+      console.log(`[${event.t.toFixed(0)}ms] ${event.phase}`);
+      lastPhase = event.phase;
+    }
+    const dataStr = event.data ? '  ' + JSON.stringify(event.data) : '';
+    console.log(`  → ${event.kind}${dataStr}`);
+  }
+  if (subj.events.length === 0) {
+    console.log('(no events recorded for this subject)');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // main() — thin wrapper: load config, run pipeline, write YAML
 // ---------------------------------------------------------------------------
 
@@ -358,6 +383,19 @@ async function main(): Promise<void> {
     const tracePath = path.join(dataDir, '.pipeline-debug', 'trace.json');
     trace.saveTo(tracePath);
     console.log(`[trace] wrote ${tracePath}`);
+  }
+
+  // Handle --trace queries: load the just-written trace and print a
+  // human-readable timeline for the requested subject (e.g. way:278992292).
+  if (args.trace) {
+    const tracePath = path.join(dataDir, '.pipeline-debug', 'trace.json');
+    if (!fs.existsSync(tracePath)) {
+      console.error(`No trace dump at ${tracePath}. Set TRACE=on (default) and re-run make bikepaths.`);
+      process.exit(1);
+    }
+    console.log('');
+    const loaded = Trace.load(tracePath);
+    printSubjectTimeline(loaded, args.trace);
   }
 }
 
