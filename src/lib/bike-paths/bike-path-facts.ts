@@ -98,6 +98,27 @@ function sanitizeWidth(raw?: string): string | undefined {
 }
 
 /**
+ * Group a raw `surface_mix` into display categories, summing km per category.
+ * The pipeline's surface_mix contains raw OSM values (asphalt, concrete,
+ * paved, fine_gravel, compacted, ground, unpaved, wood, ...) but the UI
+ * renders display categories (paved, gravel, dirt, boardwalk). Returns
+ * undefined when the input has ≤ 1 entry (no mix to show).
+ */
+function aggregateSurfaceMixByCategory(
+  mix: Array<{ value: string; km: number }> | undefined,
+): Array<{ value: string; km: number }> | undefined {
+  if (!mix || mix.length <= 1) return undefined;
+  const byCategory = new Map<string, number>();
+  for (const { value, km } of mix) {
+    const category = displaySurface(value) || value;
+    byCategory.set(category, (byCategory.get(category) || 0) + km);
+  }
+  return [...byCategory.entries()]
+    .map(([value, km]) => ({ value, km }))
+    .sort((a, b) => b.km - a.km);
+}
+
+/**
  * Auto-detect family-friendly paths from OSM metadata.
  * A paved MUP separated from cars is safe for beginners and families.
  * Park paths get a lower bar — lighting not required since parks are
@@ -118,7 +139,15 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   const facts: PathFact[] = [];
 
   const width = sanitizeWidth(meta.width);
-  const hasSurfaceMix = meta.surface_mix && meta.surface_mix.length > 1;
+  // Collapse raw OSM surface values into display categories before treating
+  // this as a mix. The pipeline's mergeWayTags emits surface_mix with raw
+  // values ("asphalt", "concrete", "paved", "fine_gravel", "compacted", ...)
+  // but the sidebar shows display categories (paved, gravel, dirt, boardwalk),
+  // so multiple raws mapping to the same category must be summed into one row.
+  // Without this, long paths like the Trans-Canada Trail show duplicate rows:
+  //   "Paved (301 km), Gravel (43 km), Paved (39 km), Gravel (33 km), ..."
+  const aggregatedSurfaceMix = aggregateSurfaceMixByCategory(meta.surface_mix);
+  const hasSurfaceMix = !!aggregatedSurfaceMix && aggregatedSurfaceMix.length > 1;
 
   // Path info — path_type + width only. Surface is shown separately to avoid
   // redundancy (e.g. "Multi-use pathway · Paved" + "Surface: Paved (10 km)").
@@ -152,7 +181,7 @@ export function buildPathFacts(meta: PathMeta): PathFact[] {
   if (hasSurfaceMix) {
     facts.push({
       key: 'surface_mixed',
-      breakdown: meta.surface_mix!.map(m => ({ value: m.value, km: m.km })),
+      breakdown: aggregatedSurfaceMix,
     });
     // For mixed surfaces, only warn about bad+ conditions as a separate fact
     if (smoothnessAdj) {
