@@ -180,3 +180,17 @@ describe('TaskGraph — parallel', () => {
     }
   });
 });
+
+describe('TaskGraph — diagram', () => {
+  it('emits Mermaid graph TD syntax with star annotations', () => {
+    const g = new TaskGraph();
+    g.define({ name: 'a', run: async () => 1 });
+    g.define({ name: 'b', star: true, deps: { x: 'a' }, run: async () => 2 });
+    g.define({ name: 'c', deps: { y: 'b' }, run: async () => 3 });
+    const out = g.diagram({ format: 'mermaid' });
+    expect(out).toContain('graph TD');
+    expect(out).toContain('a --> b');
+    expect(out).toContain('b --> c');
+    expect(out).toContain('★'); // star annotation on b
+  });
+});

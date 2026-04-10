@@ -199,4 +199,33 @@ export class TaskGraph {
     launchReady();
     return finished;
   }
+
+  /**
+   * Emit a representation of the graph for documentation.
+   * Currently supports: 'mermaid' (graph TD syntax).
+   */
+  diagram({ format = 'mermaid' } = {}) {
+    if (format !== 'mermaid') {
+      throw new Error(`Task graph: unsupported diagram format "${format}"`);
+    }
+    const lines = ['graph TD'];
+    // Node declarations with star annotation
+    for (const [name, step] of this.steps) {
+      const id = mermaidId(name);
+      const label = step.star ? `${name} ★` : name;
+      lines.push(`  ${id}["${label}"]`);
+    }
+    // Edges
+    for (const [name, step] of this.steps) {
+      for (const depName of Object.values(step.deps)) {
+        lines.push(`  ${mermaidId(depName)} --> ${mermaidId(name)}`);
+      }
+    }
+    return lines.join('\n');
+  }
+}
+
+function mermaidId(name) {
+  // Mermaid node IDs can't contain dots; use underscores
+  return name.replace(/[^a-zA-Z0-9_]/g, '_');
 }
