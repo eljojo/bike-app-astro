@@ -38,10 +38,11 @@ export const discoverNamedWaysPhase: Phase<{}, NamedWayEntry[]> = async ({ ctx }
   );
   let allWayElements: any[] = results.flat();
 
-  // Deterministic order: sort by ID so iteration is parallelism-safe.
-  // The map/filter traversals below depend on consistent ordering to keep
-  // cluster-building stable regardless of adapter-query return order.
-  allWayElements.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+  // Note: Promise.all preserves input array order in its output, so
+  // results.flat() yields the same order as the old sequential push loop.
+  // Do NOT sort by ID — the junction query below joins these IDs into its
+  // string, and the cassette key depends on that exact string. Sorting would
+  // produce a different query string and trigger a cassette miss in tests.
 
   // Trace every discovered way (before filtering)
   for (const w of allWayElements) {
@@ -204,10 +205,13 @@ out geom tags;`;
     }
   }
 
-  // Deterministic sort BEFORE the absorb-fragments loop (parallelism-safe).
-  // Without this, the absorb loop's "first similar larger entry wins" behaviour
-  // depends on query return order.
-  osmNamedWays.sort((a, b) => a.name.localeCompare(b.name));
+  // Note: do NOT sort osmNamedWays here. The absorb-fragments loop's
+  // "first similar larger entry wins" semantics depend on the iteration
+  // order matching the legacy sequential adapter-query order. Promise.all
+  // already preserves that order in `results.flat()` above, and we kept the
+  // same waysByName insertion path, so osmNamedWays naturally matches the
+  // legacy ordering. Adding a sort would change which fragments get absorbed
+  // into which entries.
 
   // Merge small fragments into nearby larger entries with similar names.
   // "Voie Verte de Chelsea" (0.2km) is a typo variant of "Voie Verte Chelsea"

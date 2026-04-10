@@ -89,7 +89,11 @@ describe('discover.namedWays phase', () => {
   });
 
   it('produces deterministic ordering across runs (parallelism-safe)', async () => {
-    // Same input, twice, should produce identical output ordering
+    // Same input, twice, should produce identical output ordering.
+    // Promise.all preserves input array order in its output, so the parallel
+    // adapter-query fetch yields the same order as the legacy sequential push
+    // loop. The phase preserves that order through to osmNamedWays so the
+    // Ottawa cassette (which keys queries by joined-ID string) keeps working.
     const WAYS = [
       { type: 'way', id: 1, tags: { highway: 'path', bicycle: 'designated', name: 'Zebra' }, geometry: [{lat: 1, lon: 1}, {lat: 1, lon: 2}], nodes: [10, 11] },
       { type: 'way', id: 2, tags: { highway: 'path', bicycle: 'designated', name: 'Alpha' }, geometry: [{lat: 2, lon: 1}, {lat: 2, lon: 2}], nodes: [20, 21] },
@@ -103,7 +107,8 @@ describe('discover.namedWays phase', () => {
     const a = await discoverNamedWaysPhase({ ctx: ctx(new Trace()) });
     const b = await discoverNamedWaysPhase({ ctx: ctx(new Trace()) });
     expect(a.map((e) => e.name)).toEqual(b.map((e) => e.name));
-    // And the deterministic order should be alphabetical (Alpha before Zebra)
-    expect(a.map((e) => e.name)).toEqual(['Alpha', 'Zebra']);
+    // Order matches input order (Zebra before Alpha) — preserves the legacy
+    // sequential push order so cluster-building stays cassette-stable.
+    expect(a.map((e) => e.name)).toEqual(['Zebra', 'Alpha']);
   });
 });

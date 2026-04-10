@@ -43,9 +43,15 @@ export { mergeWayTags };
 import { loadManualEntries, loadMarkdownSlugs, parseMarkdownOverrides, writeYaml } from './lib/pipeline-io.ts';
 // Re-export for test compatibility (tests import parseMarkdownOverrides from this file)
 export { parseMarkdownOverrides };
-import { discover } from './lib/discover.ts';
 import { assemble } from './lib/assemble.ts';
 import { resolve } from './lib/resolve.ts';
+import { TaskGraph } from './engine/task-graph.mjs';
+import { Trace } from './engine/trace.mjs';
+import { discoverRelationsPhase } from './phases/discover-relations.ts';
+import { discoverNamedWaysPhase } from './phases/discover-named-ways.ts';
+import { discoverParallelLanesPhase } from './phases/discover-parallel-lanes.ts';
+import { discoverUnnamedChainsPhase } from './phases/discover-unnamed-chains.ts';
+import { discoverNonCyclingPhase } from './phases/discover-non-cycling.ts';
 
 // ---------------------------------------------------------------------------
 // CLI (only when run directly, not when imported)
@@ -119,11 +125,88 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
   manualEntries?: any[];
   markdownSlugs?: Set<string>;
   markdownOverrides?: Map<string, { member_of?: string }>;
-}): Promise<{ entries: any[]; superNetworks: any[]; slugMap: Map<any, string>; wayRegistry: WayRegistry }> {
-  // Steps 1-2d: Discover all OSM cycling infrastructure
+}): Promise<{ entries: any[]; superNetworks: any[]; slugMap: Map<any, string>; wayRegistry: WayRegistry; trace: Trace }> {
+  // Steps 1-2d: Discover all OSM cycling infrastructure via TaskGraph
   const wayRegistry = new WayRegistry();
-  const { osmRelations, osmNamedWays, parallelLanes, nonCyclingCandidates, relationBaseNames } =
-    await discover({ queryOverpass: qo, bbox: b, adapter: a }, wayRegistry);
+  const trace = new Trace({ enabled: process.env.TRACE !== 'off', city: process.env.CITY });
+  const graph = new TaskGraph();
+
+  // Helper: wraps a phase run fn with a per-phase trace binding
+  function withTrace<T>(phaseName: string, fn: (args: any) => Promise<T>) {
+    return async (args: any) => {
+      const phaseCtx = { ...args.ctx, trace: trace.bind(phaseName) };
+      return fn({ ...args, ctx: phaseCtx });
+    };
+  }
+
+  graph.define({
+    name: 'discover.relations',
+    run: withTrace('discover.relations', ({ ctx }) => discoverRelationsPhase({ ctx })),
+  });
+  graph.define({
+    name: 'discover.namedWays',
+    star: true,
+    run: withTrace('discover.namedWays', ({ ctx }) => discoverNamedWaysPhase({ ctx })),
+  });
+  graph.define({
+    name: 'discover.parallelLanes',
+    run: withTrace('discover.parallelLanes', ({ ctx }) => discoverParallelLanesPhase({ ctx })),
+  });
+  graph.define({
+    name: 'discover.unnamedChains',
+    run: withTrace('discover.unnamedChains', ({ ctx }) => discoverUnnamedChainsPhase({ ctx })),
+  });
+  graph.define({
+    name: 'discover.nonCycling',
+    deps: {
+      relations: 'discover.relations',
+      namedWays: 'discover.namedWays',
+      unnamedChains: 'discover.unnamedChains',
+    },
+    // Old code mutated osmNamedWays in-place inside discoverUnnamedChains, so the
+    // sequential discoverNonCycling call saw the merged list. Preserve that
+    // semantics here: pass [...namedWays, ...unnamedChains] so the spider query
+    // walks UP from every cycling way ID (including chain ways).
+    run: withTrace('discover.nonCycling', ({ relations, namedWays, unnamedChains, ctx }) =>
+      discoverNonCyclingPhase({ relations, namedWays: [...namedWays, ...unnamedChains], ctx })),
+  });
+  graph.define({
+    name: 'discover.bundle',
+    deps: {
+      relations: 'discover.relations',
+      namedWays: 'discover.namedWays',
+      parallelLanes: 'discover.parallelLanes',
+      unnamedChains: 'discover.unnamedChains',
+      nonCycling: 'discover.nonCycling',
+    },
+    run: async ({ relations, namedWays, parallelLanes, unnamedChains, nonCycling }: any) => ({
+      osmRelations: relations,
+      osmNamedWays: [...namedWays, ...unnamedChains],
+      parallelLanes,
+      nonCyclingCandidates: nonCycling,
+      relationBaseNames: new Set<string>(
+        (relations as any[]).map((r) => r.name.replace(/\s*\(.*?\)\s*$/, '').toLowerCase())
+      ),
+    }),
+  });
+
+  const concurrency = Number(process.env.OVERPASS_CONCURRENCY) || 4;
+  const discovered = await graph.run({
+    goal: 'discover.bundle',
+    context: { bbox: b, adapter: a, queryOverpass: qo },
+    concurrency,
+    onEvent: (evt: any) => {
+      if (evt.type === 'done' && trace.enabled) trace.recordPhaseSummary(evt.step, evt.ms);
+      const msPart = evt.ms ? ` (${evt.ms.toFixed(0)}ms)` : '';
+      if (evt.type === 'fail') {
+        console.error(`[graph] ${evt.type} ${evt.step}${msPart}`, evt.error);
+      } else {
+        console.log(`[graph] ${evt.type} ${evt.step}${msPart}`);
+      }
+    },
+  });
+
+  const { osmRelations, osmNamedWays, parallelLanes, nonCyclingCandidates, relationBaseNames } = discovered as any;
 
   // Step 3: Build entries, enrich, classify
   const entries = await assemble({
@@ -147,7 +230,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
     markdownOverrides,
   });
 
-  return { entries: grouped, superNetworks, slugMap, wayRegistry };
+  return { entries: grouped, superNetworks, slugMap, wayRegistry, trace };
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +245,7 @@ async function main(): Promise<void> {
   const bikePathsDir = path.join(dataDir, 'bike-paths');
   const markdownOverrides = parseMarkdownOverrides(bikePathsDir);
 
-  const { entries, superNetworks, slugMap } = await buildBikepathsPipeline({
+  const { entries, superNetworks, slugMap, trace } = await buildBikepathsPipeline({
     queryOverpass,
     bbox,
     adapter,
@@ -188,6 +271,11 @@ async function main(): Promise<void> {
     console.log(`\nTotal: ${entries.length} entries (${networkEntries.length} networks, ${memberEntries.length} members, ${superNetworks.length} super-networks)`);
   } else {
     writeYaml(entries, superNetworks, bikepathsPath, slugMap);
+    if (trace.enabled) {
+      const tracePath = path.join(dataDir, '.pipeline-debug', 'trace.json');
+      trace.saveTo(tracePath);
+      console.log(`[trace] wrote ${tracePath}`);
+    }
   }
 }
 
