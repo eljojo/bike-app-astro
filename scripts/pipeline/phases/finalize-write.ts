@@ -28,8 +28,11 @@ interface Inputs {
   entries: any[];
   superNetworks: any[];
   wayRegistry: WayRegistry;
-  dataDir: string;
+  /** Destination directory for bikepaths.yml. When omitted (tests), no file is written. */
+  dataDir?: string;
   relationBaseNames: Set<string>;
+  /** When true, skip writeYaml() but still compute slugs/resolutions. */
+  dryRun?: boolean;
 }
 
 interface Output {
@@ -45,6 +48,7 @@ export const finalizeWritePhase: Phase<Inputs, Output> = async ({
   wayRegistry,
   dataDir,
   relationBaseNames,
+  dryRun,
   ctx,
 }) => {
   const grouped = entries;
@@ -208,7 +212,10 @@ export const finalizeWritePhase: Phase<Inputs, Output> = async ({
 
   // Write the YAML output. writeYaml() handles transient-field stripping,
   // anchor compaction, the large-detached final cleanup, and the summary log.
-  writeYaml(grouped, superNetworks, path.join(dataDir, 'bikepaths.yml'), slugMap);
+  // Skipped for tests (no dataDir) and dry runs.
+  if (dataDir && !dryRun) {
+    writeYaml(grouped, superNetworks, path.join(dataDir, 'bikepaths.yml'), slugMap);
+  }
 
   return { entries: grouped, slugMap };
 };

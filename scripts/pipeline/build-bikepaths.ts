@@ -35,16 +35,13 @@ const queryOverpass = process.env.RECORD_OVERPASS
   : _queryOverpass;
 import { slugifyBikePathName as slugify } from '../../src/lib/bike-paths/bikepaths-yml.server.ts';
 import { loadCityAdapter } from './lib/city-adapter.mjs';
-import { autoGroupNearbyPaths } from './lib/auto-group.mjs';
 import { WayRegistry } from './lib/way-registry.mjs';
 import { mergeWayTags } from './lib/osm-tags.ts';
 // Re-export for test compatibility (tests import mergeWayTags from this file)
 export { mergeWayTags };
-import { loadManualEntries, loadMarkdownSlugs, parseMarkdownOverrides, writeYaml } from './lib/pipeline-io.ts';
+import { loadManualEntries, loadMarkdownSlugs, parseMarkdownOverrides } from './lib/pipeline-io.ts';
 // Re-export for test compatibility (tests import parseMarkdownOverrides from this file)
 export { parseMarkdownOverrides };
-import { assemble } from './lib/assemble.ts';
-import { resolve } from './lib/resolve.ts';
 import { TaskGraph } from './engine/task-graph.mjs';
 import { Trace } from './engine/trace.mjs';
 import { discoverRelationsPhase } from './phases/discover-relations.ts';
@@ -52,6 +49,12 @@ import { discoverNamedWaysPhase } from './phases/discover-named-ways.ts';
 import { discoverParallelLanesPhase } from './phases/discover-parallel-lanes.ts';
 import { discoverUnnamedChainsPhase } from './phases/discover-unnamed-chains.ts';
 import { discoverNonCyclingPhase } from './phases/discover-non-cycling.ts';
+import { assembleEntriesPhase } from './phases/assemble-entries.ts';
+import { groupClusterPhase } from './phases/group-cluster.ts';
+import { resolveNetworksPhase } from './phases/resolve-networks.ts';
+import { resolveClassificationPhase } from './phases/resolve-classification.ts';
+import { finalizeOverridesPhase } from './phases/finalize-overrides.ts';
+import { finalizeWritePhase } from './phases/finalize-write.ts';
 
 // ---------------------------------------------------------------------------
 // CLI (only when run directly, not when imported)
@@ -59,7 +62,6 @@ import { discoverNonCyclingPhase } from './phases/discover-non-cycling.ts';
 
 let args: Record<string, any> = {};
 let dataDir: string;
-let bikepathsPath: string;
 let bbox: string;
 let adapter: any;
 
@@ -77,7 +79,6 @@ if (isMain) {
 
   const contentDir = process.env.CONTENT_DIR || path.resolve('..', 'bike-routes');
   dataDir = path.join(contentDir, args.city);
-  bikepathsPath = path.join(dataDir, 'bikepaths.yml');
 
   // Read city bounds from config.yml
   const configPath = path.join(dataDir, 'config.yml');
@@ -116,15 +117,21 @@ if (isMain) {
 // ---------------------------------------------------------------------------
 
 /**
- * Run the full bikepaths pipeline. No file I/O — returns entries + metadata.
+ * Run the full bikepaths pipeline end-to-end through the task graph.
+ *
+ * When `dataDir` is provided and `dryRun` is false, the terminal
+ * `finalize.write` phase writes `${dataDir}/bikepaths.yml`. Tests omit
+ * `dataDir` and receive the in-memory entries without touching disk.
  */
-export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set<string>(), markdownOverrides = new Map<string, { member_of?: string }>() }: {
+export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set<string>(), markdownOverrides = new Map<string, Record<string, any>>(), dataDir, dryRun = false }: {
   queryOverpass: (q: string) => Promise<{ elements: any[] }>;
   bbox: string;
   adapter: any;
   manualEntries?: any[];
   markdownSlugs?: Set<string>;
-  markdownOverrides?: Map<string, { member_of?: string }>;
+  markdownOverrides?: Map<string, Record<string, any>>;
+  dataDir?: string;
+  dryRun?: boolean;
 }): Promise<{ entries: any[]; superNetworks: any[]; slugMap: Map<any, string>; wayRegistry: WayRegistry; trace: Trace }> {
   // Steps 1-2d: Discover all OSM cycling infrastructure via TaskGraph
   const wayRegistry = new WayRegistry();
@@ -190,9 +197,72 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
     }),
   });
 
+  // Assemble + group + resolve + finalize phases. Each mutates the shared
+  // entries array in place; the graph's dependency edges enforce ordering.
+  graph.define({
+    name: 'assemble.entries',
+    star: true,
+    deps: { discovered: 'discover.bundle' },
+    run: withTrace('assemble.entries', ({ discovered, ctx }: any) =>
+      assembleEntriesPhase({ discovered, manualEntries, wayRegistry, ctx })),
+  });
+
+  graph.define({
+    name: 'group.cluster',
+    deps: { entries: 'assemble.entries' },
+    run: withTrace('group.cluster', ({ entries, ctx }: any) =>
+      groupClusterPhase({ entries, markdownSlugs, wayRegistry, ctx })),
+  });
+
+  graph.define({
+    name: 'resolve.networks',
+    deps: { entries: 'group.cluster', discovered: 'discover.bundle' },
+    run: withTrace('resolve.networks', ({ entries, discovered, ctx }: any) =>
+      resolveNetworksPhase({ entries, discovered, wayRegistry, ctx })),
+  });
+
+  graph.define({
+    name: 'resolve.classification',
+    star: true,
+    deps: { netResult: 'resolve.networks', discovered: 'discover.bundle' },
+    run: withTrace('resolve.classification', ({ netResult, discovered, ctx }: any) =>
+      resolveClassificationPhase({ entries: netResult.entries, discovered, wayRegistry, ctx })),
+  });
+
+  graph.define({
+    name: 'finalize.overrides',
+    deps: { entries: 'resolve.classification' },
+    run: withTrace('finalize.overrides', ({ entries, ctx }: any) =>
+      finalizeOverridesPhase({ entries, markdownOverrides, ctx })),
+  });
+
+  graph.define({
+    name: 'finalize.write',
+    deps: {
+      entries: 'finalize.overrides',
+      netResult: 'resolve.networks',
+      discovered: 'discover.bundle',
+    },
+    run: withTrace('finalize.write', async ({ entries, netResult, discovered, ctx }: any) => {
+      const result = await finalizeWritePhase({
+        entries,
+        superNetworks: netResult.superNetworks,
+        wayRegistry,
+        dataDir,
+        relationBaseNames: discovered.relationBaseNames,
+        dryRun,
+        ctx,
+      });
+      // finalize.write's own output is { entries, slugMap }; surface the
+      // superNetworks array from resolve.networks so the goal contains the
+      // full bundle the caller expects.
+      return { ...result, superNetworks: netResult.superNetworks };
+    }),
+  });
+
   const concurrency = Number(process.env.OVERPASS_CONCURRENCY) || 4;
-  const discovered = await graph.run({
-    goal: 'discover.bundle',
+  const finalResult = await graph.run({
+    goal: 'finalize.write',
     context: { bbox: b, adapter: a, queryOverpass: qo },
     concurrency,
     onEvent: (evt: any) => {
@@ -206,31 +276,8 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
     },
   });
 
-  const { osmRelations, osmNamedWays, parallelLanes, nonCyclingCandidates, relationBaseNames } = discovered as any;
-
-  // Step 3: Build entries, enrich, classify
-  const entries = await assemble({
-    osmRelations, osmNamedWays, parallelLanes,
-    manualEntries,
-    wayRegistry,
-    queryOverpass: qo,
-  });
-
-  // Step 4: Auto-group nearby trail segments (with park containment)
-  // @ts-expect-error — auto-group.mjs JSDoc omits bbox/wayRegistry but the function uses them
-  const grouped: any[] = await autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass: qo, bbox: b, wayRegistry });
-
-  // Steps 5-9: Resolve networks, apply overrides, validate
-  const { superNetworks, slugMap } = await resolve({
-    entries: grouped,
-    discovered: { osmRelations, osmNamedWays, parallelLanes, nonCyclingCandidates, relationBaseNames },
-    wayRegistry,
-    ctx: { queryOverpass: qo, bbox: b, adapter: a },
-    markdownSlugs,
-    markdownOverrides,
-  });
-
-  return { entries: grouped, superNetworks, slugMap, wayRegistry, trace };
+  const { entries, superNetworks, slugMap } = finalResult as any;
+  return { entries, superNetworks: superNetworks ?? [], slugMap, wayRegistry, trace };
 }
 
 // ---------------------------------------------------------------------------
@@ -252,9 +299,13 @@ async function main(): Promise<void> {
     manualEntries,
     markdownSlugs,
     markdownOverrides,
+    dataDir,
+    dryRun: args.dryRun,
   });
 
-  // Write output
+  // The finalize.write phase writes bikepaths.yml when !dryRun. In dry-run
+  // mode it skips the file write but still returns fully-resolved entries
+  // so we can summarise them here.
   const networkEntries = entries.filter((e: any) => e.type === 'network');
   const memberEntries = entries.filter((e: any) => e.member_of);
   if (args.dryRun) {
@@ -269,13 +320,10 @@ async function main(): Promise<void> {
       console.log(`  ${slug}: ${entry.name} (${source})`);
     }
     console.log(`\nTotal: ${entries.length} entries (${networkEntries.length} networks, ${memberEntries.length} members, ${superNetworks.length} super-networks)`);
-  } else {
-    writeYaml(entries, superNetworks, bikepathsPath, slugMap);
-    if (trace.enabled) {
-      const tracePath = path.join(dataDir, '.pipeline-debug', 'trace.json');
-      trace.saveTo(tracePath);
-      console.log(`[trace] wrote ${tracePath}`);
-    }
+  } else if (trace.enabled) {
+    const tracePath = path.join(dataDir, '.pipeline-debug', 'trace.json');
+    trace.saveTo(tracePath);
+    console.log(`[trace] wrote ${tracePath}`);
   }
 }
 
