@@ -13,32 +13,14 @@ import { defaultParallelLaneFilter } from './city-adapter.mjs';
 import { rankByGeomDistance } from './nearest-park.mjs';
 import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
 
+// Re-export isSkiOnlyWay so existing callers (tests, other lib files) keep
+// working. The canonical definition lives in ./ski-filter.ts.
+import { isSkiOnlyWay } from './ski-filter.ts';
+export { isSkiOnlyWay };
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
-
-/**
- * A way is ski-only when it has explicit bicycle=no, or when it is a
- * path/footway carrying a `piste:type` / `piste:name` tag without explicit
- * cycling permission (bicycle=designated|yes). highway=cycleway is implicitly
- * bicycle=designated by OSM convention and never counts as ski-only even if
- * groomed in winter. Roads (highway=residential|tertiary|…) have implicit
- * cycling access and are never classified as ski-only on piste tags alone.
- *
- * Pure Nordic/piste infrastructure (e.g. Parc de la Gatineau's numbered
- * pistes) was slipping into bikepaths.yml via junction-node lookups. Ski
- * trails must not become bike path entries.
- */
-export function isSkiOnlyWay(tags: Record<string, any> | undefined): boolean {
-  if (!tags) return false;
-  if (tags.bicycle === 'no') return true;
-  // The piste filter only applies to path/footway highways. Cycleways are
-  // implicit cycling infrastructure; roads have implicit bike access.
-  if (tags.highway !== 'path' && tags.highway !== 'footway') return false;
-  const isPiste = tags['piste:type'] || tags['piste:name'];
-  if (!isPiste) return false;
-  return tags.bicycle !== 'designated' && tags.bicycle !== 'yes';
-}
 
 /**
  * Group chains with the same road name only if their bboxes are within proximityM of each other.
@@ -109,7 +91,7 @@ function mergeBboxes(a: any, b: any) {
  */
 const ENDPOINT_SNAP_M = 100;
 
-function splitWaysByConnectivity(ways: any[]): any[][] {
+export function splitWaysByConnectivity(ways: any[]): any[][] {
   if (ways.length <= 1) return [ways];
 
   // Union-find
@@ -214,7 +196,7 @@ function splitWaysByConnectivity(ways: any[]): any[][] {
 
 // Token-based name similarity for fragment merging.
 // Tokenize, hard-reject on numeric mismatch, soft Dice with edit-distance-1 tolerance.
-function namesAreSimilar(a: string, b: string): boolean {
+export function namesAreSimilar(a: string, b: string): boolean {
   const tokenize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/\(.*?\)/g, '').match(/[a-z0-9]+/g) || [];
   const editDist1 = (s: string, t: string) => {
