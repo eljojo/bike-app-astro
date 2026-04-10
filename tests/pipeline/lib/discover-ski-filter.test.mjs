@@ -1,4 +1,4 @@
-// Unit tests for the ski-only way filter in discover.ts.
+// Unit tests for the ski-only way filter in lib/ski-filter.ts.
 //
 // The filter prevents Nordic ski trails (e.g. Parc de la Gatineau's numbered
 // pistes) from being promoted to standalone bikepaths.yml entries via the
@@ -6,7 +6,7 @@
 // groomed) must still come through unchanged.
 
 import { describe, it, expect } from 'vitest';
-import { isSkiOnlyWay } from '../../../scripts/pipeline/lib/discover.ts';
+import { isSkiOnlyWay } from '../../../scripts/pipeline/lib/ski-filter.ts';
 
 describe('isSkiOnlyWay', () => {
   it('returns false for missing tags', () => {

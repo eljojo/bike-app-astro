@@ -16,7 +16,8 @@ import type { Phase } from './_phase-types.ts';
 import { mergeWayTags } from '../lib/osm-tags.ts';
 import { haversineM } from '../lib/geo.mjs';
 import { isSkiOnlyWay } from '../lib/ski-filter.ts';
-import { splitWaysByConnectivity, namesAreSimilar } from '../lib/discover.ts';
+import { splitWaysByConnectivity } from '../lib/way-connectivity.ts';
+import { namesAreSimilar } from '../lib/name-similarity.ts';
 import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
 
 export const discoverNamedWaysPhase: Phase<{}, NamedWayEntry[]> = async ({ ctx }) => {
