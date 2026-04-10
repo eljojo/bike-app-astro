@@ -60,5 +60,12 @@ describe('discover.unnamedChains phase', () => {
     expect(out[0]._wayIds).toContain(27806926);
     expect(out[0]._wayIds).toContain(80207516);
     expect(out[0]._isUnnamedChain).toBe(true);
+    // osm_names should include the containing park (from is_in lookup)
+    expect(out[0].osmNames).toContain('Beauclaire Park');
+    // CRITICAL: chains must expose _wayIds so the assembly step can create
+    // osm_way_ids on the entry. Without way IDs, name-based geo cache
+    // lookups would match the park boundary (leisure=park) instead of the
+    // underlying cycling ways.
+    expect(out[0]._wayIds.length).toBeGreaterThan(0);
   });
 });

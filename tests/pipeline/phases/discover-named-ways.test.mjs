@@ -88,6 +88,111 @@ describe('discover.namedWays phase', () => {
     expect(trace.subject('way:278992292').events.map((e) => e.kind)).toContain('filtered');
   });
 
+  it('filters a ski-only named way with bicycle=no at ingestion (Trail 18 regression)', async () => {
+    // Parc de la Gatineau Trail 18 (OSM way 278785839) is
+    // highway=path bicycle=no piste:type=nordic. Even if a future adapter
+    // query is looser and returns it, the ingestion filter must drop it.
+    const TRAIL_18 = {
+      type: 'way', id: 278785839,
+      tags: {
+        highway: 'path',
+        name: 'Trail 18',
+        bicycle: 'no',
+        'piste:type': 'nordic',
+      },
+      geometry: [{ lat: 45.58, lon: -75.85 }, { lat: 45.59, lon: -75.84 }],
+      nodes: [9100, 9101],
+    };
+    const looseAdapter = {
+      ...ADAPTER,
+      namedWayQueries: (bbox) => [
+        { label: 'loose paths', q: `[out:json];way["highway"="path"]["name"](${bbox});out geom tags;` },
+      ],
+    };
+    const queryOverpass = makeFixtureOverpass([
+      ['highway"="path"]["name"', { elements: [TRAIL_18] }],
+    ]);
+    const trace = new Trace();
+    const out = await discoverNamedWaysPhase({
+      ctx: {
+        bbox: '45.4,-76.1,45.7,-75.5',
+        adapter: looseAdapter,
+        queryOverpass,
+        trace: trace.bind('discover.namedWays'),
+      },
+    });
+    expect(out.find((e) => e.name === 'Trail 18')).toBeUndefined();
+    expect(trace.subject('way:278785839').events.map((e) => e.kind)).toContain('filtered');
+  });
+
+  it('does not promote ski-only junction-way clusters via node(w)/way(bn) (Piste 12 junction regression)', async () => {
+    // Junction-node discovery: Trail #3 is a real dual-use MTB/piste trail,
+    // and it shares node 9002 with Piste 12 (a Nordic ski trail with no
+    // bicycle tag). The junction fan-out query picks Piste 12 up via
+    // way(bn), but the phase must NOT promote clusters where every way is
+    // ski-only, even when discovered through that path.
+    const TRAIL3 = {
+      type: 'way', id: 636602417,
+      tags: {
+        highway: 'path',
+        name: 'Trail #3',
+        bicycle: 'designated',
+        foot: 'designated',
+        'mtb:scale': '2',
+        'piste:type': 'nordic',
+        surface: 'gravel',
+      },
+      geometry: [{ lat: 45.55, lon: -75.90 }, { lat: 45.56, lon: -75.89 }],
+      nodes: [9001, 9002],
+    };
+    const PISTE12 = {
+      type: 'way', id: 278992292,
+      tags: {
+        highway: 'path',
+        name: 'Piste 12',
+        'piste:type': 'nordic',
+        'piste:name': '12',
+        'piste:difficulty': 'intermediate',
+        'piste:grooming': 'backcountry',
+      },
+      geometry: [{ lat: 45.56, lon: -75.89 }, { lat: 45.57, lon: -75.88 }],
+      nodes: [9002, 9003], // shares node 9002 with Trail #3
+    };
+    const adapter = {
+      ...ADAPTER,
+      namedWayQueries: (bbox) => [
+        {
+          label: 'bike paths',
+          q: `[out:json];way["highway"="path"]["bicycle"~"designated|yes"]["name"](${bbox});out geom tags;`,
+        },
+      ],
+    };
+    // Route queries by substring:
+    // - ["bicycle"~"designated|yes"] → initial named-way query returns Trail #3
+    // - way(bn) → junction query returns the ski-only Piste 12
+    const queryOverpass = makeFixtureOverpass([
+      ['["bicycle"~"designated|yes"]', { elements: [TRAIL3] }],
+      ['way(bn)', { elements: [PISTE12] }],
+    ]);
+    const trace = new Trace();
+    const out = await discoverNamedWaysPhase({
+      ctx: {
+        bbox: '45.4,-76.1,45.7,-75.5',
+        adapter,
+        queryOverpass,
+        trace: trace.bind('discover.namedWays'),
+      },
+    });
+    // Trail #3 must survive as a real dual-use trail
+    expect(out.find((e) => e.name === 'Trail #3')).toBeDefined();
+    // Piste 12 junction cluster must NOT become an entry
+    expect(out.find((e) => e.name === 'Piste 12')).toBeUndefined();
+    // Trace records the all-cluster ski filter reason
+    const piste12Events = trace.subject('way:278992292').events;
+    expect(piste12Events.map((e) => e.kind)).toContain('filtered');
+    expect(piste12Events.find((e) => e.kind === 'filtered')?.data?.reason).toBe('all-cluster-ski-only');
+  });
+
   it('produces deterministic ordering across runs (parallelism-safe)', async () => {
     // Same input, twice, should produce identical output ordering.
     // Promise.all preserves input array order in its output, so the parallel
