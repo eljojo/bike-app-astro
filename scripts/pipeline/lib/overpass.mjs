@@ -150,6 +150,16 @@ export function createPlayer(name) {
 }
 
 /**
+ * In-flight query tracking. If a query is already being fetched,
+ * callers share the same Promise instead of hitting the server twice.
+ * This prevents the Overpass dispatcher's duplicate_query rejection
+ * when parallel phases fire identical queries (e.g. the same adapter
+ * query appearing twice in the namedWayQueries list).
+ * @type {Map<string, Promise<{elements: any[]}>>}
+ */
+const queryInFlight = new Map();
+
+/**
  * POST a query to Overpass, caching results to disk.
  * Returns parsed JSON response.
  */
@@ -164,49 +174,73 @@ export async function queryOverpass(query) {
     return JSON.parse(readFileSync(cachePath, 'utf8'));
   }
 
-  console.log(`[overpass] fetching from API (key: ${key})`);
-
-  let data;
-  for (let attempt = 0; attempt < OVERPASS_SERVERS.length * 2; attempt++) {
-    const serverIdx = Math.floor(attempt / 2) % OVERPASS_SERVERS.length;
-    const serverUrl = process.env.OVERPASS_URL || OVERPASS_SERVERS[serverIdx];
-    const res = await fetch(serverUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (res.ok) {
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('json')) {
-        // Server returned 200 but not JSON (e.g. HTML error page) — treat as server error
-        console.log(`[overpass] ${serverUrl} returned 200 but content-type=${contentType}, trying next server...`);
-        continue;
-      }
-      const parsed = await res.json();
-      if (parsed.remark && parsed.remark.includes('runtime error')) {
-        console.log(`[overpass] ${serverUrl} returned runtime error: ${parsed.remark.slice(0, 80)}, trying next server...`);
-        continue;
-      }
-      data = parsed;
-      break;
-    }
-
-    if (res.status === 504 || res.status === 429 || res.status === 502 || res.status === 503) {
-      const wait = (attempt + 1) * 10;
-      const nextServer = OVERPASS_SERVERS[(serverIdx + 1) % OVERPASS_SERVERS.length];
-      console.log(`[overpass] ${serverUrl} returned ${res.status}, trying next server in ${wait}s...`);
-      await new Promise((r) => setTimeout(r, wait * 1000));
-      continue;
-    }
-
-    throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
+  // Dedupe: if this exact query is already in flight, share the result
+  if (queryInFlight.has(key)) {
+    console.log(`[overpass] in-flight dedupe: ${key}`);
+    return queryInFlight.get(key);
   }
 
-  if (!data) throw new Error('Overpass API: failed after 3 retries');
-  writeFileSync(cachePath, JSON.stringify(data), 'utf8');
-  console.log(`[overpass] cached ${data.elements?.length ?? 0} elements to ${key}`);
-  return data;
+  console.log(`[overpass] fetching from API (key: ${key})`);
+
+  const promise = (async () => {
+    let data;
+    for (let attempt = 0; attempt < OVERPASS_SERVERS.length * 2; attempt++) {
+      const serverIdx = Math.floor(attempt / 2) % OVERPASS_SERVERS.length;
+      const serverUrl = process.env.OVERPASS_URL || OVERPASS_SERVERS[serverIdx];
+      const res = await fetch(serverUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+      });
+
+      if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('json')) {
+          // Server returned 200 but not JSON — read the body to diagnose
+          const htmlBody = await res.text();
+          if (htmlBody.includes('duplicate_query')) {
+            console.error(`\n[overpass] FATAL: duplicate_query error from ${serverUrl}`);
+            console.error(`[overpass] query key: ${key}`);
+            console.error(`[overpass] query (first 300 chars): ${query.replace(/\s+/g, ' ').slice(0, 300)}`);
+            console.error(`[overpass] This means two identical queries were sent in parallel.`);
+            console.error(`[overpass] Full error: ${htmlBody.replace(/\s+/g, ' ').slice(0, 200)}`);
+            process.exit(1);
+          }
+          console.log(`[overpass] ${serverUrl} returned 200 but content-type=${contentType}, trying next server...`);
+          continue;
+        }
+        const parsed = await res.json();
+        if (parsed.remark && parsed.remark.includes('runtime error')) {
+          console.log(`[overpass] ${serverUrl} returned runtime error: ${parsed.remark.slice(0, 80)}, trying next server...`);
+          continue;
+        }
+        data = parsed;
+        break;
+      }
+
+      if (res.status === 504 || res.status === 429 || res.status === 502 || res.status === 503) {
+        const wait = (attempt + 1) * 10;
+        const nextServer = OVERPASS_SERVERS[(serverIdx + 1) % OVERPASS_SERVERS.length];
+        console.log(`[overpass] ${serverUrl} returned ${res.status}, trying next server in ${wait}s...`);
+        await new Promise((r) => setTimeout(r, wait * 1000));
+        continue;
+      }
+
+      throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
+    }
+
+    if (!data) throw new Error('Overpass API: failed after 3 retries');
+    writeFileSync(cachePath, JSON.stringify(data), 'utf8');
+    console.log(`[overpass] cached ${data.elements?.length ?? 0} elements to ${key}`);
+    return data;
+  })();
+
+  queryInFlight.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    queryInFlight.delete(key);
+  }
 }
 
 /**
