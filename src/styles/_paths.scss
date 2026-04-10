@@ -796,10 +796,6 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.5rem;
 
-  .bike-path-photo-hidden {
-    display: none;
-  }
-
   .bike-path-photo {
     display: block;
     border-radius: $border-radius;
@@ -811,6 +807,12 @@
     padding: 0;
     text-align: inherit;
     font: inherit;
+
+    // Compound selector (0,3,0) beats `.bike-path-photo-grid .bike-path-photo`
+    // (0,2,0) so the hidden modifier wins regardless of source order.
+    &.bike-path-photo-hidden {
+      display: none;
+    }
 
     img {
       width: 100%;
