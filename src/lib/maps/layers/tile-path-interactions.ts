@@ -59,10 +59,11 @@ export function setupPathInteractions(
     } else if (memberOf) {
       pathUrl = `/bike-paths/${memberOf}`;
     }
+    const lengthKm = props.length_km ? Number(props.length_km) : undefined;
     const content = buildPathPopup({
       name,
       url: pathUrl || undefined,
-      length_km: props.length_km || undefined,
+      length_km: lengthKm || undefined,
       surface: props.surface || undefined,
       path_type: props.path_type || undefined,
     }, labels);
