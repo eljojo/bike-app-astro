@@ -170,16 +170,26 @@ if (categoryMap.bikeways.length > 0) {
   categories.push({ key: 'bikeways', label: t('paths.cat_bikeways', locale), networks: categoryMap.bikeways });
 }
 
-// Inject independent paths into their category tabs
+// Inject independent paths into their category tabs.
+// Short standalone MUPs (< 3km, no markdown) are connectors, not destinations
+// people plan rides to — they go to "other paths" instead of cluttering Pathways.
+const STANDALONE_MIN_KM = 3;
 for (const [catKey, catPaths] of Object.entries(independentByCategory)) {
   if (catKey === 'trails') continue; // already handled above
   if (catPaths.length === 0) continue;
+  let featured = catPaths;
+  if (catKey === 'pathways') {
+    featured = catPaths.filter(p => p.hasMarkdown || (p.length_km != null && p.length_km >= STANDALONE_MIN_KM));
+    const minor = catPaths.filter(p => !p.hasMarkdown && (p.length_km == null || p.length_km < STANDALONE_MIN_KM));
+    independentUncategorized.push(...minor);
+  }
+  if (featured.length === 0) continue;
   const existing = categories.find(c => c.key === catKey);
   if (existing) {
-    existing.standalonePaths = [...(existing.standalonePaths ?? []), ...catPaths];
+    existing.standalonePaths = [...(existing.standalonePaths ?? []), ...featured];
   } else {
     const labelKey = catKey === 'mtb' ? 'paths.cat_mtb' : catKey === 'pathways' ? 'paths.cat_pathways' : 'paths.cat_bikeways';
-    categories.push({ key: catKey, label: t(labelKey, locale), networks: [], standalonePaths: catPaths });
+    categories.push({ key: catKey, label: t(labelKey, locale), networks: [], standalonePaths: featured });
   }
 }
 
@@ -190,11 +200,25 @@ const networkData = networkPages.map(buildNetworkInfo);
 const extractedLdSlugs = new Set(longDistanceMemberRefs.map(m => m.slug));
 
 // Build network → geoId mapping for map highlighting.
-// Exclude extracted long-distance members — they belong to the LD category, not their parent network.
+// Exclude extracted long-distance members — their geometry belongs to the Trails
+// category, not their parent network. Must exclude from BOTH the network's own
+// aggregated geoFiles AND the member page's geoFiles.
 const networkGeoIds: Record<string, string[]> = {};
 for (const net of networkPages) {
+  // Collect geoIds belonging to extracted members (to exclude from network's own geoFiles)
+  const excludeGeoIds = new Set<string>();
+  for (const m of net.memberRefs ?? []) {
+    if (!extractedLdSlugs.has(m.slug)) continue;
+    const memberPage = pageBySlug.get(m.slug);
+    if (memberPage) {
+      for (const gf of memberPage.geoFiles) excludeGeoIds.add(gf.replace(/\.geojson$/, ''));
+    }
+  }
   const geoIds: string[] = [];
-  for (const gf of net.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
+  for (const gf of net.geoFiles) {
+    const geoId = gf.replace(/\.geojson$/, '');
+    if (!excludeGeoIds.has(geoId)) geoIds.push(geoId);
+  }
   for (const m of net.memberRefs ?? []) {
     if (extractedLdSlugs.has(m.slug)) continue;
     const memberPage = pageBySlug.get(m.slug);
@@ -378,6 +402,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
 <script>
   import { createPathsBrowseMap } from '../../lib/maps/paths-browse-map';
+  import { closePopup } from '../../lib/maps/map-init';
 
   const container = document.getElementById('paths-network-map');
   if (container) {
@@ -389,10 +414,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     let flyBackFn: (() => void) | undefined;
-    // Trails tab zooms out more to show regional extent
-    const ldFitOpts = { padding: 80, maxZoom: 10 };
     function fitOptsFor(slug: string | undefined) {
-      return slug === 'trails' ? ldFitOpts : undefined;
+      // Trails paths extend far beyond the city (Sentier Trans-Canada etc.)
+      // — don't zoom out past city level
+      return slug === 'trails' ? { padding: 60, maxZoom: 10 } : undefined;
     }
 
     const { map, highlightGeoIds, fitToGeoIds } = createPathsBrowseMap({
@@ -428,11 +453,18 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       function activateTab(networkSlug: string) {
         tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
         panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
+        closePopup(map);
         if (networkSlug === 'all') {
-          highlightGeoIds(null, true);
+          highlightGeoIds(null);
+          map.flyTo({ center, zoom: 11, duration: 500 });
+        } else if (networkSlug === 'trails') {
+          // Trails extend far beyond the city — highlight but stay at city zoom
+          const geoIds = categoryGeoIds[networkSlug] ?? [];
+          highlightGeoIds(geoIds, false);
+          map.flyTo({ center, zoom: 10, duration: 500 });
         } else {
           const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
-          highlightGeoIds(geoIds ?? null, true, fitOptsFor(networkSlug));
+          highlightGeoIds(geoIds ?? null, true);
         }
       }
 
@@ -446,7 +478,12 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
             const slug = tab.dataset.network;
             if (slug && slug !== 'all') {
               const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
-              highlightGeoIds(geoIds ?? null, true, fitOptsFor(slug));
+              if (slug === 'trails') {
+                highlightGeoIds(geoIds ?? null, false);
+                map.flyTo({ center, zoom: 10, duration: 500 });
+              } else {
+                highlightGeoIds(geoIds ?? null, true);
+              }
             }
           });
           tab.addEventListener('mouseleave', () => {
@@ -470,8 +507,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       const geoIds = activeSlug && activeSlug !== 'all'
         ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
         : undefined;
-      if (geoIds && geoIds.length > 0) {
-        fitToGeoIds(geoIds, fitOptsFor(activeSlug));
+      if (activeSlug === 'trails') {
+        map.flyTo({ center, zoom: 10, duration: 500 });
+      } else if (geoIds && geoIds.length > 0) {
+        fitToGeoIds(geoIds);
       } else {
         map.flyTo({ center, zoom: 11, duration: 500 });
       }
