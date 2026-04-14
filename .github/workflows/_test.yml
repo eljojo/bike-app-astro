@@ -69,13 +69,6 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Run prebuild
-        run: npx tsx scripts/prebuild.ts
-        env:
-          CONTENT_DIR: ${{ github.workspace }}/bike-routes
-          CITY: demo
-          PREBUILD_MINIMAL: '1'
-
       - name: Restore pipeline cassette cache
         id: cassette-cache
         uses: actions/cache@v5
@@ -83,6 +76,13 @@ jobs:
           path: scripts/pipeline/.cache
           key: pipeline-cassette-${{ hashFiles('scripts/pipeline/build-bikepaths.ts', 'scripts/pipeline/lib/overpass.mjs') }}
           restore-keys: pipeline-cassette-
+
+      - name: Run prebuild
+        run: npx tsx scripts/prebuild.ts
+        env:
+          CONTENT_DIR: ${{ github.workspace }}/bike-routes
+          CITY: demo
+          PREBUILD_MINIMAL: '1'
 
       - name: Record pipeline cassettes
         if: steps.cassette-cache.outputs.cache-hit != 'true'
@@ -215,6 +215,13 @@ jobs:
         run: npm ci
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Restore pipeline cassette cache
+        uses: actions/cache@v5
+        with:
+          path: scripts/pipeline/.cache
+          key: pipeline-cassette-${{ hashFiles('scripts/pipeline/build-bikepaths.ts', 'scripts/pipeline/lib/overpass.mjs') }}
+          restore-keys: pipeline-cassette-
 
       - name: Run prebuild
         run: npx tsx scripts/prebuild.ts
