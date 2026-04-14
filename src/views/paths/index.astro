@@ -101,7 +101,10 @@ function buildNetworkInfo(net: typeof networkPages[0]): NetworkInfo {
   const { tier1, tier2 } = splitMemberTiers(localRefs);
   tier1.sort(compareMemberNames);
   tier2.sort(compareMemberNames);
-  return { slug: net.slug, name: pathName(net), length_km: net.length_km, operator: net.operator, tier1, tier2 };
+  // Recompute length from remaining members (extracted LD members subtracted)
+  const displayLength = localRefs.reduce((sum, m) => sum + (m.length_km ?? 0), 0);
+  const length_km = displayLength > 0 ? Math.round(displayLength * 10) / 10 : net.length_km;
+  return { slug: net.slug, name: pathName(net), length_km, operator: net.operator, tier1, tier2 };
 }
 
 // Classify each network by its members' dominant path_type
