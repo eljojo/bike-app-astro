@@ -8,6 +8,7 @@
 
 import type maplibregl from 'maplibre-gl';
 import { ALL_LAYER_IDS } from './layers/tile-path-styles';
+import { IS_TRAIL_EXPR } from './map-swatch';
 
 export function createMtbFilter(map: maplibregl.Map) {
   let mtbVisible = true;
@@ -26,7 +27,7 @@ export function createMtbFilter(map: maplibregl.Map) {
         map.setFilter(id, (original ?? null) as maplibregl.FilterSpecification | null);
       } else {
         const original = originalFilters.get(id);
-        const exclude = ['!=', ['get', 'path_type'], 'mtb-trail'];
+        const exclude = ['!', IS_TRAIL_EXPR];
         if (original) {
           map.setFilter(id, ['all', original, exclude] as unknown as maplibregl.FilterSpecification);
         } else {
