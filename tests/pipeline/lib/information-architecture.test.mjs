@@ -6,7 +6,7 @@
 // a network. Tests that fail represent work still to do.
 //
 import { describe, it, expect, beforeAll } from 'vitest';
-import { queryOverpass } from '../../../scripts/pipeline/lib/overpass.mjs';
+import { queryOverpass } from '../../../scripts/pipeline/lib/overpass.ts';
 import { buildBikepathsPipeline, parseMarkdownOverrides } from '../../../scripts/pipeline/build-bikepaths.ts';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 

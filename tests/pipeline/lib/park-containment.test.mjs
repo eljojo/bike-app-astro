@@ -4,7 +4,7 @@
 // cassette, assert that trails end up in the correct park's network.
 //
 import { describe, it, expect, beforeAll } from 'vitest';
-import { queryOverpass } from '../../../scripts/pipeline/lib/overpass.mjs';
+import { queryOverpass } from '../../../scripts/pipeline/lib/overpass.ts';
 import { buildBikepathsPipeline } from '../../../scripts/pipeline/build-bikepaths.ts';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
 

@@ -1,7 +1,7 @@
 /**
  * Fetch and cache bike path geometry from the Overpass API.
  *
- * Uses the pipeline's content-addressed Overpass cache (scripts/pipeline/lib/overpass.mjs)
+ * Uses the app-wide content-addressed Overpass cache (.cache/overpass/)
  * which keys raw responses by query hash. Processing (overpassToGeoJSON) always re-runs
  * from cached raw data — changing what we extract never requires re-fetching.
  *
@@ -17,7 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseBikePathsYml, geoFilesForEntry, type SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
-import { queryOverpass } from './pipeline/lib/overpass.mjs';
+import { queryOverpass } from './pipeline/lib/overpass.ts';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');

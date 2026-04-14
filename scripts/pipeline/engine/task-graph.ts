@@ -133,14 +133,8 @@ export class TaskGraph {
     };
     visit(goal);
 
-    // Wrap context.queryOverpass with a global semaphore so in-step
-    // Promise.all calls also respect the concurrency budget.
-    const sem = new Semaphore(concurrency);
+    // queryOverpass has a built-in concurrency semaphore — no wrapping needed.
     const wrappedContext: Record<string, any> = { ...context };
-    if (typeof context.queryOverpass === 'function') {
-      const base = context.queryOverpass;
-      wrappedContext.queryOverpass = (q: string) => sem.with(() => base(q));
-    }
 
     // Per-step state
     const status = new Map<string, 'pending' | 'running' | 'done' | 'failed'>();
