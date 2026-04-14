@@ -53,7 +53,11 @@ export function splitMemberTiers<T extends { hasMarkdown: boolean; length_km?: n
   members: T[],
   minKm: number = TIER1_MIN_KM,
 ): { tier1: T[]; tier2: T[] } {
-  const tier1 = members.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= minKm));
-  const tier2 = members.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < minKm));
+  let tier1 = members.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= minKm));
+  let tier2 = members.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < minKm));
+  if (tier2.length > 0 && tier2.length <= 3) {
+    tier1 = [...tier1, ...tier2];
+    tier2 = [];
+  }
   return { tier1, tier2 };
 }
