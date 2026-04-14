@@ -70,9 +70,9 @@ export interface PathsBrowseMapResult {
   /** The MapLibre map instance. */
   map: maplibregl.Map;
   /** Highlight a set of geo IDs on the highlight layer. Pass null to clear. */
-  highlightGeoIds: (geoIds: string[] | null, fly?: boolean) => void;
+  highlightGeoIds: (geoIds: string[] | null, fly?: boolean, flyOpts?: { maxZoom?: number; padding?: number }) => void;
   /** Fit the map to the bounds of features matching the given geo IDs. */
-  fitToGeoIds: (geoIds: string[]) => void;
+  fitToGeoIds: (geoIds: string[], opts?: { maxZoom?: number; padding?: number }) => void;
   /** Expand button controller. */
   expandButton: ReturnType<typeof createMapExpandButton>;
 }
@@ -127,8 +127,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
 
   const result: PathsBrowseMapResult = {
     map,
-    highlightGeoIds: (geoIds, fly) => tilePathLayer.highlightGeoIds(map, geoIds, fly),
-    fitToGeoIds: (geoIds) => tilePathLayer.fitToGeoIds(map, geoIds),
+    highlightGeoIds: (geoIds, fly, flyOpts) => tilePathLayer.highlightGeoIds(map, geoIds, fly, flyOpts),
+    fitToGeoIds: (geoIds, opts) => tilePathLayer.fitToGeoIds(map, geoIds, opts),
     expandButton,
   };
 
@@ -165,8 +165,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
           // Cancel any pending fly-back when a new path is highlighted
           if (clearDebounce) { clearTimeout(clearDebounce); clearDebounce = null; }
 
-          // Mobile: close popup when highlight clears (map tap dismiss)
-          if (isMobile && !slug) {
+          // Close popup when highlight clears (background click/tap dismiss)
+          if (!slug) {
             closePopup(map);
           }
 
@@ -203,8 +203,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         },
       });
 
-      // Mobile: tap on map background dismisses popup and clears highlight
-      if (isMobile) {
+      // Click/tap on map background dismisses popup and clears highlight
+      {
         map.on('click', (e) => {
           // Don't dismiss if the click was on a path feature (tile layer handles those)
           const features = map.queryRenderedFeatures(e.point, {

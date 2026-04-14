@@ -32,9 +32,11 @@ export interface TilePathLayerOptions {
   labels?: { viewDetails?: string };
 }
 
+export interface FitOptions { maxZoom?: number; padding?: number }
+
 export interface TilePathLayer extends MapLayer {
-  highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean): void;
-  fitToGeoIds(map: maplibregl.Map, geoIds: string[]): void;
+  highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean, flyOpts?: FitOptions): void;
+  fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions): void;
   /** Query in-memory features by slug or network geoIds. No renderer dependency. */
   queryFeaturesBySlug(slug: string, networkGeoIds?: Record<string, string[]>): GeoJSON.Feature[];
 }
@@ -180,7 +182,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       }
     },
 
-    highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly = false) {
+    highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly = false, flyOpts?: FitOptions) {
       if (!map.getLayer('paths-network-highlight')) return;
       if (geoIds && geoIds.length > 0) {
         map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
@@ -190,7 +192,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
         for (const id of BG_LAYERS) {
           if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', pathForeground.highlight.dimOther);
         }
-        if (fly) this.fitToGeoIds(map, geoIds);
+        if (fly) this.fitToGeoIds(map, geoIds, flyOpts);
       } else {
         map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
         for (const id of LINE_LAYERS) {
@@ -202,7 +204,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       }
     },
 
-    fitToGeoIds(map: maplibregl.Map, geoIds: string[]) {
+    fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions) {
       if (!tileLoader) return;
       const geoIdSet = new Set(geoIds);
       const features = tileLoader.allLoadedFeatures().filter(
@@ -219,7 +221,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
         }
       }
       if (minLng === Infinity) return;
-      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, animate: true, duration: 500 });
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: opts?.padding ?? 60, maxZoom: opts?.maxZoom, animate: true, duration: 500 });
     },
 
     queryFeaturesBySlug(slug: string, netGeoIds?: Record<string, string[]>) {
