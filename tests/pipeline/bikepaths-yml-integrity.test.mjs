@@ -192,6 +192,27 @@ describe.skipIf(!ymlExists)('path_type drives index category assignment', () => 
   });
 });
 
+// ---------------------------------------------------------------------------
+// Named-way grouping — connected ways with the same name should merge
+// ---------------------------------------------------------------------------
+
+describe.skipIf(!ymlExists)('named ways with shared name should be one entry', () => {
+  it('Chelsea Creek Path includes all 3 OSM ways', () => {
+    // OSM has 3 ways named "Chelsea Creek Path" that are physically connected:
+    //   1113732305 (bicycle=yes, access=no)
+    //   1113727404 (highway=path only)
+    //   1113725673 (highway=path only)
+    // The pipeline currently only picks up 1113732305 (the one with bicycle=yes).
+    // The other two lack bicycle tags but share the name and are connected —
+    // they should be part of the same entry.
+    const e = entry('chelsea-creek-path');
+    expect(e.osm_way_ids).toContain(1113732305);
+    expect(e.osm_way_ids).toContain(1113727404);
+    expect(e.osm_way_ids).toContain(1113725673);
+    expect(e.osm_way_ids.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
 describe.skipIf(!ymlExists)('relation geometry enrichment', () => {
   // These entries have osm_relations pointing to large routes. The pipeline
   // must use the relation geometry, not a tiny name-match fragment from the

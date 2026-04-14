@@ -169,9 +169,8 @@ describe.skipIf(!ymlExists)('very short paths should not get standalone pages', 
   // but is a barely-rideable stub — 1 way, 80cm wide, access=no.
   // The pipeline should consider way count or other quality signals.
 
-  it('chelsea-creek-path is a single-way stub', () => {
+  it('chelsea-creek-path is a short access-restricted trail', () => {
     const e = entry('chelsea-creek-path');
-    expect(e.osm_way_ids).toHaveLength(1);
     expect(e.access).toBe('no');
     expect(e.path_type).toBe('mtb-trail');
     // No osm_relations — this is a named-way discovery, not a route
