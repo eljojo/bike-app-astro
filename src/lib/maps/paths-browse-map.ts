@@ -14,7 +14,6 @@ import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
 import { setupPathHighlight } from './path-highlight';
 import { createMapExpandButton } from './map-expand-button';
-import { createMtbToggle } from './map-mtb-toggle';
 import { createTilePathLayer } from './layers/tile-path-layer';
 import { muteBaseCyclingLayers } from './base-layer-control';
 import maplibregl from 'maplibre-gl';
@@ -109,8 +108,6 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   setupMapTouchLock(map, isMobile ? null : touchLockEl);
   if (isMobile && touchLockEl) touchLockEl.style.display = 'none';
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
-  createMtbToggle(map, container);
-
   // ── Tile path layer ─────────────────────────────────────────────
 
   const manifestPromise = fetch('/bike-paths/geo/tiles/manifest.json')

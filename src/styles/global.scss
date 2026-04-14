@@ -740,6 +740,14 @@ body.fullbleed {
   &.active { opacity: 1; color: $color-accent; }
   &:hover { opacity: 1; }
 
+  &.map-control-mtb {
+    width: auto;
+    padding: 0 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
   @include dark-mode {
     background: #333;
     color: $color-text-dark;
