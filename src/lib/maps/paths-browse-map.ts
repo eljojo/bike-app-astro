@@ -8,14 +8,15 @@
  * Browser-only — uses DOM APIs and MapLibre. Import only from <script> blocks.
  */
 
-import { initMap, closePopup } from './map-init';
+import { initMap, showPopup, closePopup } from './map-init';
 import { pathForeground } from './map-swatch';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
-import { setupPathHighlight } from './path-highlight';
+import { setupPathHighlight, type PathHighlightHandle } from './path-highlight';
 import { createMapExpandButton } from './map-expand-button';
 import { createTilePathLayer } from './layers/tile-path-layer';
 import { muteBaseCyclingLayers } from './base-layer-control';
+import { buildPathPopup } from './map-helpers';
 import maplibregl from 'maplibre-gl';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -73,6 +74,14 @@ export interface PathsBrowseMapResult {
   highlightGeoIds: (geoIds: string[] | null, fly?: boolean, flyOpts?: { maxZoom?: number; padding?: number }) => void;
   /** Fit the map to the bounds of features matching the given geo IDs. Returns false if no features found. */
   fitToGeoIds: (geoIds: string[], opts?: { maxZoom?: number; padding?: number }) => Promise<boolean>;
+  /** Lock the list highlight on a slug — hover is suppressed until unlock. */
+  lockOnSlug: (slug: string) => void;
+  /** Unlock the list highlight, clearing the locked slug. */
+  unlockHighlight: () => void;
+  /** Whether the list highlight is currently locked. */
+  isHighlightLocked: () => boolean;
+  /** Show a popup for a slug by querying loaded tile features. Flies to the path and locks. */
+  showPopupForSlug: (slug: string) => void;
   /** Expand button controller. */
   expandButton: ReturnType<typeof createMapExpandButton>;
 }
@@ -122,12 +131,83 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     labels: opts.labels,
   });
 
+  // ── Highlight lock / popup ─────────────────────────────────────
+
+  let _highlightHandle: PathHighlightHandle | null = null;
+
+  async function showPopupForSlugImpl(slug: string) {
+    const features = tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds);
+    if (features.length === 0) return;
+
+    // Lock now that we know features exist — suppresses hover until popup closes
+    _highlightHandle?.lock(slug);
+
+    // Compute bounds + collect coordinates for midpoint
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    const allCoords: [number, number][] = [];
+    for (const f of features) {
+      const geom = f.geometry;
+      const coords = geom.type === 'LineString'
+        ? (geom as GeoJSON.LineString).coordinates
+        : geom.type === 'MultiLineString'
+          ? (geom as GeoJSON.MultiLineString).coordinates.flat()
+          : [];
+      for (const [lng, lat] of coords as [number, number][]) {
+        allCoords.push([lng, lat]);
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+    }
+    if (allCoords.length === 0) return;
+
+    // Fly to path bounds
+    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+      padding: 60, maxZoom: 14, animate: true, duration: 500,
+    });
+
+    // Wait for fly animation, then show popup
+    await new Promise(r => setTimeout(r, 550));
+    if (!_highlightHandle?.isLocked()) return; // unlocked while flying
+
+    // Position popup at path midpoint
+    const lngLat = allCoords[Math.floor(allCoords.length / 2)];
+
+    // Build popup content from slugInfo or tile properties
+    const info = slugInfo?.[slug];
+    const content = info
+      ? buildPathPopup({
+        name: info.name, url: info.url,
+        length_km: info.length_km, surface: info.surface,
+        path_type: info.path_type, vibe: info.vibe,
+        network: info.network, networkUrl: info.networkUrl,
+      }, opts.labels)
+      : buildPathPopup({
+        name: features[0]?.properties?.name || slug,
+        url: undefined,
+        length_km: features[0]?.properties?.length_km ? Number(features[0].properties.length_km) : undefined,
+        surface: features[0]?.properties?.surface || undefined,
+        path_type: features[0]?.properties?.path_type || undefined,
+      }, opts.labels);
+
+    const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px', closeOnClick: false })
+      .setLngLat(lngLat)
+      .setHTML(content);
+    showPopup(map, popup);
+    popup.on('close', () => _highlightHandle?.unlock());
+  }
+
   // ── Result object (delegates to layer) ──────────────────────────
 
   const result: PathsBrowseMapResult = {
     map,
     highlightGeoIds: (geoIds, fly, flyOpts) => tilePathLayer.highlightGeoIds(map, geoIds, fly, flyOpts),
     fitToGeoIds: (geoIds, opts) => tilePathLayer.fitToGeoIds(map, geoIds, opts),
+    lockOnSlug: (slug) => _highlightHandle?.lock(slug),
+    unlockHighlight: () => _highlightHandle?.unlock(),
+    isHighlightLocked: () => _highlightHandle?.isLocked() ?? false,
+    showPopupForSlug: (slug) => { showPopupForSlugImpl(slug); },
     expandButton,
   };
 
@@ -148,7 +228,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     if (listSelector) {
       let clearDebounce: ReturnType<typeof setTimeout> | null = null;
 
-      const highlight = setupPathHighlight(map, {
+      _highlightHandle = setupPathHighlight(map, {
         listSelector,
         layerIds: ['paths-network-line', 'paths-network-line-dashed'],
         lineWidth: PATH_WIDTH,
@@ -211,7 +291,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
                      'paths-network-bg', 'paths-network-bg-dashed'],
           });
           if (features.length > 0) return;
-          highlight.clear();
+          _highlightHandle!.clear();
         });
       }
     }

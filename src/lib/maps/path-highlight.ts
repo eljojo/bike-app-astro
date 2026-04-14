@@ -40,8 +40,14 @@ export interface PathHighlightOptions {
 }
 
 export interface PathHighlightHandle {
-  /** Clear the current highlight (set wantSlug to null, sync). */
+  /** Clear the current highlight (no-op when locked). */
   clear: () => void;
+  /** Lock highlight on a slug — hover events are suppressed until unlock(). */
+  lock: (slug: string) => void;
+  /** Unlock: clear highlight and resume hover. */
+  unlock: () => void;
+  /** Whether the highlight is currently locked. */
+  isLocked: () => boolean;
 }
 
 const DEFAULTS = {
@@ -71,6 +77,7 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   let flyTimeout: ReturnType<typeof setTimeout> | null = null;
   let settleTimeout: ReturnType<typeof setTimeout> | null = null;
   let syncScheduled = false;
+  let locked = false; // when true, hover events are suppressed
 
   // --- Sync: read wantSlug, apply to map if changed ---
 
@@ -91,7 +98,8 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
     appliedSlug = wantSlug;
     applyHighlight(appliedSlug);
 
-    if (appliedSlug && o.sourceId) {
+    // Skip fly-to when locked — the click handler manages its own fly-to
+    if (!locked && appliedSlug && o.sourceId) {
       const slug = appliedSlug;
       flyTimeout = setTimeout(() => flyToSlug(slug), FLY_DELAY_MS);
       settleTimeout = setTimeout(() => {
@@ -172,6 +180,20 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   }
 
   function clear() {
+    if (locked) return; // respect lock — only unlock() can clear when locked
+    wantSlug = null;
+    scheduleSync();
+  }
+
+  function lock(slug: string) {
+    locked = true;
+    wantSlug = slug;
+    scheduleSync();
+  }
+
+  function unlock() {
+    if (!locked) return;
+    locked = false;
     wantSlug = null;
     scheduleSync();
   }
@@ -190,10 +212,10 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
     } else {
       // Enter always wins. Leave only clears if this element still owns the slug
       // (prevents a stale leave from clobbering a newer enter on an adjacent item).
-      el.addEventListener('mouseenter', () => { wantSlug = slug; scheduleSync(); });
-      el.addEventListener('mouseleave', () => { if (wantSlug === slug) { wantSlug = null; scheduleSync(); } });
+      el.addEventListener('mouseenter', () => { if (!locked) { wantSlug = slug; scheduleSync(); } });
+      el.addEventListener('mouseleave', () => { if (!locked && wantSlug === slug) { wantSlug = null; scheduleSync(); } });
     }
   });
 
-  return { clear };
+  return { clear, lock, unlock, isLocked: () => locked };
 }
