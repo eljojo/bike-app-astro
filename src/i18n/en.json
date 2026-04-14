@@ -730,6 +730,7 @@
   "paths.cat_trails": "Trails",
   "paths.cat_bikeways": "Bikeways",
   "paths.standalone_heading": "Standalone",
+  "paths.includes_paths": "Includes:",
   "paths.shared_with": "Also used for",
   "paths.shared_hiking": "hiking trail",
   "paths.shared_ski": "ski trail",

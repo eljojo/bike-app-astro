@@ -63,6 +63,12 @@ const bodyText = localeBody
   || undefined;
 const descriptionHtml = bodyText ? await renderMarkdownHtml(bodyText) : null;
 
+// Constituent way names — show when this path bundles multiple named ways
+// (e.g., a skiing trail relation that covers Sentier des Voyageurs + Leamy Creek)
+const constituentNames = [...new Set(page.osmNames)]
+  .filter(n => n !== page.name && n !== localeName)
+  .sort();
+
 const fallbackCenter: [number, number] = [config.center.lat, config.center.lng];
 
 // --- Structured facts — aggregated from members when available, individual otherwise ---
@@ -205,6 +211,13 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
     )}
 
     {localeVibe && <p class="bike-path-vibe">{localeVibe}</p>}
+
+    {constituentNames.length > 1 && (
+      <p class="bike-path-constituent-names">
+        {t('paths.includes_paths', locale)}{' '}
+        {constituentNames.join(', ')}
+      </p>
+    )}
 
     {/* Full-width browse-style map for networks — same infrastructure as the index page */}
     {hasMembers && (
