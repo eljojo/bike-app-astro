@@ -7,6 +7,7 @@
 import maplibregl from 'maplibre-gl';
 import { pathForeground } from '../map-swatch';
 import { createTileLoader, type TileLoader, type TileManifestEntry } from '../tile-loader';
+import { loadFeaturesForGeoIds } from '../geo-id-resolver';
 import { SOURCE_ID, ALL_LAYER_IDS, LINE_LAYERS, BG_LAYERS, addPathLayers } from './tile-path-styles';
 import { setupPathInteractions } from './tile-path-interactions';
 import type { MapLayer, LayerContext } from './types';
@@ -36,7 +37,7 @@ export interface FitOptions { maxZoom?: number; padding?: number }
 
 export interface TilePathLayer extends MapLayer {
   highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean, flyOpts?: FitOptions): void;
-  fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions): boolean;
+  fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions): Promise<boolean>;
   /** Query in-memory features by slug or network geoIds. No renderer dependency. */
   queryFeaturesBySlug(slug: string, networkGeoIds?: Record<string, string[]>): GeoJSON.Feature[];
 }
@@ -204,13 +205,19 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       }
     },
 
-    fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions) {
+    async fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions) {
       if (!tileLoader) return false;
-      const geoIdSet = new Set(geoIds);
-      const features = tileLoader.allLoadedFeatures().filter(
-        f => f.properties?.relationId && geoIdSet.has(f.properties.relationId),
-      );
+      // Load exactly the tiles that contain these geoIds, then filter
+      const features = await loadFeaturesForGeoIds(tileLoader, geoIds);
       if (features.length === 0) return false;
+
+      // Update the map source with newly loaded features
+      const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        const all = tileLoader.allLoadedFeatures();
+        tagFeatures(all);
+        source.setData({ type: 'FeatureCollection', features: all });
+      }
       let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
       for (const f of features) {
         for (const [lng, lat] of extractCoords(f.geometry) as [number, number][]) {

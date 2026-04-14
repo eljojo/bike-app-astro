@@ -13,6 +13,7 @@ export type { TileManifestEntry };
 
 export interface TileLoader {
   loadTilesForBounds(bounds: [number, number, number, number]): Promise<Feature[]>;
+  loadTilesByIds(tileIds: string[]): Promise<Feature[]>;
   allLoadedFeatures(): Feature[];
 }
 
@@ -90,6 +91,21 @@ export function createTileLoader(manifest: TileManifestEntry[], basePath: string
         allFeatures = rebuildFeatures(loadedTileIds);
       }
 
+      return [...allFeatures];
+    },
+
+    async loadTilesByIds(tileIds: string[]) {
+      const entries = tileIds
+        .map(id => manifest.find(e => e.id === id))
+        .filter((e): e is TileManifestEntry => !!e);
+      await Promise.all(entries.map(entry => loadTile(entry)));
+
+      const allIds = new Set(loadedTileIds);
+      for (const id of tileIds) allIds.add(id);
+      if (allIds.size !== loadedTileIds.size) {
+        loadedTileIds = allIds;
+        allFeatures = rebuildFeatures(loadedTileIds);
+      }
       return [...allFeatures];
     },
 
