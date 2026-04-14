@@ -123,14 +123,6 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
-      - name: Restore bike path geometry cache
-        uses: actions/cache@v5
-        with:
-          path: .cache/bikepath-geometry
-          key: bikepath-geo-${{ inputs.city }}-${{ github.run_id }}
-          restore-keys: |
-            bikepath-geo-${{ inputs.city }}-
-
       - name: Restore Astro content cache
         uses: actions/cache@v5
         with:
