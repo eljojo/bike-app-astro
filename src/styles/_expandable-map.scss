@@ -125,10 +125,33 @@
   justify-content: center;
   transition: transform $transition-state;
   &:hover { transform: scale(1.1); }
+}
+
+.map-mtb-toggle {
+  position: absolute;
+  top: 10px;
+  right: 48px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: none;
+  background: #fff;
+  color: #333;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  transition: background $transition-state, color $transition-state;
+  &.active { background: #4a7c3f; color: #fff; }
+  &:not(.active) { opacity: 0.7; }
+  &:hover { transform: scale(1.05); }
   @include dark-mode {
     background: #222;
     color: #ddd;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    &.active { background: #3a6a30; color: #fff; }
   }
 }
 
