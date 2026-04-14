@@ -152,6 +152,46 @@ describe.skipIf(!ymlExists)('Capital Pathway members', () => {
 // 33m of geometry instead of 494km, breaking all length-based classification.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// path_type classification — paths have the right infrastructure type
+// These feed into index page category tabs via path-categories.ts.
+// ---------------------------------------------------------------------------
+
+describe.skipIf(!ymlExists)('path_type drives index category assignment', () => {
+  // MTB trails — should appear in the MTB tab
+  for (const slug of ['fatbike-mont-tremblant', 'le-ptit-train-du-nord', 'voie-verte-chelsea', 'trail-1-1']) {
+    it(`${slug} has path_type=mtb-trail (→ MTB tab)`, () => {
+      const e = bySlug.get(slug);
+      if (!e) return; // promoted non-cycling entries may not exist in all pipeline runs
+      expect(e.path_type).toBe('mtb-trail');
+    });
+  }
+
+  // Paved multi-use paths — should appear in the Pathways tab
+  for (const slug of ['greenboro-pathway', 'sawmill-creek-pathway', 'sentier-du-lac-leamy-skiing-trail']) {
+    it(`${slug} has path_type=mup (→ Pathways tab)`, () => {
+      const e = bySlug.get(slug);
+      if (!e) return;
+      expect(e.path_type).toBe('mup');
+    });
+  }
+
+  // Gravel trails — should appear in the Long Distance tab
+  for (const slug of ['prescott-russell-trail-link', 'osgoode-link-pathway']) {
+    it(`${slug} has path_type=trail (→ Long Distance tab)`, () => {
+      const e = entry(slug);
+      expect(e.path_type).toBe('trail');
+    });
+  }
+
+  // Ottawa-Carleton Trailway is explicitly long-distance via pipeline
+  it('Ottawa-Carleton Trailway has type=long-distance', () => {
+    const e = entry('ottawa-carleton-trailway');
+    expect(e.type).toBe('long-distance');
+    expect(e.path_type).toBe('trail');
+  });
+});
+
 describe.skipIf(!ymlExists)('relation geometry enrichment', () => {
   // These entries have osm_relations pointing to large routes. The pipeline
   // must use the relation geometry, not a tiny name-match fragment from the

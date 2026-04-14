@@ -9,6 +9,7 @@ import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
 import { localizeSurface, localizePathType } from '@/lib/bike-paths/bike-path-facts';
 import { compareMemberNames } from '@/lib/bike-paths/member-sort';
+import { classifyNetwork as classifyNetworkFn, classifyIndependentPath, TIER1_MIN_KM, splitMemberTiers, type BrowseCategory } from '@/lib/bike-paths/index-categories';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -60,13 +61,20 @@ const allIndependent = pages.filter(p =>
   p.standalone && !p.memberRefs && !memberSlugs.has(p.slug)
 ).sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
 
-// Standalone long-distance trails (not members of any network)
-const longDistancePaths = allIndependent.filter(p => p.entryType === 'long-distance');
-const longDistanceSlugs = new Set(longDistancePaths.map(p => p.slug));
-const independentPaths = allIndependent.filter(p => !longDistanceSlugs.has(p.slug));
+// Classify independent paths into category tabs by path_type
+const independentByCategory: Record<string, typeof allIndependent> = {};
+const independentUncategorized: typeof allIndependent = [];
+for (const p of allIndependent) {
+  const cat = classifyIndependentPath(p.entryType, p.path_type);
+  if (cat) {
+    (independentByCategory[cat] ??= []).push(p);
+  } else {
+    independentUncategorized.push(p);
+  }
+}
+const trailsPaths = independentByCategory['trails'] ?? [];
 
 // --- Classify networks into riding categories ---
-const TIER1_MIN_KM = 3;
 
 interface NetworkInfo {
   slug: string;
@@ -90,32 +98,19 @@ function buildNetworkInfo(net: typeof networkPages[0]): NetworkInfo {
     }
     return true;
   });
-  const tier1 = localRefs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
-  const tier2 = localRefs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
+  const { tier1, tier2 } = splitMemberTiers(localRefs);
   tier1.sort(compareMemberNames);
   tier2.sort(compareMemberNames);
   return { slug: net.slug, name: pathName(net), length_km: net.length_km, operator: net.operator, tier1, tier2 };
 }
 
 // Classify each network by its members' dominant path_type
-function classifyNetwork(net: typeof networkPages[0]): 'mtb' | 'long-distance' | 'bikeways' | 'pathways' {
-  const members = net.memberRefs ?? [];
-  if (members.length === 0) return 'pathways';
-
-  // MTB: >=50% of members are mtb-trail
-  const mtbCount = members.filter(m => {
+function classifyNetwork(net: typeof networkPages[0]): BrowseCategory {
+  const memberPathTypes = (net.memberRefs ?? []).map(m => {
     const page = pageBySlug.get(m.slug);
-    return page?.path_type === 'mtb-trail';
-  }).length;
-  if (mtbCount / members.length >= 0.5) return 'mtb';
-
-  // Long-distance: use the pipeline's classification, not OSM tags
-  if (net.entryType === 'long-distance') return 'long-distance';
-
-  // Bikeways: lcn network tag and mostly mup/separated-lane/bike-lane
-  if (net.network === 'lcn') return 'bikeways';
-
-  return 'pathways';
+    return page?.path_type ?? '';
+  });
+  return classifyNetworkFn(net.entryType, net.network, memberPathTypes);
 }
 
 const pageBySlug = new Map(allPages.map(p => [p.slug, p]));
@@ -123,7 +118,7 @@ const pageBySlug = new Map(allPages.map(p => [p.slug, p]));
 const categoryMap: Record<string, NetworkInfo[]> = {
   pathways: [],
   mtb: [],
-  'long-distance': [],
+  trails: [],
   bikeways: [],
 };
 
@@ -152,39 +147,56 @@ if (categoryMap.pathways.length > 0) {
 if (categoryMap.mtb.length > 0) {
   categories.push({ key: 'mtb', label: t('paths.cat_mtb', locale), networks: categoryMap.mtb });
 }
-// Combine standalone long-distance paths + long-distance members extracted from networks
-const allLongDistanceStandalone = [...longDistancePaths];
-const ldSlugs = new Set(allLongDistanceStandalone.map(p => p.slug));
-// Add member refs as lightweight entries (they have enough data to render links)
+// Combine standalone trails paths + long-distance members extracted from networks
+const allTrailsStandalone = [...trailsPaths];
+const trailsSlugs = new Set(allTrailsStandalone.map(p => p.slug));
 for (const m of longDistanceMemberRefs) {
-  if (ldSlugs.has(m.slug)) continue;
-  ldSlugs.add(m.slug);
+  if (trailsSlugs.has(m.slug)) continue;
+  trailsSlugs.add(m.slug);
   const page = pageBySlug.get(m.slug);
-  if (page) allLongDistanceStandalone.push(page);
+  if (page) allTrailsStandalone.push(page);
 }
-allLongDistanceStandalone.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
+allTrailsStandalone.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
 
-if (categoryMap['long-distance'].length > 0 || allLongDistanceStandalone.length > 0) {
+if (categoryMap.trails.length > 0 || allTrailsStandalone.length > 0) {
   categories.push({
-    key: 'long-distance',
-    label: t('paths.cat_long_distance', locale),
-    networks: categoryMap['long-distance'],
-    standalonePaths: allLongDistanceStandalone,
+    key: 'trails',
+    label: t('paths.cat_trails', locale),
+    networks: categoryMap.trails,
+    standalonePaths: allTrailsStandalone,
   });
 }
 if (categoryMap.bikeways.length > 0) {
   categories.push({ key: 'bikeways', label: t('paths.cat_bikeways', locale), networks: categoryMap.bikeways });
 }
 
+// Inject independent paths into their category tabs
+for (const [catKey, catPaths] of Object.entries(independentByCategory)) {
+  if (catKey === 'trails') continue; // already handled above
+  if (catPaths.length === 0) continue;
+  const existing = categories.find(c => c.key === catKey);
+  if (existing) {
+    existing.standalonePaths = [...(existing.standalonePaths ?? []), ...catPaths];
+  } else {
+    const labelKey = catKey === 'mtb' ? 'paths.cat_mtb' : catKey === 'pathways' ? 'paths.cat_pathways' : 'paths.cat_bikeways';
+    categories.push({ key: catKey, label: t(labelKey, locale), networks: [], standalonePaths: catPaths });
+  }
+}
+
 // Compat: networkData is still used for map highlighting
 const networkData = networkPages.map(buildNetworkInfo);
 
-// Build network → geoId mapping for map highlighting
+// Track extracted long-distance member slugs for geoId mapping
+const extractedLdSlugs = new Set(longDistanceMemberRefs.map(m => m.slug));
+
+// Build network → geoId mapping for map highlighting.
+// Exclude extracted long-distance members — they belong to the LD category, not their parent network.
 const networkGeoIds: Record<string, string[]> = {};
 for (const net of networkPages) {
   const geoIds: string[] = [];
   for (const gf of net.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
   for (const m of net.memberRefs ?? []) {
+    if (extractedLdSlugs.has(m.slug)) continue;
     const memberPage = pageBySlug.get(m.slug);
     if (memberPage) {
       for (const gf of memberPage.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
@@ -193,13 +205,18 @@ for (const net of networkPages) {
   networkGeoIds[net.slug] = geoIds;
 }
 
-// Build category → geoIds mapping (union of all networks in each category)
+// Build category → geoIds mapping (union of networks + standalone paths per category)
 const categoryGeoIds: Record<string, string[]> = {};
 for (const cat of categories) {
   const allIds: string[] = [];
   for (const net of cat.networks) {
     const ids = networkGeoIds[net.slug] ?? [];
     allIds.push(...ids);
+  }
+  if (cat.standalonePaths) {
+    for (const p of cat.standalonePaths) {
+      for (const gf of p.geoFiles) allIds.push(gf.replace(/\.geojson$/, ''));
+    }
   }
   categoryGeoIds[cat.key] = allIds;
 }
@@ -337,7 +354,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
         <div class="network-panel" data-panel="all">
           <ul class="paths-list">
-            {independentPaths.map(p => (
+            {independentUncategorized.map(p => (
               <li data-slug={p.slug}>
                 <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
                   <span class="path-link-name">{pathName(p)}</span>
@@ -372,6 +389,11 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     let flyBackFn: (() => void) | undefined;
+    // Trails tab zooms out more to show regional extent
+    const ldFitOpts = { padding: 80, maxZoom: 10 };
+    function fitOptsFor(slug: string | undefined) {
+      return slug === 'trails' ? ldFitOpts : undefined;
+    }
 
     const { map, highlightGeoIds, fitToGeoIds } = createPathsBrowseMap({
       container,
@@ -392,7 +414,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         const activeSlug = activeTab?.dataset.network;
         if (activeSlug && activeSlug !== 'all') {
           const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
-          highlightGeoIds(geoIds ?? null, true);
+          highlightGeoIds(geoIds ?? null, true, fitOptsFor(activeSlug));
         }
       },
     });
@@ -410,7 +432,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           highlightGeoIds(null, true);
         } else {
           const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
-          highlightGeoIds(geoIds ?? null, true);
+          highlightGeoIds(geoIds ?? null, true, fitOptsFor(networkSlug));
         }
       }
 
@@ -424,7 +446,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
             const slug = tab.dataset.network;
             if (slug && slug !== 'all') {
               const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
-              highlightGeoIds(geoIds ?? null, true);
+              highlightGeoIds(geoIds ?? null, true, fitOptsFor(slug));
             }
           });
           tab.addEventListener('mouseleave', () => {
@@ -449,7 +471,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
         : undefined;
       if (geoIds && geoIds.length > 0) {
-        fitToGeoIds(geoIds);
+        fitToGeoIds(geoIds, fitOptsFor(activeSlug));
       } else {
         map.flyTo({ center, zoom: 11, duration: 500 });
       }
