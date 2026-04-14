@@ -1,7 +1,7 @@
 // auto-group.test.mjs
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.mjs';
+import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.ts';
 
 // Fresh copies per test — entries are mutated during absorption
 const rawSouthMarch = readFileSync(new URL('../fixtures/south-march-trails.json', import.meta.url), 'utf8');

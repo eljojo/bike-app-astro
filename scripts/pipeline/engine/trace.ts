@@ -1,4 +1,4 @@
-// scripts/pipeline/engine/trace.mjs
+// scripts/pipeline/engine/trace.ts
 //
 // Per-subject decision trace for the bikepaths pipeline.
 //
@@ -12,38 +12,54 @@
 import { performance } from 'node:perf_hooks';
 import * as fs from 'node:fs';
 
-/**
- * @typedef {{
- *   phase: string,
- *   t: number,         // ms since trace creation
- *   kind: string,
- *   data?: object,
- * }} TraceEvent
- */
+export interface TraceEvent {
+  phase: string;
+  /** ms since trace creation */
+  t: number;
+  kind: string;
+  data?: Record<string, any>;
+}
+
+interface SubjectData {
+  displayName?: string;
+  events: TraceEvent[];
+}
+
+interface PhaseSummary {
+  name: string;
+  ms: number;
+  subjectsTouched: number;
+}
+
+interface TraceDump {
+  city?: string;
+  ranAt: string;
+  phases: PhaseSummary[];
+  subjects: Record<string, SubjectData>;
+}
 
 export class Trace {
-  /**
-   * @param {object} [opts]
-   * @param {boolean} [opts.enabled=true] when false, trace calls are no-ops
-   * @param {string} [opts.city]
-   */
-  constructor({ enabled = true, city } = {}) {
+  enabled: boolean;
+  city?: string;
+  startedAt: string;
+  private startMs: number;
+  private _subjects: Map<string, SubjectData>;
+  private _phaseSummaries: PhaseSummary[];
+
+  constructor({ enabled = true, city }: { enabled?: boolean; city?: string } = {}) {
     this.enabled = enabled;
     this.city = city;
     this.startedAt = new Date().toISOString();
     this.startMs = performance.now();
-    /** @type {Map<string, {displayName?: string, events: TraceEvent[]}>} */
     this._subjects = new Map();
-    /** @type {Array<{name: string, ms: number, subjectsTouched: number}>} */
     this._phaseSummaries = [];
   }
 
   /**
    * Bind the trace to a phase name. Returns a function the phase can call:
-   *   const trace = ctx.trace; // already bound by the runner
    *   trace('way:123', 'filtered', { reason: '...' });
    */
-  bind(phaseName) {
+  bind(phaseName: string): (subjectId: string, kind: string, data?: Record<string, any>) => void {
     if (!this.enabled) {
       return () => {};
     }
@@ -52,32 +68,31 @@ export class Trace {
     };
   }
 
-  _record(phaseName, subjectId, kind, data) {
+  private _record(phaseName: string, subjectId: string, kind: string, data?: Record<string, any>): void {
     if (!this._subjects.has(subjectId)) {
       this._subjects.set(subjectId, { events: [] });
     }
     const t = performance.now() - this.startMs;
-    const event = { phase: phaseName, t, kind };
+    const event: TraceEvent = { phase: phaseName, t, kind };
     if (data !== undefined) event.data = data;
-    this._subjects.get(subjectId).events.push(event);
+    this._subjects.get(subjectId)!.events.push(event);
   }
 
   /**
    * Set or update the human-readable display name for a subject.
-   * Phases use this to give the CLI something nice to print.
    */
-  name(subjectId, displayName) {
+  name(subjectId: string, displayName: string): void {
     if (!this.enabled) return;
     if (!this._subjects.has(subjectId)) {
       this._subjects.set(subjectId, { events: [] });
     }
-    this._subjects.get(subjectId).displayName = displayName;
+    this._subjects.get(subjectId)!.displayName = displayName;
   }
 
   /**
    * Record a phase summary (called by the runner's onEvent hook).
    */
-  recordPhaseSummary(name, ms) {
+  recordPhaseSummary(name: string, ms: number): void {
     if (!this.enabled) return;
     let touched = 0;
     for (const s of this._subjects.values()) {
@@ -90,14 +105,19 @@ export class Trace {
    * Get all events for a subject, plus convenience methods.
    * Always returns an object even if the subject is unknown.
    */
-  subject(id) {
+  subject(id: string): {
+    displayName?: string;
+    events: TraceEvent[];
+    kinds(): string[];
+    lastEvent(): TraceEvent | undefined;
+  } {
     const data = this._subjects.get(id) || { events: [] };
     return {
       displayName: data.displayName,
       events: data.events.slice(),
       kinds() {
-        const seen = new Set();
-        const list = [];
+        const seen = new Set<string>();
+        const list: string[] = [];
         for (const e of data.events) {
           if (!seen.has(e.kind)) {
             seen.add(e.kind);
@@ -115,8 +135,8 @@ export class Trace {
   /**
    * Cross-subject filter. Returns flat array of events with subject id attached.
    */
-  filter({ phase, kind } = {}) {
-    const out = [];
+  filter({ phase, kind }: { phase?: string; kind?: string } = {}): Array<TraceEvent & { subject: string }> {
+    const out: Array<TraceEvent & { subject: string }> = [];
     for (const [subject, data] of this._subjects) {
       for (const event of data.events) {
         if (phase && event.phase !== phase) continue;
@@ -130,8 +150,8 @@ export class Trace {
   /**
    * Returns the JSON-serialisable representation.
    */
-  dump() {
-    const subjects = {};
+  dump(): TraceDump {
+    const subjects: Record<string, SubjectData> = {};
     for (const [id, data] of this._subjects) {
       subjects[id] = {
         ...(data.displayName ? { displayName: data.displayName } : {}),
@@ -149,18 +169,19 @@ export class Trace {
   /**
    * Atomic write to disk.
    */
-  saveTo(path) {
-    fs.mkdirSync(require_dirname(path), { recursive: true });
-    const tmp = path + '.tmp';
+  saveTo(filePath: string): void {
+    const lastSlash = filePath.lastIndexOf('/');
+    if (lastSlash !== -1) fs.mkdirSync(filePath.slice(0, lastSlash), { recursive: true });
+    const tmp = filePath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(this.dump()));
-    fs.renameSync(tmp, path);
+    fs.renameSync(tmp, filePath);
   }
 
   /**
    * Load a previously saved trace from disk.
    */
-  static load(path) {
-    const raw = JSON.parse(fs.readFileSync(path, 'utf8'));
+  static load(filePath: string): Trace {
+    const raw: TraceDump = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     const trace = new Trace({ enabled: true, city: raw.city });
     trace.startedAt = raw.ranAt;
     trace._phaseSummaries = raw.phases || [];
@@ -172,9 +193,4 @@ export class Trace {
     }
     return trace;
   }
-}
-
-function require_dirname(p) {
-  const i = p.lastIndexOf('/');
-  return i === -1 ? '.' : p.slice(0, i);
 }

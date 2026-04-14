@@ -9,7 +9,7 @@
 
 import type { Phase } from './_phase-types.ts';
 import type { WayRegistry } from '../lib/way-registry.mjs';
-import { autoGroupNearbyPaths } from '../lib/auto-group.mjs';
+import { autoGroupNearbyPaths } from '../lib/auto-group.ts';
 
 interface Inputs {
   entries: any[];
@@ -22,7 +22,6 @@ export const groupClusterPhase: Phase<Inputs, any[]> = async ({ entries, markdow
     entries,
     markdownSlugs,
     queryOverpass: ctx.queryOverpass,
-    // @ts-expect-error — auto-group.mjs JSDoc omits bbox/wayRegistry but the function uses them
     bbox: ctx.bbox,
     wayRegistry,
   });

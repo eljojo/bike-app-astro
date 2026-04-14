@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { discoverRelationsPhase } from '../../../scripts/pipeline/phases/discover-relations.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 
 const OTTAWA_ADAPTER = {
   relationNamePattern: '[Pp]athway|[Tt]rail|[Cc]ycl|[Bb]ike|[Ss]entier|MUP|[Pp]iste',

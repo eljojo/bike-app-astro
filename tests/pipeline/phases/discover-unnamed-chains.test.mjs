@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { discoverUnnamedChainsPhase } from '../../../scripts/pipeline/phases/discover-unnamed-chains.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 
 const ADAPTER = { relationNamePattern: '', namedWayQueries: () => [] };
 

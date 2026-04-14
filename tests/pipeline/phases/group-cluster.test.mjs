@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { groupClusterPhase } from '../../../scripts/pipeline/phases/group-cluster.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 import { WayRegistry } from '../../../scripts/pipeline/lib/way-registry.mjs';
 
 const ADAPTER = { relationNamePattern: '', namedWayQueries: () => [] };

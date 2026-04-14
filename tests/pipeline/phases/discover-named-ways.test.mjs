@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { discoverNamedWaysPhase } from '../../../scripts/pipeline/phases/discover-named-ways.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 
 const ADAPTER = {
   relationNamePattern: '[Pp]athway|[Tt]rail|[Cc]ycl',

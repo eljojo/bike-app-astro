@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 
 describe('Trace', () => {
   it('records events for a subject and indexes them by id', () => {

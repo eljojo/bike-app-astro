@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveClassificationPhase } from '../../../scripts/pipeline/phases/resolve-classification.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 import { WayRegistry } from '../../../scripts/pipeline/lib/way-registry.mjs';
 
 const ADAPTER = { relationNamePattern: '', namedWayQueries: () => [] };

@@ -21,7 +21,7 @@
 import type { Phase } from './_phase-types.ts';
 import type { WayRegistry } from '../lib/way-registry.mjs';
 import * as path from 'node:path';
-import { computeSlugs } from '../lib/auto-group.mjs';
+import { computeSlugs } from '../lib/auto-group.ts';
 import { writeYaml } from '../lib/pipeline-io.ts';
 
 interface Inputs {
@@ -51,7 +51,7 @@ export const finalizeWritePhase: Phase<Inputs, Output> = async ({
   dryRun,
   ctx,
 }) => {
-  const grouped = entries;
+  const grouped = [...entries];
 
   // Step 9: Detach long-distance entries that extend far beyond their network.
   // Short local segments of national trails (TCT Bells Corners, TCT Sussex)

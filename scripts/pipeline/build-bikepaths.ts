@@ -42,8 +42,8 @@ export { mergeWayTags };
 import { loadManualEntries, loadMarkdownSlugs, parseMarkdownOverrides } from './lib/pipeline-io.ts';
 // Re-export for test compatibility (tests import parseMarkdownOverrides from this file)
 export { parseMarkdownOverrides };
-import { TaskGraph } from './engine/task-graph.mjs';
-import { Trace } from './engine/trace.mjs';
+import { TaskGraph } from './engine/task-graph.ts';
+import { Trace } from './engine/trace.ts';
 import { discoverRelationsPhase } from './phases/discover-relations.ts';
 import { discoverNamedWaysPhase } from './phases/discover-named-ways.ts';
 import { discoverParallelLanesPhase } from './phases/discover-parallel-lanes.ts';
@@ -102,18 +102,6 @@ if (isMain) {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: Load manual entries from sidecar file — see lib/pipeline-io.ts
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Helper functions: loadMarkdownSlugs, parseMarkdownOverrides — see lib/pipeline-io.ts
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // The pipeline. One function, one code path. main() calls it with the real
 // Overpass client. Tests call it with a cassette player.
 // ---------------------------------------------------------------------------
@@ -150,37 +138,45 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 
   graph.define({
     name: 'discover.relations',
+    produces: 'OsmRelation[]',
     run: withTrace('discover.relations', ({ ctx }) => discoverRelationsPhase({ ctx })),
   });
   graph.define({
     name: 'discover.namedWays',
     star: true,
+    produces: 'NamedWayEntry[]',
     run: withTrace('discover.namedWays', ({ ctx }) => discoverNamedWaysPhase({ ctx })),
   });
   graph.define({
     name: 'discover.parallelLanes',
+    produces: 'ParallelLane[]',
     run: withTrace('discover.parallelLanes', ({ ctx }) => discoverParallelLanesPhase({ ctx })),
   });
   graph.define({
     name: 'discover.unnamedChains',
+    produces: 'NamedWayEntry[]',
     run: withTrace('discover.unnamedChains', ({ ctx }) => discoverUnnamedChainsPhase({ ctx })),
   });
   graph.define({
     name: 'discover.nonCycling',
+    produces: 'NonCyclingCandidate[]',
     deps: {
       relations: 'discover.relations',
       namedWays: 'discover.namedWays',
       unnamedChains: 'discover.unnamedChains',
     },
-    // Old code mutated osmNamedWays in-place inside discoverUnnamedChains, so the
-    // sequential discoverNonCycling call saw the merged list. Preserve that
-    // semantics here: pass [...namedWays, ...unnamedChains] so the spider query
-    // walks UP from every cycling way ID (including chain ways).
+    // Pass [...namedWays, ...unnamedChains] so the spider query walks UP
+    // from every cycling way ID (including chain ways).
     run: withTrace('discover.nonCycling', ({ relations, namedWays, unnamedChains, ctx }) =>
       discoverNonCyclingPhase({ relations, namedWays: [...namedWays, ...unnamedChains], ctx })),
   });
+
+  // Structural bundling node — not a numbered phase. Packages the 5
+  // discovery outputs into a single DiscoveredData object so downstream
+  // phases can declare one dep instead of five.
   graph.define({
     name: 'discover.bundle',
+    produces: 'DiscoveredData',
     deps: {
       relations: 'discover.relations',
       namedWays: 'discover.namedWays',
@@ -199,11 +195,10 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
     }),
   });
 
-  // Assemble + group + resolve + finalize phases. Each mutates the shared
-  // entries array in place; the graph's dependency edges enforce ordering.
   graph.define({
     name: 'assemble.entries',
     star: true,
+    produces: 'Entry[]',
     deps: { discovered: 'discover.bundle' },
     run: withTrace('assemble.entries', ({ discovered, ctx }: any) =>
       assembleEntriesPhase({ discovered, manualEntries, wayRegistry, ctx })),
@@ -211,6 +206,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 
   graph.define({
     name: 'group.cluster',
+    produces: 'Entry[]',
     deps: { entries: 'assemble.entries' },
     run: withTrace('group.cluster', ({ entries, ctx }: any) =>
       groupClusterPhase({ entries, markdownSlugs, wayRegistry, ctx })),
@@ -218,6 +214,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 
   graph.define({
     name: 'resolve.networks',
+    produces: '{entries, superNetworks}',
     deps: { entries: 'group.cluster', discovered: 'discover.bundle' },
     run: withTrace('resolve.networks', ({ entries, discovered, ctx }: any) =>
       resolveNetworksPhase({ entries, discovered, wayRegistry, ctx })),
@@ -226,6 +223,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
   graph.define({
     name: 'resolve.classification',
     star: true,
+    produces: 'Entry[]',
     deps: { netResult: 'resolve.networks', discovered: 'discover.bundle' },
     run: withTrace('resolve.classification', ({ netResult, discovered, ctx }: any) =>
       resolveClassificationPhase({ entries: netResult.entries, discovered, wayRegistry, ctx })),
@@ -233,6 +231,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 
   graph.define({
     name: 'finalize.overrides',
+    produces: 'Entry[]',
     deps: { entries: 'resolve.classification' },
     run: withTrace('finalize.overrides', ({ entries, ctx }: any) =>
       finalizeOverridesPhase({ entries, markdownOverrides, ctx })),
@@ -240,6 +239,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 
   graph.define({
     name: 'finalize.write',
+    produces: '{entries, slugMap}',
     deps: {
       entries: 'finalize.overrides',
       netResult: 'resolve.networks',
@@ -255,9 +255,6 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
         dryRun,
         ctx,
       });
-      // finalize.write's own output is { entries, slugMap }; surface the
-      // superNetworks array from resolve.networks so the goal contains the
-      // full bundle the caller expects.
       return { ...result, superNetworks: netResult.superNetworks };
     }),
   });
@@ -286,7 +283,8 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
     const tableRows = [...graph.steps.values()].map((step: any) => {
       const deps = Object.values(step.deps).join(', ') || '—';
       const star = step.star ? '★' : '';
-      return `| ${step.name} ${star} | ${deps} |`;
+      const produces = step.produces || '—';
+      return `| ${step.name} ${star} | ${deps} | ${produces} |`;
     }).join('\n');
     const md = `# Pipeline graph (auto-generated)
 
@@ -296,8 +294,8 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
 
 ## Phases
 
-| Phase | Depends on |
-|---|---|
+| Phase | Depends on | Produces |
+|---|---|---|
 ${tableRows}
 
 ★ = star bug-cluster boundary (gets aggressive trace coverage)

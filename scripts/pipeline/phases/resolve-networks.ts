@@ -277,7 +277,7 @@ function addSuperrouteNetworks(entries: any[], networks: any[], wayRegistry: Way
 // ---------------------------------------------------------------------------
 
 export const resolveNetworksPhase: Phase<Inputs, Output> = async ({ entries, wayRegistry, ctx }) => {
-  const grouped = entries; // mutate-in-place pattern from the original resolve()
+  const grouped = [...entries];
 
   let superNetworks: any[] = [];
   let allNetSources: any[] = [];

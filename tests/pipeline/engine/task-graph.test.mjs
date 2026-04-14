@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Semaphore, TaskGraph } from '../../../scripts/pipeline/engine/task-graph.mjs';
+import { Semaphore, TaskGraph } from '../../../scripts/pipeline/engine/task-graph.ts';
 
 describe('Semaphore', () => {
   it('allows up to N concurrent acquisitions', async () => {

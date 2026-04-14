@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { clusterByConnectivity } from '../../../scripts/pipeline/lib/cluster-entries.ts';
 import { pathTypeForClustering } from '../../../src/lib/bike-paths/classify-path.ts';
-import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.mjs';
+import { autoGroupNearbyPaths } from '../../../scripts/pipeline/lib/auto-group.ts';
 
 const fixture = JSON.parse(
   readFileSync(new URL('../fixtures/gatineau-trails-52-53.json', import.meta.url), 'utf8')

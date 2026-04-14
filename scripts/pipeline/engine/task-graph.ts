@@ -1,4 +1,4 @@
-// scripts/pipeline/engine/task-graph.mjs
+// scripts/pipeline/engine/task-graph.ts
 //
 // Task graph runner with bounded concurrency for the bikepaths pipeline.
 // See _ctx/pipeline-graph.md for the live phase graph (auto-generated).
@@ -11,12 +11,15 @@ import { performance } from 'node:perf_hooks';
  * Overpass calls and to gate parallel step launches.
  */
 export class Semaphore {
-  constructor(permits) {
+  private permits: number;
+  private queue: Array<() => void>;
+
+  constructor(permits: number) {
     this.permits = permits;
     this.queue = [];
   }
 
-  async acquire() {
+  async acquire(): Promise<void> {
     if (this.permits > 0) {
       this.permits--;
       return;
@@ -24,17 +27,17 @@ export class Semaphore {
     return new Promise((resolve) => this.queue.push(resolve));
   }
 
-  release() {
+  release(): void {
     this.permits++;
     if (this.queue.length > 0 && this.permits > 0) {
       this.permits--;
-      const next = this.queue.shift();
+      const next = this.queue.shift()!;
       next();
     }
   }
 
   /** Acquire, run fn, release (even if fn throws). */
-  async with(fn) {
+  async with<T>(fn: () => Promise<T>): Promise<T> {
     await this.acquire();
     try {
       return await fn();
@@ -44,57 +47,78 @@ export class Semaphore {
   }
 }
 
+export interface StepEvent {
+  type: 'start' | 'done' | 'fail' | 'skip';
+  step: string;
+  ms?: number;
+  error?: Error;
+  reason?: string;
+}
+
+interface StepDef {
+  name: string;
+  deps: Record<string, string>;
+  run: (inputs: Record<string, any>) => Promise<any>;
+  star: boolean;
+  produces?: string;
+}
+
+interface RunOptions {
+  goal: string;
+  context?: Record<string, any>;
+  concurrency?: number;
+  onEvent?: (event: StepEvent) => void;
+}
+
 /**
  * Directed acyclic task graph for the bikepaths pipeline.
  *
  * Define steps with explicit deps; run() topologically sorts and
  * executes them. With concurrency=1, steps run sequentially in topo
  * order. With concurrency>1, ready steps run in parallel up to the
- * limit (added in a later task).
+ * concurrency limit.
  *
  * Each step's run function receives:
  *   - resolved deps as named keys (according to its `deps` map)
  *   - a `ctx` object with shared inputs (bbox, adapter, queryOverpass, trace, ...)
  */
 export class TaskGraph {
+  steps: Map<string, StepDef>;
+
   constructor() {
-    /** @type {Map<string, {name: string, deps: Record<string,string>, run: Function, star: boolean}>} */
     this.steps = new Map();
   }
 
   /**
    * Register a step.
-   * @param {object} opts
-   * @param {string} opts.name unique step name
-   * @param {Record<string, string>} [opts.deps] alias → step name
-   * @param {(inputs: object) => Promise<any>} opts.run async fn called with resolved deps + ctx
-   * @param {boolean} [opts.star] mark as a star bug-cluster boundary (for diagram annotation)
    */
-  define({ name, deps = {}, run, star = false }) {
+  define({ name, deps = {}, run, star = false, produces }: {
+    name: string;
+    deps?: Record<string, string>;
+    run: (inputs: Record<string, any>) => Promise<any>;
+    star?: boolean;
+    /** Human-readable output type shown as edge labels in the diagram. */
+    produces?: string;
+  }): void {
     if (this.steps.has(name)) {
       throw new Error(`Task graph: step "${name}" already defined`);
     }
-    this.steps.set(name, { name, deps, run, star });
+    this.steps.set(name, { name, deps, run, star, produces });
   }
 
   /**
    * Execute the graph until `goal` resolves. Returns the goal's value.
-   * @param {object} opts
-   * @param {string} opts.goal terminal step name
-   * @param {object} opts.context shared inputs (bbox, adapter, queryOverpass, trace, ...)
-   * @param {number} [opts.concurrency=4] global limit on parallel steps
-   * @param {(event: object) => void} [opts.onEvent] step lifecycle hook
    */
-  async run({ goal, context = {}, concurrency = 4, onEvent }) {
+  async run({ goal, context = {}, concurrency = 4, onEvent }: RunOptions): Promise<any> {
     if (!this.steps.has(goal)) {
       throw new Error(`Task graph: goal "${goal}" not defined`);
     }
 
     // Topo sort from goal (cycle detection inside visit())
-    const reachable = new Set();
-    const order = [];
-    const visiting = new Set();
-    const visit = (name) => {
+    const reachable = new Set<string>();
+    const order: string[] = [];
+    const visiting = new Set<string>();
+    const visit = (name: string): void => {
       if (reachable.has(name)) return;
       if (visiting.has(name)) {
         throw new Error(`Task graph: cycle detected at "${name}"`);
@@ -114,24 +138,24 @@ export class TaskGraph {
     // Wrap context.queryOverpass with a global semaphore so in-step
     // Promise.all calls also respect the concurrency budget.
     const sem = new Semaphore(concurrency);
-    const wrappedContext = { ...context };
+    const wrappedContext: Record<string, any> = { ...context };
     if (typeof context.queryOverpass === 'function') {
       const base = context.queryOverpass;
-      wrappedContext.queryOverpass = (q) => sem.with(() => base(q));
+      wrappedContext.queryOverpass = (q: string) => sem.with(() => base(q));
     }
 
     // Per-step state
-    const status = new Map();
-    const values = new Map();
+    const status = new Map<string, 'pending' | 'running' | 'done' | 'failed'>();
+    const values = new Map<string, any>();
     for (const name of reachable) status.set(name, 'pending');
 
     let inFlight = 0;
-    const failures = [];
-    let resolveAll;
-    let rejectAll;
-    const finished = new Promise((res, rej) => { resolveAll = res; rejectAll = rej; });
+    const failures: Error[] = [];
+    let resolveAll!: (value: any) => void;
+    let rejectAll!: (reason: any) => void;
+    const finished = new Promise<any>((res, rej) => { resolveAll = res; rejectAll = rej; });
 
-    const checkDone = () => {
+    const checkDone = (): void => {
       const allTerminal = [...status.values()].every((s) => s === 'done' || s === 'failed');
       if (allTerminal && inFlight === 0) {
         if (status.get(goal) === 'failed') {
@@ -142,11 +166,11 @@ export class TaskGraph {
       }
     };
 
-    const launchReady = () => {
+    const launchReady = (): void => {
       let launched = false;
       for (const name of order) {
         if (status.get(name) !== 'pending') continue;
-        const step = this.steps.get(name);
+        const step = this.steps.get(name)!;
 
         // Skip if any dep failed
         const anyDepFailed = Object.values(step.deps).some((d) => status.get(d) === 'failed');
@@ -171,11 +195,11 @@ export class TaskGraph {
       if (launched || inFlight === 0) checkDone();
     };
 
-    const runStep = async (step) => {
+    const runStep = async (step: StepDef): Promise<void> => {
       const start = performance.now();
       onEvent?.({ type: 'start', step: step.name });
       try {
-        const inputs = { ctx: wrappedContext };
+        const inputs: Record<string, any> = { ctx: wrappedContext };
         for (const [alias, depName] of Object.entries(step.deps)) {
           inputs[alias] = values.get(depName);
         }
@@ -185,10 +209,10 @@ export class TaskGraph {
         status.set(step.name, 'done');
         onEvent?.({ type: 'done', step: step.name, ms: end - start });
       } catch (err) {
-        failures.push(err);
+        failures.push(err as Error);
         status.set(step.name, 'failed');
         const end = performance.now();
-        onEvent?.({ type: 'fail', step: step.name, error: err, ms: end - start });
+        onEvent?.({ type: 'fail', step: step.name, error: err as Error, ms: end - start });
       } finally {
         inFlight--;
         // Recurse to launch newly-ready steps
@@ -203,8 +227,9 @@ export class TaskGraph {
   /**
    * Emit a representation of the graph for documentation.
    * Currently supports: 'mermaid' (graph TD syntax).
+   * When steps declare `produces`, edges are labelled with the output type.
    */
-  diagram({ format = 'mermaid' } = {}) {
+  diagram({ format = 'mermaid' }: { format?: 'mermaid' } = {}): string {
     if (format !== 'mermaid') {
       throw new Error(`Task graph: unsupported diagram format "${format}"`);
     }
@@ -215,17 +240,23 @@ export class TaskGraph {
       const label = step.star ? `${name} ★` : name;
       lines.push(`  ${id}["${label}"]`);
     }
-    // Edges
+    // Edges (with optional data-flow labels from the dependency's `produces`)
     for (const [name, step] of this.steps) {
       for (const depName of Object.values(step.deps)) {
-        lines.push(`  ${mermaidId(depName)} --> ${mermaidId(name)}`);
+        const depStep = this.steps.get(depName);
+        const edgeLabel = depStep?.produces;
+        if (edgeLabel) {
+          lines.push(`  ${mermaidId(depName)} -->|"${edgeLabel}"| ${mermaidId(name)}`);
+        } else {
+          lines.push(`  ${mermaidId(depName)} --> ${mermaidId(name)}`);
+        }
       }
     }
     return lines.join('\n');
   }
 }
 
-function mermaidId(name) {
+function mermaidId(name: string): string {
   // Mermaid node IDs can't contain dots; use underscores
   return name.replace(/[^a-zA-Z0-9_]/g, '_');
 }

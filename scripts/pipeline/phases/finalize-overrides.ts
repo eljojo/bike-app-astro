@@ -7,7 +7,7 @@
 //   8b-cleanup-1. Scrub self-references from network _memberRefs
 //   8b-cleanup-2. Remove zombie networks (0 members)
 //
-// Operates on entries array in place, returns it.
+// Returns a new array.
 
 import type { Phase } from './_phase-types.ts';
 import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
@@ -18,7 +18,7 @@ interface Inputs {
 }
 
 export const finalizeOverridesPhase: Phase<Inputs, any[]> = async ({ entries, markdownOverrides, ctx }) => {
-  const grouped = entries;
+  const grouped = [...entries];
 
   // Step 8b: Apply markdown overrides
   if (markdownOverrides.size > 0) {

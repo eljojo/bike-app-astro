@@ -8,10 +8,9 @@
 //   7c. deriveEntryType for each entry
 //   8d. Non-cycling relation promotion (≥90% bikeable) and overlap metadata
 //
-// Operates on the entries array in place (matches legacy resolve()
-// semantics) and returns it. Most fixes in pipeline history live in these
-// four steps — this is the second-largest bug cluster boundary after
-// assemble.entries.
+// Returns a new array. Entry objects within may be shared with the input
+// — property mutations during this phase are visible to the caller.
+// This is the second-largest bug cluster boundary after assemble.entries.
 //
 // Trace events (sparse, at decision points only):
 //   - entry:<name> classified — after deriveEntryType sets a type
@@ -38,7 +37,7 @@ export const resolveClassificationPhase: Phase<Inputs, any[]> = async ({
   wayRegistry,
   ctx,
 }) => {
-  const grouped = entries; // mutate-in-place pattern from the original resolve()
+  const grouped = [...entries];
 
   // Step 6: Wikidata enrichment
   console.log('Enriching with Wikidata...');

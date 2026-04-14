@@ -6,20 +6,20 @@
 
 ## Phases
 
-| Phase | Depends on |
-|---|---|
-| discover.relations  | — |
-| discover.namedWays ★ | — |
-| discover.parallelLanes  | — |
-| discover.unnamedChains  | — |
-| discover.nonCycling  | discover.relations, discover.namedWays, discover.unnamedChains |
-| discover.bundle  | discover.relations, discover.namedWays, discover.parallelLanes, discover.unnamedChains, discover.nonCycling |
-| assemble.entries ★ | discover.bundle |
-| group.cluster  | assemble.entries |
-| resolve.networks  | group.cluster, discover.bundle |
-| resolve.classification ★ | resolve.networks, discover.bundle |
-| finalize.overrides  | resolve.classification |
-| finalize.write  | finalize.overrides, resolve.networks, discover.bundle |
+| Phase | Depends on | Produces |
+|---|---|---|
+| discover.relations  | — | OsmRelation[] |
+| discover.namedWays ★ | — | NamedWayEntry[] |
+| discover.parallelLanes  | — | ParallelLane[] |
+| discover.unnamedChains  | — | NamedWayEntry[] |
+| discover.nonCycling  | discover.relations, discover.namedWays, discover.unnamedChains | NonCyclingCandidate[] |
+| discover.bundle  | discover.relations, discover.namedWays, discover.parallelLanes, discover.unnamedChains, discover.nonCycling | DiscoveredData |
+| assemble.entries ★ | discover.bundle | Entry[] |
+| group.cluster  | assemble.entries | Entry[] |
+| resolve.networks  | group.cluster, discover.bundle | {entries, superNetworks} |
+| resolve.classification ★ | resolve.networks, discover.bundle | Entry[] |
+| finalize.overrides  | resolve.classification | Entry[] |
+| finalize.write  | finalize.overrides, resolve.networks, discover.bundle | {entries, slugMap} |
 
 ★ = star bug-cluster boundary (gets aggressive trace coverage)
 
@@ -39,22 +39,22 @@ graph TD
   resolve_classification["resolve.classification ★"]
   finalize_overrides["finalize.overrides"]
   finalize_write["finalize.write"]
-  discover_relations --> discover_nonCycling
-  discover_namedWays --> discover_nonCycling
-  discover_unnamedChains --> discover_nonCycling
-  discover_relations --> discover_bundle
-  discover_namedWays --> discover_bundle
-  discover_parallelLanes --> discover_bundle
-  discover_unnamedChains --> discover_bundle
-  discover_nonCycling --> discover_bundle
-  discover_bundle --> assemble_entries
-  assemble_entries --> group_cluster
-  group_cluster --> resolve_networks
-  discover_bundle --> resolve_networks
-  resolve_networks --> resolve_classification
-  discover_bundle --> resolve_classification
-  resolve_classification --> finalize_overrides
-  finalize_overrides --> finalize_write
-  resolve_networks --> finalize_write
-  discover_bundle --> finalize_write
+  discover_relations -->|"OsmRelation[]"| discover_nonCycling
+  discover_namedWays -->|"NamedWayEntry[]"| discover_nonCycling
+  discover_unnamedChains -->|"NamedWayEntry[]"| discover_nonCycling
+  discover_relations -->|"OsmRelation[]"| discover_bundle
+  discover_namedWays -->|"NamedWayEntry[]"| discover_bundle
+  discover_parallelLanes -->|"ParallelLane[]"| discover_bundle
+  discover_unnamedChains -->|"NamedWayEntry[]"| discover_bundle
+  discover_nonCycling -->|"NonCyclingCandidate[]"| discover_bundle
+  discover_bundle -->|"DiscoveredData"| assemble_entries
+  assemble_entries -->|"Entry[]"| group_cluster
+  group_cluster -->|"Entry[]"| resolve_networks
+  discover_bundle -->|"DiscoveredData"| resolve_networks
+  resolve_networks -->|"{entries, superNetworks}"| resolve_classification
+  discover_bundle -->|"DiscoveredData"| resolve_classification
+  resolve_classification -->|"Entry[]"| finalize_overrides
+  finalize_overrides -->|"Entry[]"| finalize_write
+  resolve_networks -->|"{entries, superNetworks}"| finalize_write
+  discover_bundle -->|"DiscoveredData"| finalize_write
 ```

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { discoverNonCyclingPhase } from '../../../scripts/pipeline/phases/discover-non-cycling.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 
 const ADAPTER = { relationNamePattern: '', namedWayQueries: () => [] };
 

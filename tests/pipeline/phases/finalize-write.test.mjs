@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { finalizeWritePhase } from '../../../scripts/pipeline/phases/finalize-write.ts';
-import { Trace } from '../../../scripts/pipeline/engine/trace.mjs';
+import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
 import { WayRegistry } from '../../../scripts/pipeline/lib/way-registry.mjs';
 import yaml from 'js-yaml';
 
