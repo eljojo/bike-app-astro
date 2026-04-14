@@ -34,6 +34,7 @@ interface YmlEntry {
   members?: string[];
   mtb?: boolean;
   osm_way_ids?: number[];
+  osm_relations?: number[];
   width?: string;
   access?: string;
 }
@@ -168,19 +169,25 @@ describe.skipIf(!ymlExists)('very short paths should not get standalone pages', 
   // but is a barely-rideable stub — 1 way, 80cm wide, access=no.
   // The pipeline should consider way count or other quality signals.
 
-  it('chelsea-creek-path is a single-way stub with restrictive characteristics', () => {
+  it('chelsea-creek-path is a single-way stub', () => {
     const e = entry('chelsea-creek-path');
     expect(e.osm_way_ids).toHaveLength(1);
-    expect(e.width).toBe('0.8');       // 80cm — barely a path
-    expect(e.access).toBe('no');       // restricted access
+    expect(e.access).toBe('no');
     expect(e.path_type).toBe('mtb-trail');
+    // No osm_relations — this is a named-way discovery, not a route
+    expect(e.osm_relations).toBeUndefined();
+    // Not in any network
+    expect(e.member_of).toBeUndefined();
   });
 
   it('chelsea-creek-path should not get type=destination from the pipeline', () => {
     const e = entry('chelsea-creek-path');
-    // The pipeline gives it destination because length >= 1km.
-    // But a single-way, 80cm-wide, access-restricted path is not
-    // a destination anyone would plan to visit.
+    // Pipeline gives it destination because it's a named mtb-trail with
+    // length >= 1km (entry-type.mjs:132). But a single-way, access=no,
+    // non-relation path with no network is not a destination.
+    // The pipeline needs a stronger signal than just length for
+    // standalone mtb-trail paths (e.g., minimum way count, or
+    // access=no should disqualify).
     expect(e.type).not.toBe('destination');
   });
 });
