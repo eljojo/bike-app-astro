@@ -360,8 +360,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               </div>
             ))}
 
-            {/* Standalone long-distance paths (not in any network) */}
+            {/* Standalone paths (not in any network) */}
             {cat.standalonePaths && cat.standalonePaths.length > 0 && (
+              <div class="category-standalone-group">
+                <h3 class="category-standalone-heading">{t('paths.standalone_heading', locale)}</h3>
               <ul class="paths-list">
                 {cat.standalonePaths.map(p => (
                   <li data-slug={p.slug}>
@@ -375,6 +377,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                   </li>
                 ))}
               </ul>
+              </div>
             )}
           </div>
         ))}

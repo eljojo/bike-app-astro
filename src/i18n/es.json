@@ -725,6 +725,7 @@
   "paths.cat_long_distance": "Larga distancia",
   "paths.cat_trails": "Senderos",
   "paths.cat_bikeways": "Carriles bici",
+  "paths.standalone_heading": "Independientes",
   "paths.shared_with": "También se usa para",
   "paths.shared_hiking": "senderismo",
   "paths.shared_ski": "esquí de fondo",
