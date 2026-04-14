@@ -71,8 +71,8 @@ export interface PathsBrowseMapResult {
   map: maplibregl.Map;
   /** Highlight a set of geo IDs on the highlight layer. Pass null to clear. */
   highlightGeoIds: (geoIds: string[] | null, fly?: boolean, flyOpts?: { maxZoom?: number; padding?: number }) => void;
-  /** Fit the map to the bounds of features matching the given geo IDs. */
-  fitToGeoIds: (geoIds: string[], opts?: { maxZoom?: number; padding?: number }) => void;
+  /** Fit the map to the bounds of features matching the given geo IDs. Returns false if no features found. */
+  fitToGeoIds: (geoIds: string[], opts?: { maxZoom?: number; padding?: number }) => boolean;
   /** Expand button controller. */
   expandButton: ReturnType<typeof createMapExpandButton>;
 }

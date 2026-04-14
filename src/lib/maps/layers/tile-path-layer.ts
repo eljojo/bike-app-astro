@@ -36,7 +36,7 @@ export interface FitOptions { maxZoom?: number; padding?: number }
 
 export interface TilePathLayer extends MapLayer {
   highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean, flyOpts?: FitOptions): void;
-  fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions): void;
+  fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions): boolean;
   /** Query in-memory features by slug or network geoIds. No renderer dependency. */
   queryFeaturesBySlug(slug: string, networkGeoIds?: Record<string, string[]>): GeoJSON.Feature[];
 }
@@ -205,12 +205,12 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
     },
 
     fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions) {
-      if (!tileLoader) return;
+      if (!tileLoader) return false;
       const geoIdSet = new Set(geoIds);
       const features = tileLoader.allLoadedFeatures().filter(
         f => f.properties?.relationId && geoIdSet.has(f.properties.relationId),
       );
-      if (features.length === 0) return;
+      if (features.length === 0) return false;
       let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
       for (const f of features) {
         for (const [lng, lat] of extractCoords(f.geometry) as [number, number][]) {
@@ -220,8 +220,9 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
           if (lat > maxLat) maxLat = lat;
         }
       }
-      if (minLng === Infinity) return;
+      if (minLng === Infinity) return false;
       map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: opts?.padding ?? 60, maxZoom: opts?.maxZoom, animate: true, duration: 500 });
+      return true;
     },
 
     queryFeaturesBySlug(slug: string, netGeoIds?: Record<string, string[]>) {

@@ -445,7 +445,11 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         const activeSlug = activeTab?.dataset.network;
         if (activeSlug && activeSlug !== 'all') {
           const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
-          highlightGeoIds(geoIds ?? null, true, fitOptsFor(activeSlug));
+          highlightGeoIds(geoIds ?? null, false);
+          if (geoIds) {
+            const fitted = fitToGeoIds(geoIds);
+            if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
+          }
         }
       },
     });
@@ -470,7 +474,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           map.flyTo({ center, zoom: 10, duration: 500 });
         } else {
           const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
-          highlightGeoIds(geoIds ?? null, true);
+          highlightGeoIds(geoIds ?? null, false);
+          // Fit to category bounds — fall back to city center if tiles aren't loaded yet
+          const fitted = geoIds ? fitToGeoIds(geoIds) : false;
+          if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
         }
       }
 
@@ -488,7 +495,9 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                 highlightGeoIds(geoIds ?? null, false);
                 map.flyTo({ center, zoom: 10, duration: 500 });
               } else {
-                highlightGeoIds(geoIds ?? null, true);
+                highlightGeoIds(geoIds ?? null, false);
+                const fitted = geoIds ? fitToGeoIds(geoIds) : false;
+                if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
               }
             }
           });
@@ -516,7 +525,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       if (activeSlug === 'trails') {
         map.flyTo({ center, zoom: 10, duration: 500 });
       } else if (geoIds && geoIds.length > 0) {
-        fitToGeoIds(geoIds);
+        const fitted = fitToGeoIds(geoIds);
+        if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
       } else {
         map.flyTo({ center, zoom: 11, duration: 500 });
       }
