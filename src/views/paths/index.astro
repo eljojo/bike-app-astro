@@ -413,6 +413,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   const container = document.getElementById('paths-network-map');
   if (container) {
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+    const mapCenter: [number, number] = [center[1], center[0]]; // [lng, lat] for MapLibre
     const slugInfo = JSON.parse(container.dataset.slugInfo || '{}');
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
@@ -439,7 +440,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       networkGeoIds,
       labels: { viewDetails: container.dataset.labelViewDetails },
       onHighlightClear: isMobile ? () => flyBackFn?.() : undefined,
-      onReady: () => {
+      onReady: async () => {
         // Activate first tab's highlight once layers are ready
         const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
         const activeSlug = activeTab?.dataset.network;
@@ -447,8 +448,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
           highlightGeoIds(geoIds ?? null, false);
           if (geoIds) {
-            const fitted = fitToGeoIds(geoIds);
-            if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
+            const fitted = await fitToGeoIds(geoIds, fitOptsFor(activeSlug));
+            if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
           }
         }
       },
@@ -460,24 +461,18 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       const tabs = tabBar.querySelectorAll<HTMLButtonElement>('.network-tab');
       const panels = document.querySelectorAll<HTMLElement>('.network-panel');
 
-      function activateTab(networkSlug: string) {
+      async function activateTab(networkSlug: string) {
         tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
         panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
         closePopup(map);
         if (networkSlug === 'all') {
           highlightGeoIds(null);
-          map.flyTo({ center, zoom: 11, duration: 500 });
-        } else if (networkSlug === 'trails') {
-          // Trails extend far beyond the city — highlight but stay at city zoom
-          const geoIds = categoryGeoIds[networkSlug] ?? [];
-          highlightGeoIds(geoIds, false);
-          map.flyTo({ center, zoom: 10, duration: 500 });
+          map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
         } else {
           const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
           highlightGeoIds(geoIds ?? null, false);
-          // Fit to category bounds — fall back to city center if tiles aren't loaded yet
-          const fitted = geoIds ? fitToGeoIds(geoIds) : false;
-          if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
+          const fitted = geoIds ? await fitToGeoIds(geoIds, fitOptsFor(networkSlug)) : false;
+          if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
         }
       }
 
@@ -487,18 +482,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           if (slug) activateTab(slug);
         });
         if (!isMobile) {
-          tab.addEventListener('mouseenter', () => {
+          tab.addEventListener('mouseenter', async () => {
             const slug = tab.dataset.network;
             if (slug && slug !== 'all') {
               const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
-              if (slug === 'trails') {
-                highlightGeoIds(geoIds ?? null, false);
-                map.flyTo({ center, zoom: 10, duration: 500 });
-              } else {
-                highlightGeoIds(geoIds ?? null, false);
-                const fitted = geoIds ? fitToGeoIds(geoIds) : false;
-                if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
-              }
+              highlightGeoIds(geoIds ?? null, false);
+              const fitted = geoIds ? await fitToGeoIds(geoIds, fitOptsFor(slug)) : false;
+              if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
             }
           });
           tab.addEventListener('mouseleave', () => {
@@ -516,19 +506,17 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     }
 
     // --- Fly back to category extent when leaving a group (not between items) ---
-    function flyBackToCategory() {
+    async function flyBackToCategory() {
       const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
       const activeSlug = activeTab?.dataset.network;
       const geoIds = activeSlug && activeSlug !== 'all'
         ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
         : undefined;
-      if (activeSlug === 'trails') {
-        map.flyTo({ center, zoom: 10, duration: 500 });
-      } else if (geoIds && geoIds.length > 0) {
-        const fitted = fitToGeoIds(geoIds);
-        if (!fitted) map.flyTo({ center, zoom: 11, duration: 500 });
+      if (geoIds && geoIds.length > 0) {
+        const fitted = await fitToGeoIds(geoIds, fitOptsFor(activeSlug));
+        if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
       } else {
-        map.flyTo({ center, zoom: 11, duration: 500 });
+        map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
       }
     }
     flyBackFn = flyBackToCategory;
