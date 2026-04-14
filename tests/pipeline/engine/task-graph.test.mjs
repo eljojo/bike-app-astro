@@ -182,15 +182,14 @@ describe('TaskGraph — parallel', () => {
 });
 
 describe('TaskGraph — diagram', () => {
-  it('emits Mermaid graph TD syntax with star annotations', () => {
+  it('emits Mermaid graph TD syntax with edges and produces labels', () => {
     const g = new TaskGraph();
-    g.define({ name: 'a', run: async () => 1 });
-    g.define({ name: 'b', star: true, deps: { x: 'a' }, run: async () => 2 });
+    g.define({ name: 'a', produces: 'Foo[]', run: async () => 1 });
+    g.define({ name: 'b', deps: { x: 'a' }, run: async () => 2 });
     g.define({ name: 'c', deps: { y: 'b' }, run: async () => 3 });
     const out = g.diagram({ format: 'mermaid' });
     expect(out).toContain('graph TD');
-    expect(out).toContain('a --> b');
-    expect(out).toContain('b --> c');
-    expect(out).toContain('★'); // star annotation on b
+    expect(out).toContain('-->|"Foo[]"|'); // produces label on edge from a
+    expect(out).toContain('b --> c'); // no label when produces is absent
   });
 });

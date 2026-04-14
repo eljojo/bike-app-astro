@@ -1,6 +1,6 @@
 // scripts/pipeline/phases/resolve-classification.ts
 //
-// Phase 9 (★ star bug cluster): late classification.
+// Phase 9: late classification.
 //
 // Steps 6-8d from the legacy resolve():
 //   6.  Wikidata enrichment
@@ -10,7 +10,9 @@
 //
 // Returns a new array. Entry objects within may be shared with the input
 // — property mutations during this phase are visible to the caller.
-// This is the second-largest bug cluster boundary after assemble.entries.
+//
+// Historical bug cluster: misclassification of entry types and
+// non-cycling promotion thresholds.
 //
 // Trace events (sparse, at decision points only):
 //   - entry:<name> classified — after deriveEntryType sets a type

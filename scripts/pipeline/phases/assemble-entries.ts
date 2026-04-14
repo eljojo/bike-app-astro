@@ -3,8 +3,8 @@
 // Phase 3a: assemble the unified entry list.
 //
 // Takes the 5-field DiscoveredData bundle + manual entries and produces
-// the unified entry list. This is the largest single assembly step and
-// a star bug-cluster boundary: tag-bleeding regressions (Adàwe) live here.
+// the unified entry list. This is the largest single assembly step.
+// Historical bug cluster: tag-bleeding regressions (Adàwe) live here.
 //
 // Steps (ported verbatim from lib/assemble.ts):
 //   1. buildEntries              — merge manual + relations + named ways + parallel lanes,

@@ -2,7 +2,7 @@
 //
 // Task graph runner with bounded concurrency for the bikepaths pipeline.
 // See _ctx/pipeline-graph.md for the live phase graph (auto-generated).
-// See docs/plans/2026-04-09-pipeline-tracing-refactor-design.md for design.
+// See _ctx/pipeline-overview.md for architecture.
 
 import { performance } from 'node:perf_hooks';
 
@@ -59,7 +59,6 @@ interface StepDef {
   name: string;
   deps: Record<string, string>;
   run: (inputs: Record<string, any>) => Promise<any>;
-  star: boolean;
   produces?: string;
 }
 
@@ -92,18 +91,17 @@ export class TaskGraph {
   /**
    * Register a step.
    */
-  define({ name, deps = {}, run, star = false, produces }: {
+  define({ name, deps = {}, run, produces }: {
     name: string;
     deps?: Record<string, string>;
     run: (inputs: Record<string, any>) => Promise<any>;
-    star?: boolean;
     /** Human-readable output type shown as edge labels in the diagram. */
     produces?: string;
   }): void {
     if (this.steps.has(name)) {
       throw new Error(`Task graph: step "${name}" already defined`);
     }
-    this.steps.set(name, { name, deps, run, star, produces });
+    this.steps.set(name, { name, deps, run, produces });
   }
 
   /**
@@ -234,11 +232,9 @@ export class TaskGraph {
       throw new Error(`Task graph: unsupported diagram format "${format}"`);
     }
     const lines = ['graph TD'];
-    // Node declarations with star annotation
-    for (const [name, step] of this.steps) {
+    for (const [name] of this.steps) {
       const id = mermaidId(name);
-      const label = step.star ? `${name} ★` : name;
-      lines.push(`  ${id}["${label}"]`);
+      lines.push(`  ${id}["${name}"]`);
     }
     // Edges (with optional data-flow labels from the dependency's `produces`)
     for (const [name, step] of this.steps) {

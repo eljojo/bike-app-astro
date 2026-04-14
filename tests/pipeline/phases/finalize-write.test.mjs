@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { finalizeWritePhase } from '../../../scripts/pipeline/phases/finalize-write.ts';
 import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
-import { WayRegistry } from '../../../scripts/pipeline/lib/way-registry.mjs';
 import yaml from 'js-yaml';
 
 const ADAPTER = { relationNamePattern: '', namedWayQueries: () => [] };
@@ -20,19 +19,21 @@ describe('finalize.write phase', () => {
     try { rmSync(tmpDataDir, { recursive: true }); } catch {}
   });
 
-  it('computes slugs, writes the YAML file, and returns entries+slugMap', async () => {
+  it('writes bikepaths.yml when dataDir is provided', async () => {
     const trace = new Trace();
-    const wayRegistry = new WayRegistry();
     const entries = [
-      { name: 'Alpha Trail', highway: 'cycleway' },
-      { name: 'Beta Trail', highway: 'path' },
+      { name: 'Alpha Trail', slug: 'alpha-trail', highway: 'cycleway' },
+      { name: 'Beta Trail', slug: 'beta-trail', highway: 'path' },
     ];
+    const slugMap = new Map();
+    slugMap.set(entries[0], 'alpha-trail');
+    slugMap.set(entries[1], 'beta-trail');
+
     const out = await finalizeWritePhase({
       entries,
       superNetworks: [],
-      wayRegistry,
+      slugMap,
       dataDir: tmpDataDir,
-      relationBaseNames: new Set(),
       ctx: {
         bbox: '0,0,1,1', adapter: ADAPTER,
         queryOverpass: async () => ({ elements: [] }),
@@ -40,37 +41,33 @@ describe('finalize.write phase', () => {
       },
     });
     expect(out.entries).toHaveLength(2);
-    expect(out.slugMap).toBeInstanceOf(Map);
-    expect(out.slugMap.get(entries[0])).toBe('alpha-trail');
+    expect(out.slugMap).toBe(slugMap);
 
     const written = readFileSync(join(tmpDataDir, 'bikepaths.yml'), 'utf8');
     const parsed = yaml.load(written);
     expect(parsed.bike_paths).toHaveLength(2);
-    expect(parsed.bike_paths.map((e) => e.slug).sort()).toEqual(['alpha-trail', 'beta-trail']);
   });
 
-  it('removes ghost entries (non-relation owned by relation entry)', async () => {
+  it('skips file write on dry run', async () => {
     const trace = new Trace();
-    const wayRegistry = new WayRegistry();
-    const relationEntry = { name: 'Real Trail', osm_relations: [100] };
-    const ghost = { name: 'Real Trail Ghost' }; // Not a relation entry
-    wayRegistry.claim(relationEntry, [501, 502]);
-    wayRegistry.claim(ghost, [501, 502]); // ghost has same ways as relation
-    const entries = [relationEntry, ghost];
-    const out = await finalizeWritePhase({
+    const entries = [{ name: 'Test', slug: 'test' }];
+    const slugMap = new Map();
+    slugMap.set(entries[0], 'test');
+
+    await finalizeWritePhase({
       entries,
       superNetworks: [],
-      wayRegistry,
+      slugMap,
       dataDir: tmpDataDir,
-      relationBaseNames: new Set(),
+      dryRun: true,
       ctx: {
         bbox: '0,0,1,1', adapter: ADAPTER,
         queryOverpass: async () => ({ elements: [] }),
         trace: trace.bind('finalize.write'),
       },
     });
-    // Ghost removed
-    expect(out.entries.find((e) => e.name === 'Real Trail Ghost')).toBeUndefined();
-    expect(out.entries.find((e) => e.name === 'Real Trail')).toBeDefined();
+
+    const files = require('node:fs').readdirSync(tmpDataDir);
+    expect(files).toHaveLength(0);
   });
 });

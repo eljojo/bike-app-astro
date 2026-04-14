@@ -1,13 +1,13 @@
 ---
-description: "How build-bikepaths.mjs discovers, names, clusters, and networks cycling infrastructure"
+description: "How the bikepaths pipeline discovers, names, clusters, and networks cycling infrastructure — including engine architecture and trace workflow"
 type: knowledge
-triggers: [modifying the pipeline, debugging bikepaths.yml output, adding discovery steps, changing naming logic]
-related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides, entry-types, path-types]
+triggers: [modifying the pipeline, debugging bikepaths.yml output, adding discovery steps, changing naming logic, adding phases, using trace]
+related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides, entry-types, path-types, pipeline-graph]
 ---
 
 # Pipeline Overview
 
-`scripts/pipeline/build-bikepaths.mjs` builds bikepaths.yml from scratch every run (`make bikepaths`). No incremental merge.
+`scripts/pipeline/build-bikepaths.ts` builds bikepaths.yml from scratch every run (`make bikepaths`). No incremental merge.
 
 ## Steps
 
@@ -37,6 +37,37 @@ related: [spatial-reasoning, naming-unnamed-chains, markdown-overrides, entry-ty
 ## Clustering
 
 The auto-grouping in `lib/cluster-entries.ts` merges entries whose OSM ways share nodes or have endpoints within ~10m. It does NOT use anchor distance. Guards: operator compatibility, path type (trail/paved/road), corridor width (type-dependent: 20km trails, 3km paved, 2km road).
+
+## Engine
+
+The pipeline runs through a `TaskGraph` (`scripts/pipeline/engine/task-graph.ts`) — a DAG scheduler with bounded concurrency. Each pipeline step is a **phase** (`scripts/pipeline/phases/`), defined with explicit dependencies and a `produces` type annotation. The graph topologically sorts phases and runs independent ones in parallel (configurable via `OVERPASS_CONCURRENCY`, default 4).
+
+The 5 discover phases run in parallel (they only need bbox + adapter). Everything from `assemble.entries` onward is sequential — each phase transforms the entries array. See `_ctx/pipeline-graph.md` for the auto-generated dependency graph with data-flow labels.
+
+Each phase is a pure async function: `(inputs, ctx) => output`. Phases return new arrays; they do not alias the input array. Entry objects within may be shared across phase boundaries for reference integrity (`_networkRef`, `_memberRefs`).
+
+### Trace
+
+Per-subject decision tracing (`scripts/pipeline/engine/trace.ts`). Phases call `ctx.trace(subjectId, kind, data?)` at decision points — filter, merge, classify, promote, drop. The trace records a timeline per OSM subject (way, relation, entry).
+
+- `make bikepaths --trace way:278992292` — print timeline for one subject
+- `TRACE=off make bikepaths` — disable tracing
+- Trace dump: `~/code/bike-routes/<city>/.pipeline-debug/trace.json`
+
+Subject namespaces: `way:N` (OSM way), `relation:N` (OSM relation), `entry:slug` (bikepaths.yml entry).
+
+### Adding a phase
+
+1. Create `scripts/pipeline/phases/<name>.ts` with the `Phase<Inputs, Output>` signature
+2. Add a `graph.define()` call in `build-bikepaths.ts` with `deps` and `produces`
+3. The auto-generated `_ctx/pipeline-graph.md` updates on the next `make bikepaths` run
+
+### Historical bug clusters
+
+Some phases have concentrated bug histories — the phase headers document what to watch for:
+- **assemble.entries**: tag-bleeding regressions (Adàwe), discovery-source misclassification
+- **resolve.networks**: hierarchy inversion, networks absorbing children's relation IDs
+- **resolve.classification**: entry type misclassification, non-cycling promotion thresholds
 
 ## Key Invariants
 

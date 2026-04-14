@@ -7,7 +7,7 @@
 // the dump is written to .pipeline-debug/trace.json. A CLI loads it
 // and prints a readable timeline for any subject.
 //
-// See docs/plans/2026-04-09-pipeline-tracing-refactor-design.md.
+// See _ctx/pipeline-overview.md for architecture.
 
 import { performance } from 'node:perf_hooks';
 import * as fs from 'node:fs';
