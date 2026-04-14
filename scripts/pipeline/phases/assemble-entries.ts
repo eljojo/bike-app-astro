@@ -1,15 +1,38 @@
-// scripts/pipeline/lib/assemble.ts
+// scripts/pipeline/phases/assemble-entries.ts
 //
-// Takes raw discovery results + manual entries -> unified entry list.
-// Handles dedup, enrichment, geometry loading, and initial classification.
+// Phase 3a: assemble the unified entry list.
+//
+// Takes the 5-field DiscoveredData bundle + manual entries and produces
+// the unified entry list. This is the largest single assembly step.
+// Historical bug cluster: tag-bleeding regressions (Adàwe) live here.
+//
+// Steps (ported verbatim from lib/assemble.ts):
+//   1. buildEntries              — merge manual + relations + named ways + parallel lanes,
+//                                  claim ways in WayRegistry, enrich with relation tags
+//   2. enrichOutOfBoundsRelations — fetch tags for manually added relations the bbox missed
+//   3. enrichRelationGeometry    — fetch `out geom` for relations, populate _ways
+//   4. mergeUnnamedRelations     — merge synthetic-named relations into named ones in
+//                                  the same network
+//   5. classifyPathsEarly         — tier-1 MTB + path_type derivation
+//
+// Trace events (sparse, at decision points only):
+//   - entry:<slug> built      — after buildEntries, one per emitted entry
+//   - entry:<name> merged     — when mergeUnnamedRelations merges into a target
+//   - entry:<slug> classified — after classifyPathsEarly, one per entry with path_type
 
-import type { QueryOverpass, OsmRelation, NamedWayEntry, ParallelLaneCandidate } from './pipeline-types.ts';
-import type { WayRegistry } from './way-registry.mjs';
-import { extractOsmMetadata, enrichEntry } from './osm-tags.ts';
-import { haversineM } from './geo.mjs';
+import type {
+  DiscoveredData,
+  NamedWayEntry,
+  OsmRelation,
+  ParallelLaneCandidate,
+  QueryOverpass,
+} from '../lib/pipeline-types.ts';
+import type { WayRegistry } from '../lib/way-registry.mjs';
+import type { Phase } from './_phase-types.ts';
+import { extractOsmMetadata, enrichEntry } from '../lib/osm-tags.ts';
+import { haversineM } from '../lib/geo.mjs';
 import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
 import { classifyPathsEarly } from '../../../src/lib/bike-paths/classify-path.ts';
-// Note: do NOT import mergeWayTags -- buildEntries doesn't call it.
 
 // ---------------------------------------------------------------------------
 // buildEntries — merge all discovery results into entries
@@ -19,7 +42,7 @@ import { classifyPathsEarly } from '../../../src/lib/bike-paths/classify-path.ts
  * Build entries from discovered OSM data and manual entries.
  * No reference to any existing bikepaths.yml -- built from scratch.
  */
-export function buildEntries(
+function buildEntries(
   osmRelations: OsmRelation[],
   osmNamedWays: NamedWayEntry[],
   parallelLanes: ParallelLaneCandidate[],
@@ -215,7 +238,7 @@ export function buildEntries(
  * This is what makes manual one-offs work: add a relation ID to the file,
  * and the next script run fills in name, surface, network, etc. from OSM.
  */
-export async function enrichOutOfBoundsRelations(
+async function enrichOutOfBoundsRelations(
   entries: any[],
   discoveredRelationIds: Set<number>,
   queryOverpass: QueryOverpass,
@@ -324,7 +347,11 @@ async function enrichRelationGeometry(
  * named relation with the same network tag exists and their ways connect
  * (shared endpoint within 200m), merge the unnamed into the named.
  */
-function mergeUnnamedRelations(entries: any[], wayRegistry: WayRegistry) {
+function mergeUnnamedRelations(
+  entries: any[],
+  wayRegistry: WayRegistry,
+  trace: (subjectId: string, kind: string, data?: object) => void,
+) {
   const CONNECT_M = 200;
   const unnamed = entries.filter((e: any) => /^relation-\d+$/.test(e.name) && e.network && e._ways?.length);
   let mergedCount = 0;
@@ -371,37 +398,60 @@ function mergeUnnamedRelations(entries: any[], wayRegistry: WayRegistry) {
     const idx = entries.indexOf(entry);
     if (idx >= 0) entries.splice(idx, 1);
     mergedCount++;
+    trace(`entry:${entry.name}`, 'merged', { intoEntry: bestTarget.name, endpointDistanceM: Math.round(bestDist) });
     console.log(`  ~ merged ${entry.name} into ${bestTarget.name} (${Math.round(bestDist)}m endpoint distance)`);
   }
   if (mergedCount > 0) console.log(`  Merged ${mergedCount} unnamed relations into named entries`);
 }
 
 // ---------------------------------------------------------------------------
-// assemble — public entry point
+// assembleEntriesPhase — public phase entry point
 // ---------------------------------------------------------------------------
 
-export async function assemble(opts: {
-  osmRelations: OsmRelation[];
-  osmNamedWays: NamedWayEntry[];
-  parallelLanes: ParallelLaneCandidate[];
+interface Inputs {
+  discovered: DiscoveredData;
   manualEntries: any[];
   wayRegistry: WayRegistry;
-  queryOverpass: QueryOverpass;
-}): Promise<any[]> {
-  const { osmRelations, osmNamedWays, parallelLanes, manualEntries, wayRegistry, queryOverpass } = opts;
+}
+
+export const assembleEntriesPhase: Phase<Inputs, any[]> = async ({
+  discovered,
+  manualEntries,
+  wayRegistry,
+  ctx,
+}) => {
+  const { osmRelations, osmNamedWays, parallelLanes } = discovered;
 
   const entries = buildEntries(osmRelations, osmNamedWays, parallelLanes, manualEntries, wayRegistry);
 
-  const discoveredRelationIds = new Set(osmRelations.map(r => r.id));
-  await enrichOutOfBoundsRelations(entries, discoveredRelationIds, queryOverpass);
+  // Trace: one `built` event per emitted entry (sparse, decision-point only).
+  for (const e of entries) {
+    ctx.trace(`entry:${slugify(e.name)}`, 'built', {
+      source: e._discovery_source,
+      name: e.name,
+    });
+  }
 
-  await enrichRelationGeometry(entries, wayRegistry, queryOverpass);
+  const discoveredRelationIds = new Set(osmRelations.map((r) => r.id));
+  await enrichOutOfBoundsRelations(entries, discoveredRelationIds, ctx.queryOverpass);
 
-  mergeUnnamedRelations(entries, wayRegistry);
+  await enrichRelationGeometry(entries, wayRegistry, ctx.queryOverpass);
+
+  mergeUnnamedRelations(entries, wayRegistry, ctx.trace);
 
   // Step 3b: Initial classification (tier-1 MTB + path_type)
   const { mtbCount: tier1MtbCount } = classifyPathsEarly(entries);
   if (tier1MtbCount > 0) console.log(`  Tier-1 MTB: ${tier1MtbCount} entries`);
 
+  // Trace: one `classified` event per entry that got a path_type.
+  for (const e of entries) {
+    if (e.path_type) {
+      ctx.trace(`entry:${slugify(e.name)}`, 'classified', {
+        path_type: e.path_type,
+        mtb: !!e.mtb,
+      });
+    }
+  }
+
   return entries;
-}
+};

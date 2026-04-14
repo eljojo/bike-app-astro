@@ -1,22 +1,36 @@
-// scripts/pipeline/lib/resolve.ts
+// scripts/pipeline/phases/resolve-networks.ts
 //
-// Takes assembled+grouped entries -> final output.
-// Networks, overrides, validation, slug resolution.
-// NOTE: autoGroupNearbyPaths is called by the ORCHESTRATOR, not here.
+// Phase 8: super-network resolution. Discovers OSM superroutes and
+// route-system networks (cycle_network tag), promotes qualifying
+// sub-superroutes to real network entries, and assigns members via
+// addSuperrouteNetworks.
+//
+// Pure async function: (input, ctx) => { entries, superNetworks }.
+//
+// Bug cluster: hierarchy inversion (commit 55372425), networks absorbing
+// children's relation IDs (commit 20386086).
 
-import type { PipelineContext, DiscoveredData } from './pipeline-types.ts';
-import type { WayRegistry } from './way-registry.mjs';
-import { computeSlugs } from './auto-group.mjs';
-import { discoverNetworks, discoverRouteSystemNetworks } from './discover-networks.mjs';
-import { enrichWithWikidata } from './wikidata.mjs';
-import { classifyPathsLate } from '../../../src/lib/bike-paths/classify-path.ts';
-import { deriveEntryType, isLongDistance } from './entry-type.mjs';
-import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
+import type { DiscoveredData } from '../lib/pipeline-types.ts';
+import type { Phase } from './_phase-types.ts';
+import type { WayRegistry } from '../lib/way-registry.mjs';
+import { discoverNetworks, discoverRouteSystemNetworks } from '../lib/discover-networks.mjs';
+import { isLongDistance } from '../lib/entry-type.mjs';
+
+interface Inputs {
+  entries: any[];
+  discovered: DiscoveredData;
+  wayRegistry: WayRegistry;
+}
+
+interface Output {
+  entries: any[];
+  superNetworks: any[];
+}
 
 // ---------------------------------------------------------------------------
-// Resolve network members
+// addSuperrouteNetworks — private helper, ported verbatim from lib/resolve.ts
 // ---------------------------------------------------------------------------
-
+//
 // Apply OSM superroute data as super_network attributes on entries.
 // Super-networks (Capital Pathway, TCT) are NOT pages -- they're metadata
 // that shows in the facts table and influences index grouping.
@@ -259,25 +273,18 @@ function addSuperrouteNetworks(entries: any[], networks: any[], wayRegistry: Way
 }
 
 // ---------------------------------------------------------------------------
-// resolve() — Steps 5-9: networks, overrides, validation, slug resolution
+// resolveNetworksPhase — public phase entry point
 // ---------------------------------------------------------------------------
 
-export async function resolve(opts: {
-  entries: any[];  // MUST be the grouped array from autoGroupNearbyPaths
-  discovered: DiscoveredData;
-  wayRegistry: WayRegistry;
-  ctx: PipelineContext;
-  markdownSlugs: Set<string>;
-  markdownOverrides: Map<string, Record<string, any>>;
-}): Promise<{ superNetworks: any[]; slugMap: Map<any, string> }> {
-  const grouped = opts.entries;  // This IS the grouped array
+export const resolveNetworksPhase: Phase<Inputs, Output> = async ({ entries, wayRegistry, ctx }) => {
+  const grouped = [...entries];
 
-  // Step 5: Super-network attributes (from OSM superroutes)
   let superNetworks: any[] = [];
   let allNetSources: any[] = [];
-  if (opts.ctx.adapter.discoverNetworks) {
+
+  if (ctx.adapter.discoverNetworks) {
     console.log('Discovering super-networks (OSM superroutes)...');
-    const networks = await discoverNetworks({ bbox: opts.ctx.bbox, queryOverpass: opts.ctx.queryOverpass });
+    const networks = await discoverNetworks({ bbox: ctx.bbox, queryOverpass: ctx.queryOverpass });
     if (networks.length > 0) {
       // Promoted sub-superroutes (like Ottawa River Pathway) become real
       // network entries with members. Top-level superroutes become attributes.
@@ -321,7 +328,7 @@ export async function resolve(opts: {
           }
           entry._memberRefs = []; // will be cleaned up as zombie
           // Clean up the emptied auto-group network's way claims
-          if (opts.wayRegistry) opts.wayRegistry.remove(entry);
+          if (wayRegistry) wayRegistry.remove(entry);
         }
 
         // Then: absorb orphaned same-named entries
@@ -359,7 +366,7 @@ export async function resolve(opts: {
     }
 
     // Discover route-system networks (e.g. Crosstown Bikeways from cycle_network tags)
-    const routeSystemNets = await discoverRouteSystemNetworks({ bbox: opts.ctx.bbox, queryOverpass: opts.ctx.queryOverpass });
+    const routeSystemNets = await discoverRouteSystemNetworks({ bbox: ctx.bbox, queryOverpass: ctx.queryOverpass });
     if (routeSystemNets.length > 0) {
       allNetSources.push(...routeSystemNets);
     }
@@ -393,321 +400,20 @@ export async function resolve(opts: {
     // is built once. This prevents the second batch from flattening the first.
     if (allNetSources.length > 0) {
       console.log('Creating superroute & route-system networks...');
-      superNetworks = addSuperrouteNetworks(grouped, allNetSources, opts.wayRegistry);
+      superNetworks = addSuperrouteNetworks(grouped, allNetSources, wayRegistry);
     }
   }
 
-  // Step 6: Wikidata enrichment
-  console.log('Enriching with Wikidata...');
-  const wdCount = await enrichWithWikidata(grouped);
-  if (wdCount > 0) console.log(`  Enriched ${wdCount} entries`);
-
-  // Step 7: Complete classification (tier-2/3 MTB + path_type update)
-  // Networks now exist from clustering. Tier-2 inherits MTB across networks.
-  // Tier-3 labels ambient dirt trails. path_type updated for affected entries.
-  const { mtbCount } = classifyPathsLate(grouped);
-  if (mtbCount > 0) console.log(`  Labelled ${mtbCount} entries as MTB (tier 2+3)`);
-
-  // Step 7c: Derive entry type (destination/infrastructure/connector)
-  // Depends on path_type and _ways (still available, stripped later).
-  // Networks already have type: 'network' -- deriveEntryType skips them.
-  for (const entry of grouped) {
-    if (entry.type === 'long-distance') delete entry.type;
-    const et = deriveEntryType(entry);
-    if (et) entry.type = et;
-  }
-
-  // Step 8b: Apply markdown overrides.
-  // member_of has special handling (network reassignment). All other fields
-  // are simple overwrites -- the human value replaces the pipeline value.
-  if (opts.markdownOverrides.size > 0) {
-    for (const [mdSlug, override] of opts.markdownOverrides) {
-      const entry = grouped.find((e: any) => e.type !== 'network' && slugify(e.name) === mdSlug);
-      if (!entry) continue;
-
-      // Simple field overwrites (path_type, operator, etc.)
-      for (const [field, value] of Object.entries(override)) {
-        if (field === 'member_of') continue; // handled below
-        entry[field] = value;
-      }
-
-      if (!override.member_of) continue;
-
-      const targetNet = grouped.find((e: any) =>
-        e.type === 'network' && slugify(e.name) === override.member_of
-      );
-      if (!targetNet) {
-        throw new Error(
-          `Markdown override: ${mdSlug} has member_of: "${override.member_of}" ` +
-          `but no network with that slug exists. Check ${mdSlug}.md frontmatter.`
-        );
-      }
-
-      // Remove from old network's _memberRefs
-      if (entry._networkRef && entry._networkRef._memberRefs) {
-        entry._networkRef._memberRefs = entry._networkRef._memberRefs.filter((m: any) => m !== entry);
-      }
-
-      entry._networkRef = targetNet;
-      if (!targetNet._memberRefs) targetNet._memberRefs = [];
-      if (!targetNet._memberRefs.includes(entry)) {
-        targetNet._memberRefs.push(entry);
-      }
-    }
-  }
-
-  // Scrub self-references: a network's _memberRefs must not contain itself
+  // Trace events at the decision-point boundary: one per network that now
+  // has _memberRefs (both promoted auto-group networks and superroute networks).
   for (const e of grouped) {
-    if (e.type !== 'network' || !e._memberRefs) continue;
-    e._memberRefs = e._memberRefs.filter((m: any) => m !== e);
-  }
-
-  // Cleanup: remove zombie networks with 0 members (flattened into superroute)
-  const zombies = grouped.filter((e: any) => e.type === 'network' && (!e._memberRefs || e._memberRefs.length === 0));
-  if (zombies.length > 0) {
-    for (const z of zombies) {
-      const idx = grouped.indexOf(z);
-      if (idx !== -1) grouped.splice(idx, 1);
-    }
-    console.log(`  Removed ${zombies.length} empty networks`);
-  }
-
-  // Step 8d: Process non-cycling relation candidates (before slug computation).
-  // 90%+ bikeable -> the ways tell us this IS cycling infrastructure. Promote to
-  // a real entry -- the relation's route tag (hiking, piste) is a fact, not its identity.
-  // Below 90% -> attach as overlap metadata on existing entries.
-  const PROMOTE_THRESHOLD = 0.9;
-  const { nonCyclingCandidates } = opts.discovered;
-  if (nonCyclingCandidates.length > 0) {
-    const promoted: any[] = [];
-    const overlapOnly: any[] = [];
-    for (const c of nonCyclingCandidates) {
-      if (c.bikeablePct >= PROMOTE_THRESHOLD) promoted.push(c);
-      else overlapOnly.push(c);
-    }
-
-    // Promote high-bikeable relations to real entries
-    let promotedCount = 0;
-    for (const candidate of promoted) {
-      const existingEntry = grouped.find((e: any) => e.osm_relations?.includes(candidate.id));
-      if (existingEntry) continue;
-
-      const entry: any = {
-        name: candidate.name,
-        osm_relations: [candidate.id],
-        osm_way_ids: candidate.bikeableWayIds.sort((a: number, b: number) => a - b),
-        route_type: candidate.route,
-      };
-      if (candidate.operator) entry.operator = candidate.operator;
-      if (candidate.ref) entry.ref = candidate.ref;
-      if (candidate.network) entry.network = candidate.network;
-      grouped.push(entry);
-      opts.wayRegistry.claim(entry, candidate.bikeableWayIds);
-      promotedCount++;
-    }
-    if (promotedCount > 0) {
-      console.log(`  Promoted ${promotedCount} non-cycling relations to entries (>=${Math.round(PROMOTE_THRESHOLD * 100)}% bikeable)`);
-    }
-
-    // Classify promoted entries -- they were added after steps 3b/7/7c.
-    // Derive path_type from the cycling entries that own their ways,
-    // then derive entry type normally.
-    for (const entry of grouped) {
-      if (!entry.path_type && entry.route_type) {
-        const ptCounts: Record<string, number> = {};
-        for (const wid of (entry.osm_way_ids || [])) {
-          const owner = opts.wayRegistry.ownerOf(wid) as any;
-          if (owner && owner !== entry && owner.path_type) {
-            ptCounts[owner.path_type] = (ptCounts[owner.path_type] || 0) + 1;
-          }
-        }
-        const best = Object.entries(ptCounts).sort((a, b) => b[1] - a[1])[0];
-        if (best) entry.path_type = best[0];
-      }
-      if (!entry.type && entry.type !== 'network') {
-        const et = deriveEntryType(entry);
-        if (et) entry.type = et;
-      }
-    }
-
-    // Attach overlap metadata for below-threshold relations
-    for (const candidate of overlapOnly) {
-      const entrySet = new Set();
-      for (const wayId of candidate.bikeableWayIds) {
-        for (const [entry, ways] of opts.wayRegistry._entryToWays) {
-          if (ways.has(wayId)) entrySet.add(entry);
-        }
-      }
-      for (const entry of entrySet as Set<any>) {
-        if (!entry.overlapping_relations) entry.overlapping_relations = [];
-        if (!entry.overlapping_relations.some((r: any) => r.id === candidate.id)) {
-          entry.overlapping_relations.push({
-            id: candidate.id,
-            name: candidate.name,
-            route: candidate.route,
-            operator: candidate.operator,
-            ref: candidate.ref,
-            network: candidate.network,
-            wikipedia: candidate.wikipedia,
-            website: candidate.website,
-          });
-        }
-      }
-    }
-    const overlapped = grouped.filter((e: any) => e.overlapping_relations?.length > 0).length;
-    if (overlapped > 0) {
-      console.log(`  Attached overlap metadata to ${overlapped} entries (below ${Math.round(PROMOTE_THRESHOLD * 100)}%)`);
+    if (e.type === 'network' && e._memberRefs) {
+      ctx.trace(`entry:${e.name}`, 'created', {
+        kind: 'superroute-network',
+        memberCount: e._memberRefs.length,
+      });
     }
   }
 
-  // Step 9: Final resolution -- compute slugs once, resolve all refs to strings
-  // Detach long-distance entries that extend far beyond their network.
-  // Short local segments of national trails (TCT Bells Corners, TCT Sussex Drive)
-  // stay as members -- the pipeline assigned them based on real way overlap.
-  // Only truly large trails (>200 ways) get detached.
-  const DETACH_WAY_THRESHOLD = 200;
-  const detachedEntries = new Set<any>();
-  for (const entry of grouped) {
-    if (entry.type === 'long-distance' && entry._networkRef) {
-      const wayCount = entry._ways?.length ?? 0;
-      if (wayCount >= DETACH_WAY_THRESHOLD) {
-        const net = entry._networkRef;
-        if (net._memberRefs) {
-          net._memberRefs = net._memberRefs.filter((m: any) => m !== entry);
-        }
-        delete entry._networkRef;
-        detachedEntries.add(entry);
-      }
-    }
-  }
-
-  const slugMap = computeSlugs(grouped);
-  // Order network members by the city adapter's comparator (falls back to a
-  // natural-name sort). This is the last write to `members`, so downstream
-  // consumers (Astro render, tests, tiles) see a stable, sorted order.
-  const memberSort = opts.ctx.adapter.memberSort;
-  for (const entry of grouped) {
-    if (entry._networkRef) {
-      entry.member_of = slugMap.get(entry._networkRef);
-      delete entry._networkRef;
-    }
-    if (entry._superNetworkRef) {
-      entry.super_network = slugMap.get(entry._superNetworkRef);
-      delete entry._superNetworkRef;
-    }
-    if (entry._memberRefs) {
-      if (memberSort) entry._memberRefs.sort(memberSort);
-      entry.members = entry._memberRefs.map((ref: any) => slugMap.get(ref)).filter(Boolean);
-      delete entry._memberRefs;
-    }
-    entry.slug = slugMap.get(entry);
-  }
-
-  // Strip member_of from detached long-distance entries (after all resolution)
-  for (const entry of detachedEntries) {
-    delete entry.member_of;
-  }
-
-  // Resolve superNetworks metadata slugs from final slugMap
-  for (const meta of superNetworks) {
-    if (meta._entryRef) {
-      meta.slug = slugMap.get(meta._entryRef);
-      delete meta._entryRef;
-    }
-  }
-
-  // Step 9b: Remove ghost entries -- non-relation entries whose ways are
-  // mostly owned by relation entries. Two strategies:
-  //   1. Structural (preferred): if >=50% of an entry's ways are owned by
-  //      other entries that have osm_relations, it's a ghost.
-  //   2. Name-based fallback: for entries with no way IDs (parallel lanes,
-  //      manual entries), fall back to the old relationBaseNames check.
-  const { relationBaseNames } = opts.discovered;
-  {
-    const before = grouped.length;
-    let structuralCount = 0;
-    let nameCount = 0;
-    for (let i = grouped.length - 1; i >= 0; i--) {
-      const e = grouped[i];
-      if (e.type === 'network') continue;
-      if (e.osm_relations?.length > 0) continue; // keep relation entries
-
-      const wayIds = opts.wayRegistry.wayIdsFor(e);
-
-      if (wayIds.size > 0) {
-        // Strategy 1: structural -- check way overlap with relation entries
-        let ownedByOthers = 0;
-        for (const wid of wayIds) {
-          const owner = opts.wayRegistry.ownerOf(wid) as any;
-          if (owner && owner !== e && owner.osm_relations?.length > 0) {
-            ownedByOthers++;
-          }
-        }
-        if (ownedByOthers / wayIds.size < 0.5) continue; // keep -- not a ghost
-        structuralCount++;
-      } else {
-        // Strategy 2: name-based fallback for entries without way IDs
-        if (relationBaseNames.size === 0) continue;
-        const baseName = e.name?.toLowerCase();
-        if (!baseName || !relationBaseNames.has(baseName)) continue;
-        nameCount++;
-      }
-
-      // Remove the ghost entry
-      const slug = e.slug;
-      opts.wayRegistry.remove(e);
-      grouped.splice(i, 1);
-      // Clean up network member references
-      for (const net of grouped) {
-        if (net.members && slug) {
-          const idx = net.members.indexOf(slug);
-          if (idx !== -1) net.members.splice(idx, 1);
-        }
-      }
-    }
-    if (grouped.length < before) {
-      const parts: string[] = [];
-      if (structuralCount > 0) parts.push(`${structuralCount} by way-overlap`);
-      if (nameCount > 0) parts.push(`${nameCount} by name`);
-      console.log(`  Removed ${before - grouped.length} ghost entries (${parts.join(', ')})`);
-    }
-  }
-
-  // Step 9c: Validate -- no OSM relation should appear in two entries.
-  // Ways can legitimately be in multiple relations (Route Verte 1 and
-  // Sentier des Voyageurs share pavement). But each relation is one route
-  // and should map to exactly one entry. Duplicates mean the pipeline
-  // created two entries for the same relation (the PPJ-style bug).
-  {
-    const relToEntry = new Map();
-    const conflicts: { relId: number; entries: any[] }[] = [];
-    for (const e of grouped) {
-      for (const relId of e.osm_relations ?? []) {
-        const prev = relToEntry.get(relId);
-        if (prev) {
-          conflicts.push({ relId, entries: [prev, e] });
-        } else {
-          relToEntry.set(relId, e);
-        }
-      }
-    }
-    if (conflicts.length > 0) {
-      console.warn(`  \u26A0 ${conflicts.length} relation(s) appear in multiple entries:`);
-      for (const { relId, entries: owners } of conflicts.slice(0, 10)) {
-        const names = owners.map((e: any) => e.name || e.slug || '?').join(', ');
-        console.warn(`    relation ${relId}: ${names}`);
-      }
-      if (conflicts.length > 10) console.warn(`    ... and ${conflicts.length - 10} more`);
-    }
-  }
-
-  // Attach osm_way_ids from the registry to entries (for tests and callers)
-  for (const entry of grouped) {
-    const wayIds = opts.wayRegistry.wayIdsFor(entry);
-    if (wayIds.size > 0) {
-      entry.osm_way_ids = [...wayIds].sort((a: number, b: number) => a - b);
-    }
-  }
-
-  return { superNetworks, slugMap };
-}
+  return { entries: grouped, superNetworks };
+};

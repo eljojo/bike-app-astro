@@ -1,22 +1,31 @@
-// auto-group.mjs
+// auto-group.ts
 import { clusterByConnectivity } from './cluster-entries.ts';
 import { pathTypeForClustering } from '../../../src/lib/bike-paths/classify-path.ts';
 import { pickClusterName } from './name-cluster.mjs';
 import { fetchParkPolygons, splitClusterByPark, classifyByPark } from './park-containment.mjs';
 import { slugifyBikePathName } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
+import type { WayRegistry } from './way-registry.mjs';
+
+interface Cluster {
+  members: any[];
+  resolvedName?: string | null;
+  _parkName?: string | null;
+  existingGroup?: any;
+  newMembers: any[];
+}
 
 /**
  * Compute disambiguated slugs for an array of entries (matching Astro's logic).
  * Returns a Map<entry, slug>.
  */
-export function computeSlugs(entries) {
-  const baseGroups = new Map();
+export function computeSlugs(entries: any[]): Map<any, string> {
+  const baseGroups = new Map<string, Array<{ entry: any; index: number }>>();
   for (let i = 0; i < entries.length; i++) {
     const base = slugifyBikePathName(entries[i].name);
     if (!baseGroups.has(base)) baseGroups.set(base, []);
-    baseGroups.get(base).push({ entry: entries[i], index: i });
+    baseGroups.get(base)!.push({ entry: entries[i], index: i });
   }
-  const slugMap = new Map();
+  const slugMap = new Map<any, string>();
   for (const [base, group] of baseGroups) {
     if (group.length === 1) {
       slugMap.set(group[0].entry, base);
@@ -40,7 +49,7 @@ export function computeSlugs(entries) {
   return slugMap;
 }
 
-function sortKey(entry) {
+function sortKey(entry: any): string {
   if (entry.osm_relations?.length) return `r${entry.osm_relations[0]}`;
   if (entry.anchors?.length) {
     const a = entry.anchors[0];
@@ -50,7 +59,7 @@ function sortKey(entry) {
 }
 
 /** Collapse an array of anchors to bbox corners for compact YAML storage. */
-function bboxAnchors(anchors) {
+function bboxAnchors(anchors: [number, number][]): [number, number][] {
   const lngs = anchors.map(a => a[0]);
   const lats = anchors.map(a => a[1]);
   return [
@@ -62,8 +71,8 @@ function bboxAnchors(anchors) {
 /**
  * Merge tags from multiple entries using most-common-value strategy.
  */
-function mergeTags(entries) {
-  const tagCounts = {};
+function mergeTags(entries: any[]): Record<string, string | null> {
+  const tagCounts: Record<string, Record<string, number>> = {};
   const TAG_KEYS = ['surface', 'highway', 'lit', 'width', 'smoothness', 'operator', 'network'];
   for (const entry of entries) {
     for (const key of TAG_KEYS) {
@@ -73,9 +82,9 @@ function mergeTags(entries) {
       }
     }
   }
-  const result = {};
+  const result: Record<string, string | null> = {};
   for (const [key, vals] of Object.entries(tagCounts)) {
-    let bestVal = null, bestCount = 0;
+    let bestVal: string | null = null, bestCount = 0;
     for (const [val, count] of Object.entries(vals)) {
       if (count > bestCount) { bestCount = count; bestVal = val; }
     }
@@ -85,7 +94,7 @@ function mergeTags(entries) {
 }
 
 /** Derive a bbox string from entries' anchors for Overpass queries. */
-function deriveBbox(entries) {
+function deriveBbox(entries: any[]): string | null {
   let south = Infinity, west = Infinity, north = -Infinity, east = -Infinity;
   for (const e of entries) {
     for (const a of e.anchors || []) {
@@ -102,11 +111,14 @@ function deriveBbox(entries) {
 
 /**
  * Auto-group nearby trail segments. Pure function — no file I/O.
- *
- * @param {{ entries: Array, markdownSlugs: Set<string>, queryOverpass: Function }} config
- * @returns {Promise<Array>} — updated entries array (groups replace absorbed members)
  */
-export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass, bbox, wayRegistry }) {
+export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpass, bbox, wayRegistry }: {
+  entries: any[];
+  markdownSlugs: Set<string>;
+  queryOverpass: (query: string) => Promise<{ elements: any[] }>;
+  bbox?: string;
+  wayRegistry?: WayRegistry;
+}): Promise<any[]> {
   // Compute slugs for all entries
   const slugMap = computeSlugs(entries);
 
@@ -114,7 +126,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   // Exclude parallel_to entries — those are road bike lanes, not trail systems.
   const candidates = entries.filter(entry => {
     const slug = slugMap.get(entry);
-    if (markdownSlugs.has(slug)) return false;
+    if (slug && markdownSlugs.has(slug)) return false;
     if (!entry.anchors || entry.anchors.length === 0) return false;
     if (entry._networkRef) return false;
     if (entry.parallel_to) return false;
@@ -133,12 +145,13 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   // Determines which park each trail belongs to using actual geometry,
   // NOT centroids. Fixes the bug where connectivity chains crossing
   // park boundaries caused trails to be assigned to the wrong park.
-  if (!bbox) bbox = deriveBbox(candidates);
-  let parks = [];
-  if (bbox) {
+  let effectiveBbox = bbox;
+  if (!effectiveBbox) effectiveBbox = deriveBbox(candidates) ?? undefined;
+  let parks: any[] = [];
+  if (effectiveBbox) {
     try {
-      parks = await fetchParkPolygons(bbox, queryOverpass);
-    } catch (err) {
+      parks = await fetchParkPolygons(effectiveBbox, queryOverpass);
+    } catch (err: any) {
       console.error(`  Park polygon fetch failed: ${err.message}`);
     }
   }
@@ -147,7 +160,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   // chain across park boundaries — Trail 26 in the Greenbelt connects
   // through intermediate trails to Trail 27 in Gatineau Park. The
   // connectivity is real but they belong to different networks.
-  const newClusters = [];
+  const newClusters: Cluster[] = [];
   for (const cluster of clusters) {
     if (cluster.existingGroup) {
       newClusters.push(cluster);
@@ -176,7 +189,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   const CONCURRENCY = 6;
   const unnamed = newClusters.filter(c => !c.resolvedName && !c.existingGroup);
   const queue = [...unnamed];
-  async function nameWorker() {
+  async function nameWorker(): Promise<void> {
     let cluster;
     while ((cluster = queue.shift()) !== undefined) {
       cluster.resolvedName = pickClusterName(cluster.members, null);
@@ -187,19 +200,19 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   // Park containment merge: clusters in the same park that were split
   // from different connectivity clusters should be one network.
   // (Disconnected trail islands in the same park = one system.)
-  const byName = new Map();
+  const byName = new Map<string, Cluster[]>();
   for (const cluster of newClusters) {
-    const name = cluster.resolvedName;
+    const name = cluster.resolvedName!;
     if (!byName.has(name)) byName.set(name, []);
-    byName.get(name).push(cluster);
+    byName.get(name)!.push(cluster);
   }
-  const mergedClusters = [];
+  const mergedClusters: Cluster[] = [];
   for (const [name, sameNameClusters] of byName) {
     if (sameNameClusters.length === 1) {
       mergedClusters.push(sameNameClusters[0]);
     } else {
       // Merge all same-name clusters into one
-      const merged = {
+      const merged: Cluster = {
         members: sameNameClusters.flatMap(c => c.members),
         resolvedName: name,
         _parkName: sameNameClusters[0]._parkName, // all share the same park
@@ -211,14 +224,14 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
     }
   }
   // Also keep clusters that had existing groups (they weren't in newClusters)
-  const existingGroupClusters = clusters.filter(c => c.existingGroup);
+  const existingGroupClusters: Cluster[] = clusters.filter((c: any) => c.existingGroup);
 
   // Spur absorption: if a cluster has only 1 member that qualifies as
   // a standalone page (>= 1km), absorb the rest into it. A network
   // needs at least 2 page-worthy members. Otherwise it's just one trail
   // with minor spurs — not a network.
   const PAGE_MIN_LENGTH_M = 1000;
-  function entryLength(entry) {
+  function entryLength(entry: any): number {
     if (!entry._ways?.length) return 0;
     let total = 0;
     for (const way of entry._ways) {
@@ -231,18 +244,18 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
     return total;
   }
 
-  const absorptionClusters = [];
-  const networkClusters = [];
+  const absorptionClusters: Array<{ dominant: any; spurs: any[] }> = [];
+  const networkClusters: Cluster[] = [];
   for (const cluster of [...existingGroupClusters, ...mergedClusters]) {
     if (cluster.existingGroup || cluster.members.length < 2) {
       networkClusters.push(cluster);
       continue;
     }
-    const lengths = cluster.members.map(m => entryLength(m));
-    const pageWorthy = cluster.members.filter((_, i) => lengths[i] >= PAGE_MIN_LENGTH_M);
+    const lengths = cluster.members.map((m: any) => entryLength(m));
+    const pageWorthy = cluster.members.filter((_: any, i: number) => lengths[i] >= PAGE_MIN_LENGTH_M);
     // MTB clusters with 3+ members always become networks — short loops
     // are real trails in a trail system, not spurs.
-    const isMtbCluster = cluster.members.some(m => m.mtb || m.path_type === 'mtb-trail');
+    const isMtbCluster = cluster.members.some((m: any) => m.mtb || m.path_type === 'mtb-trail');
     if (isMtbCluster && cluster.members.length >= 3) {
       networkClusters.push(cluster);
       continue;
@@ -251,7 +264,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
       // 0 or 1 page-worthy member — absorb spurs into the longest member
       const longestIdx = lengths.indexOf(Math.max(...lengths));
       const dominant = cluster.members[longestIdx];
-      const spurs = cluster.members.filter((_, i) => i !== longestIdx);
+      const spurs = cluster.members.filter((_: any, i: number) => i !== longestIdx);
       for (const spur of spurs) {
         dominant.osm_names = [...new Set([...(dominant.osm_names || [dominant.name]), ...(spur.osm_names || [spur.name])])];
         if (spur._ways) dominant._ways = [...(dominant._ways || []), ...spur._ways];
@@ -276,7 +289,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   }
   const absorbedEntries = new Set(absorptionClusters.flatMap(c => c.spurs));
   const allClustersToProcess = networkClusters;
-  const newNetworkEntries = [];
+  const newNetworkEntries: any[] = [];
 
   for (const cluster of allClustersToProcess) {
     if (cluster.existingGroup) {
@@ -285,7 +298,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
       if (!group._memberRefs) {
         group._memberRefs = [];
         for (const slug of group.members || []) {
-          const entry = entries.find(e => slugMap.get(e) === slug);
+          const entry = entries.find((e: any) => slugMap.get(e) === slug);
           if (entry) group._memberRefs.push(entry);
         }
       }
@@ -305,38 +318,38 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
     } else {
       // New network from cluster
       const tags = mergeTags(cluster.members);
-      const allOsmNames = [...new Set(cluster.members.flatMap(m => m.osm_names || [m.name]))];
+      const allOsmNames = [...new Set(cluster.members.flatMap((m: any) => m.osm_names || [m.name]))];
       // Networks don't inherit members' osm_relations — members keep their own.
       // A network's osm_relations only contains its own superroute ID (assigned later).
-      let networkName = cluster.resolvedName;
+      let networkName = cluster.resolvedName!;
       let networkSlug = slugifyBikePathName(networkName);
 
       // If the network base slug collides with a member's base slug,
       // the member would be filtered as a self-reference. Disambiguate by
       // appending "Trails" or "Network".
-      const hasCollision = cluster.members.some(m =>
+      const hasCollision = cluster.members.some((m: any) =>
         m.type !== 'network' && slugifyBikePathName(m.name) === networkSlug
       );
       if (hasCollision) {
         // Use "Trails" for trail-type clusters, "Network" for urban/paved
-        const types = cluster.members.map(m => pathTypeForClustering(m));
-        const isTrail = types.filter(t => t === 'trail').length > types.length / 2;
+        const types = cluster.members.map((m: any) => pathTypeForClustering(m));
+        const isTrail = types.filter((t) => t === 'trail').length > types.length / 2;
         networkName = networkName + (isTrail ? ' Trails' : ' Network');
         networkSlug = slugifyBikePathName(networkName);
       }
 
-      const memberRefs = cluster.members.filter(m => m.type !== 'network');
+      const memberRefs = cluster.members.filter((m: any) => m.type !== 'network');
 
-      const networkEntry = {
+      const networkEntry: any = {
         name: networkName,
         type: 'network',
         _parkName: cluster._parkName || null,
         _memberRefs: memberRefs,
-        anchors: bboxAnchors(cluster.members.flatMap(m => m.anchors || [])),
+        anchors: bboxAnchors(cluster.members.flatMap((m: any) => m.anchors || [])),
       };
 
       // Carry _ways from all members for further clustering connectivity
-      const allWays = cluster.members.flatMap(m => m._ways || []);
+      const allWays = cluster.members.flatMap((m: any) => m._ways || []);
       if (allWays.length > 0) networkEntry._ways = allWays;
 
       if (allOsmNames.length > 0) networkEntry.osm_names = allOsmNames;
@@ -360,7 +373,7 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
   // signal — if you're in the park, you're in the network regardless of type.
   if (parks.length > 0) {
     // Build lookup: park name → network entry ref
-    const parkToNetwork = new Map();
+    const parkToNetwork = new Map<string, any>();
     for (const net of newNetworkEntries) {
       if (net._parkName) parkToNetwork.set(net._parkName, net);
     }
@@ -390,13 +403,13 @@ export async function autoGroupNearbyPaths({ entries, markdownSlugs, queryOverpa
     if (adopted > 0) console.log(`  Park adoption: ${adopted} entries added to park networks`);
   }
 
-  const result = [...entries.filter(e => !absorbedEntries.has(e)), ...newNetworkEntries];
+  const result = [...entries.filter((e: any) => !absorbedEntries.has(e)), ...newNetworkEntries];
 
   // Resolve _memberRefs → members (slug strings) and _networkRef → member_of
   const finalSlugMap = computeSlugs(result);
   for (const entry of result) {
     if (entry._memberRefs) {
-      entry.members = entry._memberRefs.map(ref => finalSlugMap.get(ref)).filter(Boolean);
+      entry.members = entry._memberRefs.map((ref: any) => finalSlugMap.get(ref)).filter(Boolean);
     }
     if (entry._networkRef) {
       entry.member_of = finalSlugMap.get(entry._networkRef);

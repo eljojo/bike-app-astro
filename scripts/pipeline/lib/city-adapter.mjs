@@ -102,9 +102,10 @@ const ottawa = {
     { label: 'bike lanes (left)', q: `[out:json][timeout:60];way["cycleway:left"~"lane|track"]["name"](${bbox});out geom tags;` },
     { label: 'bike lanes (right)', q: `[out:json][timeout:60];way["cycleway:right"~"lane|track"]["name"](${bbox});out geom tags;` },
     { label: 'bike lanes (both)', q: `[out:json][timeout:60];way["cycleway:both"~"lane|track"]["name"](${bbox});out geom tags;` },
-    // Multi-use paths designated for cycling (NCC pathways, recreational paths)
-    { label: 'multi-use paths', q: `[out:json][timeout:60];way["highway"="path"]["bicycle"~"designated|yes"]["name"](${bbox});out geom tags;` },
     // Footways designated for cycling (shared MUPs tagged as footway)
+    // NOTE: "multi-use paths" query removed — it was identical to "bike paths" above
+    // (highway=path + bicycle=designated|yes). The duplicate caused Overpass
+    // duplicate_query errors when both fired in parallel.
     { label: 'shared footways', q: `[out:json][timeout:60];way["highway"="footway"]["bicycle"~"designated|yes"]["name"](${bbox});out geom tags;` },
   ],
 
