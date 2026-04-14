@@ -1,155 +1,32 @@
 /**
  * Fetch and cache bike path geometry from the Overpass API.
  *
- * Reads bikepaths.yml from CONTENT_DIR/{CITY}/, fetches OSM relation
- * geometry for each entry, and caches as GeoJSON in .cache/bikepath-geometry/{city}/.
+ * Uses the pipeline's content-addressed Overpass cache (scripts/pipeline/lib/overpass.mjs)
+ * which keys raw responses by query hash. Processing (overpassToGeoJSON) always re-runs
+ * from cached raw data — changing what we extract never requires re-fetching.
  *
- * Incremental: skips relations already cached. Safe to re-run.
- * Uses server rotation (private.coffee primary, overpass-api.de fallback)
- * with retry logic matching the bike-routes Overpass client pattern.
+ * Reads bikepaths.yml from CONTENT_DIR/{CITY}/, fetches OSM relation
+ * geometry for each entry, and writes processed GeoJSON to .cache/bikepath-geometry/{city}/.
  *
  * Usage:
  *   npx tsx scripts/cache-path-geometry.ts
  *   npx tsx scripts/cache-path-geometry.ts --dry-run
- *   npx tsx scripts/cache-path-geometry.ts --force    # re-fetch all, ignoring cache
  *
  * Env: CONTENT_DIR (default: ~/code/bike-routes), CITY (default: ottawa)
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { parseBikePathsYml, geoFilesForEntry, type SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
+import { queryOverpass } from './pipeline/lib/overpass.mjs';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
 const CACHE_DIR = path.resolve('.cache', 'bikepath-geometry', CITY);
 const dryRun = process.argv.includes('--dry-run');
-const forceRefresh = process.argv.includes('--force');
-
-// Server rotation — try our own server first, then public fallbacks.
-const OVERPASS_SERVERS = [
-  'https://overpass.whereto.bike/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-  'https://overpass-api.de/api/interpreter',
-];
 
 // Use SluggedBikePathYml from the schema — single source of truth.
 // Anchors need [lng, lat] tuples for bbox computation.
 type CacheEntry = SluggedBikePathYml & { anchors?: Array<[number, number]> };
-
-/**
- * Compute a hash of the inputs that determine a cached geometry file's content.
- * If any of these change, the cached file is stale and must be re-fetched.
- * This is the Nix derivation principle: output = f(inputs).
- */
-export function cacheInputHash(entry: CacheEntry): string {
-  // Sort keys for deterministic serialization — same inputs always produce same hash
-  const inputs: Record<string, unknown> = {};
-  for (const key of ['anchors', 'osm_names', 'osm_relations', 'osm_way_ids', 'parallel_to', 'segments', 'slug'] as const) {
-    if ((entry as any)[key] != null) inputs[key] = (entry as any)[key];
-  }
-  return crypto.createHash('sha256').update(JSON.stringify(inputs)).digest('hex').slice(0, 16);
-}
-
-/**
- * Check if a cached geometry file is still fresh (inputs haven't changed).
- * Reads the stored input hash from the .hash sidecar file and compares
- * with the current entry's input hash.
- */
-function isCacheFresh(entry: CacheEntry, geoPath: string): boolean {
-  const hashPath = geoPath + '.hash';
-  if (!fs.existsSync(hashPath)) return false; // no hash = legacy cache, treat as stale
-  const stored = fs.readFileSync(hashPath, 'utf-8').trim();
-  return stored === cacheInputHash(entry);
-}
-
-/** Write the input hash sidecar after successfully caching a geometry file. */
-function writeCacheHash(entry: CacheEntry, geoPath: string): void {
-  fs.writeFileSync(geoPath + '.hash', cacheInputHash(entry));
-}
-
-/**
- * Fetch an Overpass query with server rotation and retry.
- * On failure, immediately rotate to the next server rather than retrying the same one.
- * Each server gets up to 2 attempts across the full rotation.
- */
-async function queryOverpass(query: string): Promise<any> {
-  const PRIMARY = process.env.OVERPASS_URL || OVERPASS_SERVERS[0];
-  const fallbacks = OVERPASS_SERVERS.filter(s => s !== PRIMARY);
-
-  // Try primary server first — it has no rate limiting, so XML means bad query
-  let res: Response;
-  try {
-    res = await fetch(PRIMARY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: AbortSignal.timeout(90_000),
-    });
-
-    if (res.ok) {
-      const text = await res.text();
-      if (text.startsWith('<?xml') || text.startsWith('<html')) {
-        // Primary has no rate limiting — XML means the query itself is wrong
-        console.log(`  [overpass] bad query (${new URL(PRIMARY).hostname} returned XML):`);
-        console.log(`    ${query.replace(/\n/g, '\n    ')}`);
-        return null;
-      }
-      return JSON.parse(text);
-    }
-
-    if ([429, 502, 503, 504].includes(res.status)) {
-      console.log(`  [overpass] ${new URL(PRIMARY).hostname} returned ${res.status}, trying fallbacks...`);
-    } else {
-      throw new Error(`Overpass API error ${res.status}: ${await res.text()}`);
-    }
-  } catch (err: any) {
-    if (err instanceof Error && err.message.startsWith('Overpass API error')) throw err;
-    console.log(`  [overpass] ${new URL(PRIMARY).hostname} network error: ${err.message}, trying fallbacks...`);
-  }
-
-  // Primary is down — try fallback servers with retry
-  const MAX_ROUNDS = 2;
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    for (const serverUrl of fallbacks) {
-      try {
-        res = await fetch(serverUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `data=${encodeURIComponent(query)}`,
-          signal: AbortSignal.timeout(90_000),
-        });
-      } catch (err: any) {
-        console.log(`  [overpass] ${new URL(serverUrl).hostname} network error: ${err.message}, rotating...`);
-        continue;
-      }
-
-      if (res!.ok) {
-        const text = await res!.text();
-        if (text.startsWith('<?xml') || text.startsWith('<html')) {
-          console.log(`  [overpass] ${new URL(serverUrl).hostname} returned XML, rotating...`);
-          continue;
-        }
-        return JSON.parse(text);
-      }
-
-      if ([429, 502, 503, 504].includes(res!.status)) {
-        console.log(`  [overpass] ${new URL(serverUrl).hostname} returned ${res!.status}, rotating...`);
-        continue;
-      }
-
-      throw new Error(`Overpass API error ${res!.status}: ${await res!.text()}`);
-    }
-
-    if (round < MAX_ROUNDS - 1) {
-      const wait = (round + 1) * 15;
-      console.log(`  [overpass] All fallbacks failed, retrying in ${wait}s...`);
-      await new Promise(r => setTimeout(r, wait * 1000));
-    }
-  }
-
-  throw new Error('Overpass API: all servers failed after retries');
-}
 
 export function overpassToGeoJSON(data: any, id: number | string): GeoJSON.FeatureCollection {
   const ways = data.elements.filter((e: any) => e.type === 'way' && e.geometry);
@@ -180,6 +57,22 @@ export function anchorBbox(anchors: Array<[number, number]>): string {
   const lats = anchors.map(a => a[1]);
   const pad = 0.005; // ~500m padding
   return `${Math.min(...lats) - pad},${Math.min(...lngs) - pad},${Math.max(...lats) + pad},${Math.max(...lngs) + pad}`;
+}
+
+/** Fetch raw Overpass data and process into GeoJSON. The pipeline cache handles
+ *  dedup — same query string = cache hit, no network request. */
+async function fetchAndProcess(query: string, id: number | string, outPath: string): Promise<boolean> {
+  try {
+    const data = await queryOverpass(query);
+    if (!data) return false;
+    const geojson = overpassToGeoJSON(data, id);
+    if (geojson.features.length === 0) return false;
+    fs.writeFileSync(outPath, JSON.stringify(geojson));
+    return true;
+  } catch (err: any) {
+    console.error(`  Error: ${err.message}`);
+    return false;
+  }
 }
 
 // --- Main ---
@@ -215,169 +108,86 @@ if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 // --- Pre-seed cache from e2e fixture files (avoids Overpass for fictional demo IDs) ---
 const FIXTURE_DIR = path.resolve('e2e', 'fixtures', 'overpass');
+const fixturedFiles = new Set<string>();
 if (!dryRun && fs.existsSync(FIXTURE_DIR)) {
-  let seeded = 0;
   for (const entry of cacheEntries) {
     for (const file of geoFilesForEntry(entry)) {
       const fixturePath = path.join(FIXTURE_DIR, file);
-      const cachePath = path.join(CACHE_DIR, file);
       if (!fs.existsSync(fixturePath)) continue;
-      const needsGeo = !fs.existsSync(cachePath) || forceRefresh;
-      const needsHash = !isCacheFresh(entry, cachePath);
-      if (needsGeo || needsHash) {
-        if (needsGeo) fs.copyFileSync(fixturePath, cachePath);
-        writeCacheHash(entry, cachePath);
-        seeded++;
-      }
+      fs.copyFileSync(fixturePath, path.join(CACHE_DIR, file));
+      fixturedFiles.add(file);
     }
   }
-  if (seeded > 0) console.log(`[path-geo] Pre-seeded ${seeded} geometry files from e2e fixtures`);
+  if (fixturedFiles.size > 0) console.log(`[path-geo] Pre-seeded ${fixturedFiles.size} geometry files from e2e fixtures`);
 }
 
-let fetched = 0;
-let skipped = 0;
+let processed = 0;
 
 // --- Pass 1: Relation-based entries ---
-// Relation IDs are stable keys — the file is keyed by relation ID, not slug.
-// Still hash-check in case the entry's relation list changed.
 for (const entry of relationEntries) {
   for (const relId of entry.osm_relations ?? []) {
-    const outPath = path.join(CACHE_DIR, `${relId}.geojson`);
-
-    if (fs.existsSync(outPath) && !forceRefresh) {
-      skipped++;
-      continue;
-    }
+    const file = `${relId}.geojson`;
+    if (fixturedFiles.has(file)) continue;
+    const outPath = path.join(CACHE_DIR, file);
 
     if (dryRun) {
-      console.log(`  Would fetch: relation ${relId} (${entry.name})${forceRefresh ? ' (force)' : ''}`);
+      console.log(`  Would fetch: relation ${relId} (${entry.name})`);
       continue;
     }
 
-    console.log(`  Fetching relation ${relId} (${entry.name})${forceRefresh ? ' (force refresh)' : ''}...`);
-    try {
-      const query = `[out:json][timeout:60];relation(${relId});(._;>;);out geom;`;
-      const data = await queryOverpass(query);
-      if (!data) continue;
-      const geojson = overpassToGeoJSON(data, relId);
-      fs.writeFileSync(outPath, JSON.stringify(geojson));
-      fetched++;
-    } catch (err: any) {
-      console.error(`  Error: ${err.message}`);
-    }
+    const query = `[out:json][timeout:60];relation(${relId});(._;>;);out geom;`;
+    if (await fetchAndProcess(query, relId, outPath)) processed++;
   }
 }
 
 // --- Pass 1b: Way-ID-based entries (pipeline provenance) ---
 if (wayIdEntries.length > 0) {
-  console.log(`\nPass 1b: Fetching geometry for ${wayIdEntries.length} way-ID entries...`);
-
   for (const entry of wayIdEntries) {
-    const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
-
-    if (fs.existsSync(outPath) && !forceRefresh) {
-      if (isCacheFresh(entry, outPath)) {
-        skipped++;
-        continue;
-      }
-      console.log(`  [stale] ${entry.slug}: inputs changed — re-fetching`);
-    }
+    const file = geoFilesForEntry(entry)[0];
+    if (fixturedFiles.has(file)) continue;
+    const outPath = path.join(CACHE_DIR, file);
 
     if (dryRun) {
       console.log(`  Would fetch ${entry.osm_way_ids!.length} ways (${entry.name})`);
       continue;
     }
 
-    console.log(`  Fetching ${entry.osm_way_ids!.length} ways by ID (${entry.name})...`);
-    try {
-      const wayIds = entry.osm_way_ids!;
-      const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
-      const data = await queryOverpass(query);
-      if (!data) continue;
-      const geojson = overpassToGeoJSON(data, entry.slug);
-      if (geojson.features.length > 0) {
-        fs.writeFileSync(outPath, JSON.stringify(geojson));
-        writeCacheHash(entry, outPath);
-        fetched++;
-      } else {
-        console.log(`  No ways found for ${entry.name}`);
-      }
-    } catch (err: any) {
-      console.error(`  Error: ${err.message}`);
-    }
+    const wayIds = entry.osm_way_ids!;
+    const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
+    if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
   }
 }
 
 // --- Pass 2: Name-based entries (query ways by name within anchor bbox) ---
 for (const entry of nameEntries) {
-  const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
-
-  if (fs.existsSync(outPath) && !forceRefresh) {
-    if (isCacheFresh(entry, outPath)) {
-      skipped++;
-      continue;
-    }
-    console.log(`  [stale] ${entry.slug}: inputs changed since last fetch — re-fetching`);
-  }
+  const file = geoFilesForEntry(entry)[0];
+  if (fixturedFiles.has(file)) continue;
+  const outPath = path.join(CACHE_DIR, file);
 
   if (dryRun) {
     console.log(`  Would fetch by name: ${entry.osm_names![0]} (${entry.name})`);
     continue;
   }
 
-  console.log(`  Fetching by name: ${entry.osm_names![0]} (${entry.name})...`);
-  try {
-    const bbox = anchorBbox(entry.anchors!);
-    const query = buildNameQuery(entry.osm_names!, bbox);
-    const data = await queryOverpass(query);
-    if (!data) continue;
-    const geojson = overpassToGeoJSON(data, entry.slug);
-    if (geojson.features.length > 0) {
-      fs.writeFileSync(outPath, JSON.stringify(geojson));
-      writeCacheHash(entry, outPath);
-      fetched++;
-    } else {
-      console.log(`  No ways found for ${entry.name}`);
-    }
-  } catch (err: any) {
-    console.error(`  Error: ${err.message}`);
-  }
+  const bbox = anchorBbox(entry.anchors!);
+  const query = buildNameQuery(entry.osm_names!, bbox);
+  if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
 }
 
 // --- Pass 3: Segment-based entries (query individual ways by ID) ---
 for (const entry of segmentEntries) {
-  const outPath = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
-
-  if (fs.existsSync(outPath) && !forceRefresh) {
-    if (isCacheFresh(entry, outPath)) {
-      skipped++;
-      continue;
-    }
-    console.log(`  [stale] ${entry.slug}: inputs changed — re-fetching`);
-  }
+  const file = geoFilesForEntry(entry)[0];
+  if (fixturedFiles.has(file)) continue;
+  const outPath = path.join(CACHE_DIR, file);
 
   if (dryRun) {
     console.log(`  Would fetch segments: ${entry.segments!.length} ways (${entry.name})`);
     continue;
   }
 
-  console.log(`  Fetching ${entry.segments!.length} segments (${entry.name})...`);
-  try {
-    const wayIds = entry.segments!.map(s => s.osm_way);
-    const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
-    const data = await queryOverpass(query);
-    if (!data) continue;
-    const geojson = overpassToGeoJSON(data, entry.slug);
-    if (geojson.features.length > 0) {
-      fs.writeFileSync(outPath, JSON.stringify(geojson));
-      writeCacheHash(entry, outPath);
-      fetched++;
-    } else {
-      console.log(`  No ways found for ${entry.name}`);
-    }
-  } catch (err: any) {
-    console.error(`  Error: ${err.message}`);
-  }
+  const wayIds = entry.segments!.map(s => s.osm_way);
+  const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
+  if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
 }
 
 // --- Pass 4: Parallel-to entries — unnamed cycleways alongside named roads ---
@@ -386,75 +196,49 @@ const parallelEntries = cacheEntries.filter(
 );
 
 if (parallelEntries.length > 0) {
-  console.log(`\nPass 4: Fetching geometry for ${parallelEntries.length} parallel-to entries...`);
-
   for (const entry of parallelEntries) {
-    const outFile = path.join(CACHE_DIR, geoFilesForEntry(entry)[0]);
-
-    if (!forceRefresh && fs.existsSync(outFile)) {
-      if (isCacheFresh(entry, outFile)) {
-        skipped++;
-        continue;
-      }
-      console.log(`  [stale] ${entry.slug}: inputs changed — re-fetching`);
-    }
+    const file = geoFilesForEntry(entry)[0];
+    if (fixturedFiles.has(file)) continue;
+    const outPath = path.join(CACHE_DIR, file);
 
     if (!entry.anchors || entry.anchors.length < 2) {
       console.log(`  [skip] ${entry.name} — no anchors for bbox`);
       continue;
     }
 
-    const bbox = anchorBbox(entry.anchors as Array<[number, number]>);
-    const roadName = entry.parallel_to!.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-
-    const q = `[out:json][timeout:60];
-way["name"="${roadName}"](${bbox}) -> .road;
-way["highway"="cycleway"][!"name"](around.road:30);
-(._;>;);
-out geom;`;
-
     if (dryRun) {
       console.log(`  [dry-run] parallel-${entry.slug}: ${entry.parallel_to}`);
       continue;
     }
 
-    try {
-      const data = await queryOverpass(q);
-      if (!data) continue;
-      const geojson = overpassToGeoJSON(data, `parallel-${entry.slug}`);
-      if (geojson.features.length === 0) {
-        console.log(`  [empty] parallel-${entry.slug}: no geometry found`);
-        continue;
-      }
+    const bbox = anchorBbox(entry.anchors as Array<[number, number]>);
+    const roadName = entry.parallel_to!.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const query = `[out:json][timeout:60];
+way["name"="${roadName}"](${bbox}) -> .road;
+way["highway"="cycleway"][!"name"](around.road:30);
+(._;>;);
+out geom;`;
 
-      fs.writeFileSync(outFile, JSON.stringify(geojson));
-      writeCacheHash(entry, outFile);
-      fetched++;
-      console.log(`  parallel-${entry.slug}: ${geojson.features.length} features`);
-    } catch (err: any) {
-      console.error(`  [error] parallel-${entry.slug}: ${err.message}`);
-    }
+    if (await fetchAndProcess(query, `parallel-${entry.slug}`, outPath)) processed++;
   }
 }
 
-console.log(`[path-geo] Done. Fetched: ${fetched}, Cached: ${skipped}`);
+console.log(`[path-geo] Done. Processed: ${processed}, Fixtured: ${fixturedFiles.size}`);
 
 // --- Write manifest: the authoritative list of geo files for this build ---
 // generate-path-tiles reads this instead of globbing the cache directory,
 // preventing stale/orphaned files from poisoning the tile build.
-// Each file records its input hash — the derivation key that produced it.
 if (!dryRun) {
-  const fileEntries: Record<string, string> = {};
+  const files: string[] = [];
   for (const entry of cacheEntries) {
     for (const file of geoFilesForEntry(entry)) {
-      fileEntries[file] = cacheInputHash(entry);
+      files.push(file);
     }
   }
   const manifest = {
     city: CITY,
     generated: new Date().toISOString(),
-    files: Object.keys(fileEntries).sort(),
-    hashes: fileEntries,
+    files: [...new Set(files)].sort(),
   };
   fs.writeFileSync(path.join(CACHE_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`[path-geo] Wrote manifest with ${manifest.files.length} expected geo files`);
