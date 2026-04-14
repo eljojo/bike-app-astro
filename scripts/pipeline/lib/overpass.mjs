@@ -123,31 +123,6 @@ function loadCassetteFrom(cassettePath) {
   return raw;
 }
 
-/**
- * Create a replay function from a recorded cassette.
- * Throws immediately if cassette doesn't exist — tests must not silently skip.
- * Throws on cache miss — run RECORD_OVERPASS to add missing entries.
- */
-export function createPlayer(name) {
-  const cassettePath = join(CACHE_DIR, `cassette-${name}.json`);
-  if (!existsSync(cassettePath)) {
-    throw new Error(
-      `Cassette "${name}" not found at ${cassettePath}.\n` +
-      `Record it with: RECORD_OVERPASS=${name} node scripts/pipeline/build-bikepaths.mjs --city ${name}`
-    );
-  }
-  const entries = loadCassette(name);
-
-  return async (query) => {
-    const key = cacheKey(normQ(query));
-    if (entries[key]) return entries[key].data;
-    throw new Error(
-      `Cassette miss for query (hash ${key}). Add it with:\n` +
-      `  RECORD_OVERPASS=${name} node scripts/pipeline/build-bikepaths.mjs --city ${name}\n` +
-      `Query: ${query.slice(0, 120)}...`
-    );
-  };
-}
 
 /**
  * In-flight query tracking. If a query is already being fetched,

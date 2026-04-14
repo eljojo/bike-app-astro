@@ -3,17 +3,10 @@
 // Pipeline-level test: run buildBikepathsPipeline with recorded Overpass
 // cassette, assert that trails end up in the correct park's network.
 //
-// The cassette is recorded from a real pipeline run:
-// RECORD_OVERPASS=lib/fixtures/ottawa-cassette.json node build-bikepaths.mjs --city ottawa
-
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createPlayer } from '../../../scripts/pipeline/lib/overpass.mjs';
+import { queryOverpass } from '../../../scripts/pipeline/lib/overpass.mjs';
 import { buildBikepathsPipeline } from '../../../scripts/pipeline/build-bikepaths.ts';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
-
-// Cassette lives in .cache/ (gitignored). Record with:
-// RECORD_OVERPASS=ottawa node scripts/build-bikepaths.mjs --city ottawa
-const player = createPlayer('ottawa');
 
 describe('pipeline park containment — real Ottawa data', () => {
   let entries;
@@ -24,7 +17,7 @@ describe('pipeline park containment — real Ottawa data', () => {
     const bbox = '45.15,-76.35,45.65,-75.35';
 
     const result = await buildBikepathsPipeline({
-      queryOverpass: player,
+      queryOverpass,
       bbox,
       adapter,
       manualEntries: [],

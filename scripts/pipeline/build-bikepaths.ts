@@ -27,9 +27,9 @@ import path from 'node:path';
 import yaml from 'js-yaml';
 import { queryOverpass as _queryOverpass, createRecorder } from './lib/overpass.mjs';
 
-// Record all Overpass calls to a cassette in .cache/ (gitignored) for test replay.
+// Record mode: saves Overpass responses to a bundled cassette in .cache/.
 // Usage: RECORD_OVERPASS=ottawa node scripts/build-bikepaths.ts --city ottawa
-// Replay: createPlayer('ottawa') in tests
+// Tests use queryOverpass directly — it hits the per-query cache automatically.
 const queryOverpass = process.env.RECORD_OVERPASS
   ? createRecorder(process.env.RECORD_OVERPASS)
   : _queryOverpass;
