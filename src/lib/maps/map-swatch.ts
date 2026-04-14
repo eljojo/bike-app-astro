@@ -113,9 +113,14 @@ export const pathDetail = {
 /** Dash pattern for trails (path_type: trail | mtb-trail) */
 export const TRAIL_DASH: [number, number] = [3, 1];
 
-/** MapLibre expression: true when path_type indicates a trail */
-export const IS_TRAIL_EXPR: ['in', ['get', string], ['literal', string[]]] =
-  ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]];
+/** MapLibre expression: true when path_type is trail AND surface is not paved.
+ *  Paved trail segments render as solid lines, unpaved as dashed. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const IS_TRAIL_EXPR: any =
+  ['all',
+    ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]],
+    ['!=', ['get', 'surface'], 'paved'],
+  ];
 
 /** Tour palette — 8 accessible colors for multi-ride maps */
 export const TOUR_PALETTE = [

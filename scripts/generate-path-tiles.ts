@@ -88,41 +88,37 @@ function countCoordsInBox(features: Feature[], box: SplitBox): number {
   return total;
 }
 
-/**
- * Merge all features for a single geoId into one geometry.
- *
- * - Multiple LineStrings become a MultiLineString
- * - A single LineString stays as-is
- * - MultiLineStrings are flattened and merged
- * - Coordinates are truncated to 5dp
- */
-function mergeFeatures(
-  geoId: string,
-  fc: FeatureCollection,
-  metadata?: Map<string, GeoMetaEntry>,
-): Feature<LineString | MultiLineString> | null {
-  const allLineArrays: Position[][] = [];
+// ── Surface classification ──────────────────────────────────────
 
-  for (const feature of fc.features) {
-    const geom = feature.geometry;
-    if (!geom) continue;
+/** OSM surface values considered "paved" for rendering (solid line). */
+const PAVED_SURFACES = new Set([
+  'asphalt', 'concrete', 'paving_stones', 'paved',
+  'sett', 'cobblestone', 'concrete:plates', 'concrete:lanes',
+  'bricks', 'metal', 'wood',
+]);
 
-    if (geom.type === 'LineString') {
-      const truncated = truncateCoords(geom.coordinates);
-      if (truncated.length > 0) allLineArrays.push(truncated);
-    } else if (geom.type === 'MultiLineString') {
-      for (const line of geom.coordinates) {
-        const truncated = truncateCoords(line);
-        if (truncated.length > 0) allLineArrays.push(truncated);
-      }
+export function isPavedSurface(surface: string | undefined): boolean {
+  return !!surface && PAVED_SURFACES.has(surface.toLowerCase());
+}
+
+/** Collect and truncate line coordinates from a geometry. */
+function collectLines(geom: Feature['geometry']): Position[][] {
+  if (!geom) return [];
+  const lines: Position[][] = [];
+  if (geom.type === 'LineString') {
+    const truncated = truncateCoords((geom as LineString).coordinates);
+    if (truncated.length > 0) lines.push(truncated);
+  } else if (geom.type === 'MultiLineString') {
+    for (const line of (geom as MultiLineString).coordinates) {
+      const truncated = truncateCoords(line);
+      if (truncated.length > 0) lines.push(truncated);
     }
   }
+  return lines;
+}
 
-  if (allLineArrays.length === 0) return null;
-
-  // Build properties
-  const meta = metadata?.get(geoId);
-  const properties: TileFeatureMeta = {
+function buildProps(geoId: string, meta: GeoMetaEntry | undefined): TileFeatureMeta {
+  return {
     _geoId: geoId,
     _fid: geoId,
     slug: meta?.slug ?? '',
@@ -133,21 +129,71 @@ function mergeFeatures(
     path_type: meta?.path_type ?? '',
     length_km: meta?.length_km ?? 0,
   };
+}
 
-  // Single LineString stays as LineString
-  if (allLineArrays.length === 1) {
-    return {
-      type: 'Feature',
-      properties,
-      geometry: { type: 'LineString', coordinates: allLineArrays[0] },
-    };
+function buildFeature(
+  lineArrays: Position[][],
+  props: TileFeatureMeta,
+): Feature<LineString | MultiLineString> {
+  if (lineArrays.length === 1) {
+    return { type: 'Feature', properties: props, geometry: { type: 'LineString', coordinates: lineArrays[0] } };
+  }
+  return { type: 'Feature', properties: props, geometry: { type: 'MultiLineString', coordinates: lineArrays } };
+}
+
+// ── Feature merging ─────────────────────────────────────────────
+
+/**
+ * Merge all features for a single geoId into tile features.
+ *
+ * For trails (path_type: trail | mtb-trail), splits ways into two surface
+ * categories — paved (solid line) and unpaved (dashed line) — before merging.
+ * Uses per-way surface tags when available, falling back to metadata surface.
+ *
+ * Non-trails merge into a single feature as before.
+ */
+function mergeFeatures(
+  geoId: string,
+  fc: FeatureCollection,
+  metadata?: Map<string, GeoMetaEntry>,
+): Feature<LineString | MultiLineString>[] {
+  const meta = metadata?.get(geoId);
+  const isTrail = meta?.path_type === 'trail' || meta?.path_type === 'mtb-trail';
+
+  if (isTrail) {
+    const pavedLines: Position[][] = [];
+    const unpavedLines: Position[][] = [];
+
+    for (const feature of fc.features) {
+      const waySurface = (feature.properties?.surface as string) || undefined;
+      const paved = isPavedSurface(waySurface ?? meta?.surface);
+      (paved ? pavedLines : unpavedLines).push(...collectLines(feature.geometry));
+    }
+
+    const results: Feature<LineString | MultiLineString>[] = [];
+    const hasBoth = pavedLines.length > 0 && unpavedLines.length > 0;
+
+    if (pavedLines.length > 0) {
+      const props = buildProps(geoId, meta);
+      props.surface = 'paved';
+      if (hasBoth) props._fid = `${geoId}:paved`;
+      results.push(buildFeature(pavedLines, props));
+    }
+    if (unpavedLines.length > 0) {
+      const props = buildProps(geoId, meta);
+      if (hasBoth) props._fid = `${geoId}:unpaved`;
+      results.push(buildFeature(unpavedLines, props));
+    }
+    return results;
   }
 
-  return {
-    type: 'Feature',
-    properties,
-    geometry: { type: 'MultiLineString', coordinates: allLineArrays },
-  };
+  // Non-trails: merge all into a single feature
+  const allLines: Position[][] = [];
+  for (const feature of fc.features) {
+    allLines.push(...collectLines(feature.geometry));
+  }
+  if (allLines.length === 0) return [];
+  return [buildFeature(allLines, buildProps(geoId, meta))];
 }
 
 // ── Adaptive quadtree splitting ──────────────────────────────────
@@ -259,8 +305,7 @@ export function buildTiles(
   const merged: Feature[] = [];
   for (const [geoId, fc] of input) {
     if (metadata && !metadata.has(geoId)) continue;
-    const feature = mergeFeatures(geoId, fc, metadata);
-    if (feature) merged.push(feature);
+    merged.push(...mergeFeatures(geoId, fc, metadata));
   }
 
   if (merged.length === 0) {

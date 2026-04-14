@@ -218,8 +218,73 @@ describe('metadata injection', () => {
     expect(features).toHaveLength(0);
   });
 
-  // dashed field was removed — trail vs solid is now derived at render time
-  // from path_type via IS_TRAIL_EXPR in map-swatch.ts
+  it('splits trail features by paved/unpaved surface', () => {
+    const input = new Map([
+      [
+        'trail-mixed',
+        fc(
+          line([[-75.6, 45.4], [-75.5, 45.3]], { surface: 'asphalt' }),
+          line([[-75.4, 45.2], [-75.3, 45.1]], { surface: 'gravel' }),
+        ),
+      ],
+    ]);
+    const metadata = new Map([
+      ['trail-mixed', meta({ slug: 'trail-mixed', path_type: 'trail', surface: 'gravel' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(2);
+
+    const paved = features.find(f => f.properties!.surface === 'paved');
+    const unpaved = features.find(f => f.properties!.surface !== 'paved');
+    expect(paved).toBeDefined();
+    expect(unpaved).toBeDefined();
+    expect(paved!.properties!.path_type).toBe('trail');
+    expect(unpaved!.properties!.path_type).toBe('trail');
+    expect(paved!.properties!._fid).toBe('trail-mixed:paved');
+    expect(unpaved!.properties!._fid).toBe('trail-mixed:unpaved');
+  });
+
+  it('does not split non-trail paths by surface', () => {
+    const input = new Map([
+      [
+        'mup-mixed',
+        fc(
+          line([[-75.6, 45.4], [-75.5, 45.3]], { surface: 'asphalt' }),
+          line([[-75.4, 45.2], [-75.3, 45.1]], { surface: 'gravel' }),
+        ),
+      ],
+    ]);
+    const metadata = new Map([
+      ['mup-mixed', meta({ slug: 'mup-mixed', path_type: 'mup', surface: 'asphalt' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+  });
+
+  it('falls back to metadata surface when ways have no surface tag', () => {
+    const input = new Map([
+      [
+        'trail-nosurface',
+        fc(
+          line([[-75.6, 45.4], [-75.5, 45.3]]),
+          line([[-75.4, 45.2], [-75.3, 45.1]]),
+        ),
+      ],
+    ]);
+    const metadata = new Map([
+      ['trail-nosurface', meta({ slug: 'trail-nosurface', path_type: 'trail', surface: 'gravel' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    // All ways fall back to metadata 'gravel' → all unpaved → single feature
+    expect(features).toHaveLength(1);
+    expect(features[0].properties!.surface).toBe('gravel');
+  });
 
   it('sets _geoId and _fid both to the geoId', () => {
     const input = new Map([

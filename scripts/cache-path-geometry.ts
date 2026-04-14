@@ -155,7 +155,7 @@ export function overpassToGeoJSON(data: any, id: number | string): GeoJSON.Featu
   const ways = data.elements.filter((e: any) => e.type === 'way' && e.geometry);
   const features = ways.map((way: any) => ({
     type: 'Feature' as const,
-    properties: { wayId: way.id, sourceId: id },
+    properties: { wayId: way.id, sourceId: id, surface: way.tags?.surface || '' },
     geometry: {
       type: 'LineString' as const,
       coordinates: way.geometry.map((p: any) => [p.lon, p.lat]),

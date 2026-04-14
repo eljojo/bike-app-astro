@@ -36,7 +36,7 @@ describe('overpassToGeoJSON', () => {
       [-75.7, 45.4],
       [-75.71, 45.41],
     ]);
-    expect(result.features[0].properties).toEqual({ wayId: 12345, sourceId: 99999 });
+    expect(result.features[0].properties).toEqual({ wayId: 12345, sourceId: 99999, surface: '' });
 
     // Second feature
     expect((result.features[1].geometry as GeoJSON.LineString).coordinates).toEqual([
@@ -44,7 +44,7 @@ describe('overpassToGeoJSON', () => {
       [-75.61, 45.51],
       [-75.62, 45.52],
     ]);
-    expect(result.features[1].properties).toEqual({ wayId: 67890, sourceId: 99999 });
+    expect(result.features[1].properties).toEqual({ wayId: 67890, sourceId: 99999, surface: '' });
   });
 
   it('skips non-way elements and elements without geometry', () => {
@@ -67,7 +67,7 @@ describe('overpassToGeoJSON', () => {
     const result = overpassToGeoJSON(data, 100);
 
     expect(result.features).toHaveLength(1);
-    expect(result.features[0].properties).toEqual({ wayId: 4, sourceId: 100 });
+    expect(result.features[0].properties).toEqual({ wayId: 4, sourceId: 100, surface: '' });
   });
 
   it('handles empty elements array', () => {
@@ -75,6 +75,36 @@ describe('overpassToGeoJSON', () => {
 
     expect(result.type).toBe('FeatureCollection');
     expect(result.features).toEqual([]);
+  });
+
+  it('preserves OSM surface tag from way tags', () => {
+    const data = {
+      elements: [
+        {
+          type: 'way',
+          id: 111,
+          tags: { surface: 'asphalt', highway: 'cycleway' },
+          geometry: [
+            { lat: 45.0, lon: -75.0 },
+            { lat: 45.1, lon: -75.1 },
+          ],
+        },
+        {
+          type: 'way',
+          id: 222,
+          tags: { surface: 'gravel' },
+          geometry: [
+            { lat: 45.2, lon: -75.2 },
+            { lat: 45.3, lon: -75.3 },
+          ],
+        },
+      ],
+    };
+
+    const result = overpassToGeoJSON(data, 99);
+
+    expect(result.features[0].properties!.surface).toBe('asphalt');
+    expect(result.features[1].properties!.surface).toBe('gravel');
   });
 
   it('works with string sourceId (slug-based entries)', () => {
@@ -96,6 +126,7 @@ describe('overpassToGeoJSON', () => {
     expect(result.features[0].properties).toEqual({
       wayId: 555,
       sourceId: 'ottawa-river-pathway',
+      surface: '',
     });
   });
 });
