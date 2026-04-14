@@ -95,12 +95,12 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
       )}
       {hasMtbToggle && (
         <button
-          class={`map-control-btn map-control-mtb ${mtb ? 'active' : ''}`}
+          class={`map-control-btn ${mtb ? 'active' : ''}`}
           onClick={() => toggle('mtb')}
           title={mtb ? 'Hide MTB trails' : 'Show MTB trails'}
           aria-pressed={mtb}
         >
-          MTB
+          <Icon name="mountains" size={20} />
         </button>
       )}
       <button
