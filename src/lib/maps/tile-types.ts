@@ -13,8 +13,10 @@ export interface TileManifestEntry {
  * geometry.
  *
  * See `scripts/generate-path-tiles.ts::mergeFeatures` for how segments are
- * built, and `src/lib/bike-paths/segments.ts::groupWaysIntoSegments` for the
- * grouping rule. See `_ctx/bike-path-tiles.md` for the full invariant.
+ * built. The grouping rule will be extracted into `groupWaysIntoSegments`
+ * in `src/lib/bike-paths/segments.ts` (forward reference: lands in Task 3
+ * of the pageless-path-segments plan). See `_ctx/bike-path-tiles.md` for
+ * the full invariant.
  */
 export interface Segment {
   /**
@@ -26,13 +28,18 @@ export interface Segment {
 
   /**
    * Segment-wide surface distribution in kilometres per surface value.
-   * Same shape as the entry-level `surface_mix` field on `BikePathPage`
-   * so the popup can reuse existing display logic. For a segment whose
-   * underlying ways span multiple surface categories (e.g. a mostly-
-   * asphalt path with a short gravel bridge), this array captures the
-   * full distribution and is *identical* across every copy of this
-   * segment in every surface-category tile feature the segment appears
-   * in. Sorted descending by km.
+   * Same shape as the optional entry-level `surface_mix` field on
+   * `BikePathPage` (see `src/lib/bike-paths/bike-path-entries.server.ts`)
+   * so the popup can reuse existing display logic. Unlike the entry-level
+   * field, which is only emitted when ≥2 distinct surfaces exist on a
+   * path, this is **always present** on a `Segment` — a uniform-surface
+   * segment is represented as a single-element array, e.g.
+   * `[{ value: 'asphalt', km: 1.2 }]`. For a segment whose underlying
+   * ways span multiple surface categories (e.g. a mostly-asphalt path
+   * with a short gravel bridge), this array captures the full
+   * distribution and is *identical* across every copy of this segment in
+   * every surface-category tile feature the segment appears in. Sorted
+   * descending by km.
    */
   surface_mix: Array<{ value: string; km: number }>;
 
@@ -43,8 +50,9 @@ export interface Segment {
    * CRITICAL INVARIANT: `mergeFeatures` must emit the MultiLineString
    * with same-segment sub-lines contiguous — all of `_segments[0]`'s
    * sub-lines come before any of `_segments[1]`'s, and so on. The click
-   * handler in `tile-path-interactions.ts` walks this array with a
-   * running offset to find which segment contains the clicked sub-line.
+   * handler in `src/lib/maps/layers/tile-path-interactions.ts` walks
+   * this array with a running offset to find which segment contains the
+   * clicked sub-line.
    * If you change the emission order in `mergeFeatures`, the click
    * handler will silently resolve clicks to the wrong segment. Keep
    * both sides in lockstep and update the tests when this changes.
