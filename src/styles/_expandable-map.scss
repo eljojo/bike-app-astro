@@ -127,6 +127,37 @@
   &:hover { transform: scale(1.1); }
 }
 
+// Map unlock button — shown next to the expand button only while a path
+// or network is locked on the paths index map. Click clears the lock
+// (closes popup + releases highlight).
+.map-unlock-btn {
+  position: absolute;
+  top: 10px;
+  right: 52px; // sits just left of .map-expand-btn (10 + 32 + 10 gap)
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: none;
+  background: #fff;
+  color: #b3261e; // warn-red to signal "clear selection"
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  display: none; // toggled to 'flex' from JS when lock engages
+  align-items: center;
+  justify-content: center;
+  transition: transform $transition-state;
+  &:hover { transform: scale(1.1); }
+
+  @include dark-mode {
+    background: #222;
+    color: #ff8a80;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+
 // MTB toggle styling lives in MapControls (Preact island) — uses .map-control-mtb
 
 .expandable-map-hint {

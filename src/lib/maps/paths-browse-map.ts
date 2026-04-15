@@ -119,6 +119,23 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   if (isMobile && touchLockEl) touchLockEl.style.display = 'none';
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
 
+  // Unlock button — sits next to the expand button, visible only while a
+  // path/network is locked. Click clears the lock (closes popup +
+  // releases highlight). Its visibility is driven by the path-highlight
+  // onLockChange callback wired up after the map loads.
+  const unlockBtn = document.createElement('button');
+  unlockBtn.className = 'map-unlock-btn';
+  unlockBtn.type = 'button';
+  unlockBtn.innerHTML = '&#x2715;'; // ✕
+  unlockBtn.setAttribute('aria-label', 'Clear map selection');
+  unlockBtn.title = 'Clear selection';
+  container.appendChild(unlockBtn);
+  unlockBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _highlightHandle?.unlock();
+    closePopup(map);
+  });
+
   // Close the popup (but keep the lock) when the user clicks anywhere
   // outside the entire browse widget — the map, its tabs, and the list
   // panels all live under `.paths-browse`, so any click outside that
@@ -249,6 +266,9 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         slugToNetwork,
         networkGeoIds,
         mobile: isMobile,
+        onLockChange: (locked) => {
+          unlockBtn.style.display = locked ? 'flex' : 'none';
+        },
         onHighlight: (slug) => {
           // Cancel any pending fly-back when a new path is highlighted
           if (clearDebounce) { clearTimeout(clearDebounce); clearDebounce = null; }

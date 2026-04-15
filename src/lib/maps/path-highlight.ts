@@ -39,6 +39,9 @@ export interface PathHighlightOptions {
   onHighlight?: (slug: string | null) => void;
   /** Called when a list item is clicked (both mobile and desktop). Receives the slug. */
   onListClick?: (slug: string) => void;
+  /** Called whenever the lock state changes. Fired on every lock()/unlock()
+   *  (including switching from one locked slug to another). */
+  onLockChange?: (locked: boolean) => void;
   /** Use click (tap) events instead of mouseenter/mouseleave */
   mobile?: boolean;
 }
@@ -179,9 +182,11 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   }
 
   function lock(slug: string) {
+    const wasLocked = locked;
     locked = true;
     wantSlug = slug;
     scheduleSync();
+    if (!wasLocked) o.onLockChange?.(true);
   }
 
   function unlock() {
@@ -189,6 +194,7 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
     locked = false;
     wantSlug = null;
     scheduleSync();
+    o.onLockChange?.(false);
   }
 
   // --- DOM events: just write wantSlug, schedule sync ---
