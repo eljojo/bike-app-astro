@@ -4,27 +4,22 @@
  * Runs the pipeline with cached Overpass data — no file dependencies,
  * no skipIf guards. Asserts real-world geographic and classification facts
  * about Ottawa's cycling infrastructure.
+ *
+ * Pipeline setup is shared via tests/pipeline/ottawa-pipeline.ts so the
+ * same in-memory run can be reused by other Ottawa regression tests.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { queryOverpass } from '../../scripts/pipeline/lib/overpass.ts';
-import { buildBikepathsPipeline } from '../../scripts/pipeline/build-bikepaths.ts';
-import { loadCityAdapter } from '../../scripts/pipeline/lib/city-adapter.mjs';
+import { loadOttawaPipelineResult } from './ottawa-pipeline.ts';
 
 let entries;
 let bySlug;
 let byName;
 
 beforeAll(async () => {
-  const adapter = loadCityAdapter('ottawa');
-  const result = await buildBikepathsPipeline({
-    queryOverpass,
-    bbox: '45.15,-76.35,45.65,-75.35',
-    adapter,
-    manualEntries: [],
-  });
+  const result = await loadOttawaPipelineResult();
   entries = result.entries;
-  bySlug = new Map(entries.filter(e => e.slug).map(e => [e.slug, e]));
-  byName = new Map(entries.map(e => [e.name, e]));
+  bySlug = result.bySlug;
+  byName = result.byName;
 }, 300_000);
 
 function net(slug) {

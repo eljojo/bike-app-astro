@@ -1,71 +1,60 @@
 /**
- * Index page category classification — expected behaviour.
+ * Ottawa bikepaths pipeline regression suite — classification edition.
  *
- * Loads real Ottawa bikepaths.yml and asserts that specific paths land in
- * the correct browse tab. These tests document expectations that the
- * current classification does NOT satisfy — they should FAIL until the
- * classification logic is updated.
+ * Runs the full bikepaths pipeline for Ottawa in-memory and asserts that
+ * specific slugs land in the correct browse tab (MTB / Trails / Pathways),
+ * and that well-known pipeline-layer decisions (path_type, access,
+ * member_of, etc.) match expectations.
  *
- * Pattern: same as bikepaths-yml-integrity.test.mjs — real data, real assertions.
+ * These tests do NOT read `bikepaths.yml` from disk — they run the same
+ * `buildBikepathsPipeline()` the generator script uses and inspect the
+ * resulting in-memory entries array. Pipeline setup is shared with
+ * bikepaths-yml-integrity.test.mjs via tests/pipeline/ottawa-pipeline.ts.
+ *
+ * When an assertion fails, the error message includes the full per-entry
+ * trace timeline (every phase that touched the subject and what decision
+ * it recorded), so regression diagnosis pinpoints the responsible phase.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
-import yaml from 'js-yaml';
 import {
   classifyIndependentPath,
   splitMemberTiers,
   type BrowseCategory,
 } from '../../src/lib/bike-paths/index-categories';
+import {
+  loadOttawaPipelineResult,
+  traceTimeline,
+  type OttawaPipelineResult,
+} from '../pipeline/ottawa-pipeline.ts';
 
-// ── Data loading (same pattern as bikepaths-yml-integrity.test.mjs) ─
+let pipeline: OttawaPipelineResult;
 
-const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
-const ymlPath = path.join(CONTENT_DIR, 'ottawa', 'bikepaths.yml');
-const ymlExists = fs.existsSync(ymlPath);
-
-interface YmlEntry {
-  slug: string;
-  name: string;
-  type: string;
-  path_type?: string;
-  network?: string;
-  member_of?: string;
-  members?: string[];
-  mtb?: boolean;
-  osm_way_ids?: number[];
-  osm_relations?: number[];
-  width?: string;
-  access?: string;
-}
-
-let entries: YmlEntry[];
-let bySlug: Map<string, YmlEntry>;
-
-beforeAll(() => {
-  if (!ymlExists) return;
-  const data = yaml.load(fs.readFileSync(ymlPath, 'utf-8')) as { bike_paths: YmlEntry[] };
-  entries = data.bike_paths;
-  bySlug = new Map(entries.filter(e => e.slug).map(e => [e.slug, e]));
-});
-
-function entry(slug: string): YmlEntry {
-  const e = bySlug.get(slug);
-  expect(e, `entry ${slug} must exist in bikepaths.yml`).toBeDefined();
-  return e!;
-}
+beforeAll(async () => {
+  pipeline = await loadOttawaPipelineResult();
+}, 300_000);
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+/** Look up an entry by slug; fail the test with a clear message if missing. */
+function requireEntry(slug: string): any {
+  const e = pipeline.bySlug.get(slug);
+  expect(e, `entry ${slug} must exist in the Ottawa pipeline output`).toBeDefined();
+  return e!;
+}
+
+/** Trace-timeline suffix for enriched assertion failure messages. */
+function traceCtx(entry: { name: string }): string {
+  return `\nDecision timeline for entry:${entry.name}:\n${traceTimeline(pipeline.trace, entry.name)}`;
+}
+
 /** What category does the current classification assign to this independent path? */
-function independentCategory(slug: string): BrowseCategory | 'all' {
-  const e = entry(slug);
-  return classifyIndependentPath(e.type, e.path_type) ?? 'all';
+function independentCategory(entry: { type: string; path_type?: string }): BrowseCategory | 'all' {
+  return classifyIndependentPath(entry.type, entry.path_type) ?? 'all';
 }
 
 // ── MTB tab ─────────────────────────────────────────────────────────
 
-describe.skipIf(!ymlExists)('independent paths that should be in MTB tab', () => {
+describe('independent paths that should be in MTB tab', () => {
   const shouldBeMtb = [
     'fatbike-mont-tremblant',
     'le-ptit-train-du-nord',
@@ -73,33 +62,27 @@ describe.skipIf(!ymlExists)('independent paths that should be in MTB tab', () =>
     'trail-1-1',
   ];
 
-  // ── Root cause investigation: fatbike-mont-tremblant ──────────────
-  // Hypothesis: classifyIndependentPath only receives entryType, never
-  // sees path_type. The function signature is the bug.
-
-  it('fatbike-mont-tremblant has path_type=mtb-trail in the YML', () => {
-    const e = entry('fatbike-mont-tremblant');
-    expect(e.path_type).toBe('mtb-trail');
+  it('fatbike-mont-tremblant has path_type=mtb-trail', () => {
+    const e = requireEntry('fatbike-mont-tremblant');
+    expect(e.path_type, `fatbike-mont-tremblant path_type${traceCtx(e)}`).toBe('mtb-trail');
   });
 
-  it('fatbike-mont-tremblant has entryType=destination (not mtb-related)', () => {
-    const e = entry('fatbike-mont-tremblant');
-    expect(e.type).toBe('destination');
+  it('fatbike-mont-tremblant has entryType=destination', () => {
+    const e = requireEntry('fatbike-mont-tremblant');
+    expect(e.type, `fatbike-mont-tremblant type${traceCtx(e)}`).toBe('destination');
   });
 
-  it('classifyIndependentPath now uses path_type to classify mtb-trail paths', () => {
-    const e = entry('fatbike-mont-tremblant');
-    // Now the function receives both entryType and path_type
+  it('classifyIndependentPath uses path_type to classify mtb-trail paths', () => {
+    const e = requireEntry('fatbike-mont-tremblant');
     const result = classifyIndependentPath(e.type, e.path_type);
-    // It returns 'mtb' because path_type=mtb-trail is now passed
-    expect(result).toBe('mtb');
-    // The mtb-trail signal in path_type is correctly used
-    expect(e.path_type).toBe('mtb-trail'); // the data IS there
+    expect(result, `fatbike-mont-tremblant classification${traceCtx(e)}`).toBe('mtb');
+    expect(e.path_type).toBe('mtb-trail');
   });
 
   for (const slug of shouldBeMtb) {
     it(`${slug} → mtb`, () => {
-      expect(independentCategory(slug)).toBe('mtb');
+      const e = requireEntry(slug);
+      expect(independentCategory(e), `${slug} category${traceCtx(e)}`).toBe('mtb');
     });
   }
 });
@@ -108,7 +91,7 @@ describe.skipIf(!ymlExists)('independent paths that should be in MTB tab', () =>
 // Unpaved trails and pipeline-classified long-distance paths share one
 // tab. The signal is path_type=trail OR entryType=long-distance.
 
-describe.skipIf(!ymlExists)('independent paths that should be in Trails tab', () => {
+describe('independent paths that should be in Trails tab', () => {
   const shouldBeTrails = [
     'prescott-russell-trail-link',
     'osgoode-link-pathway',
@@ -116,14 +99,15 @@ describe.skipIf(!ymlExists)('independent paths that should be in Trails tab', ()
 
   for (const slug of shouldBeTrails) {
     it(`${slug} → trails`, () => {
-      expect(independentCategory(slug)).toBe('trails');
+      const e = requireEntry(slug);
+      expect(independentCategory(e), `${slug} category${traceCtx(e)}`).toBe('trails');
     });
   }
 });
 
 // ── Pathways tab ────────────────────────────────────────────────────
 
-describe.skipIf(!ymlExists)('independent paths that should be in Pathways tab', () => {
+describe('independent paths that should be in Pathways tab', () => {
   const shouldBePathways = [
     'greenboro-pathway',
     'sawmill-creek-pathway',
@@ -132,37 +116,32 @@ describe.skipIf(!ymlExists)('independent paths that should be in Pathways tab', 
 
   for (const slug of shouldBePathways) {
     it(`${slug} → pathways`, () => {
-      expect(independentCategory(slug)).toBe('pathways');
+      const e = requireEntry(slug);
+      expect(independentCategory(e), `${slug} category${traceCtx(e)}`).toBe('pathways');
     });
   }
 });
 
-// ── Tier2 display threshold ─────────────────────────────────────────
+// ── Markdown grouping pages ─────────────────────────────────────────
 
-// ── Pathways tab — markdown-only grouping pages ─────────────────────
-
-describe.skipIf(!ymlExists)('markdown grouping pages should be classified', () => {
-  // gatineau-cycling-network is markdown-only (no YML entry). It uses
-  // includes: to claim 9 Gatineau-side MUPs. Two problems:
-  //
-  // 1. Category: its primary entry (sentier-du-ruisseau-de-la-brasserie-pathway)
-  //    has type=destination, path_type=mup. classifyIndependentPath only checks
-  //    entryType, so it falls to "all". Same root cause as other MUP paths.
-  //
-  // 2. Display: includes: pages don't get memberRefs in the build, so they
-  //    can't show as expandable networks. This is a build layer gap —
-  //    includes: should produce the same structure as YML members:.
-
+describe('markdown grouping pages should be classified', () => {
+  // gatineau-cycling-network is markdown-only (no OSM-driven entry). It
+  // uses `includes:` to claim 9 Gatineau-side MUPs. Its primary entry
+  // (sentier-du-ruisseau-de-la-brasserie-pathway) is a MUP and should
+  // classify to pathways.
   it('gatineau-cycling-network primary entry is a MUP → should be pathways', () => {
-    const primary = entry('sentier-du-ruisseau-de-la-brasserie-pathway');
-    expect(primary.path_type).toBe('mup');
-    expect(classifyIndependentPath(primary.type, primary.path_type)).toBe('pathways');
+    const primary = requireEntry('sentier-du-ruisseau-de-la-brasserie-pathway');
+    expect(primary.path_type, `primary entry path_type${traceCtx(primary)}`).toBe('mup');
+    expect(
+      classifyIndependentPath(primary.type, primary.path_type),
+      `primary entry classification${traceCtx(primary)}`,
+    ).toBe('pathways');
   });
 });
 
 // ── Page eligibility — minimum length ───────────────────────────────
 
-describe.skipIf(!ymlExists)('very short paths should not get standalone pages', () => {
+describe('very short paths should not get standalone pages', () => {
   // Root cause: deriveEntryType (entry-type.mjs line 129-134) gives
   // mtb-trail paths type=destination if length >= 1km. But 1km is
   // necessary, not sufficient. chelsea-creek-path passes the threshold
@@ -170,28 +149,28 @@ describe.skipIf(!ymlExists)('very short paths should not get standalone pages', 
   // The pipeline should consider way count or other quality signals.
 
   it('chelsea-creek-path is a short access-restricted trail', () => {
-    const e = entry('chelsea-creek-path');
-    expect(e.access).toBe('no');
-    expect(e.path_type).toBe('mtb-trail');
+    const e = requireEntry('chelsea-creek-path');
+    expect(e.access, `chelsea-creek-path access${traceCtx(e)}`).toBe('no');
+    expect(e.path_type, `chelsea-creek-path path_type${traceCtx(e)}`).toBe('mtb-trail');
     // No osm_relations — this is a named-way discovery, not a route
-    expect(e.osm_relations).toBeUndefined();
+    expect(e.osm_relations, `chelsea-creek-path osm_relations${traceCtx(e)}`).toBeUndefined();
     // Not in any network
-    expect(e.member_of).toBeUndefined();
+    expect(e.member_of, `chelsea-creek-path member_of${traceCtx(e)}`).toBeUndefined();
   });
 
   it('chelsea-creek-path should not get type=destination from the pipeline', () => {
-    const e = entry('chelsea-creek-path');
+    const e = requireEntry('chelsea-creek-path');
     // Pipeline gives it destination because it's a named mtb-trail with
     // length >= 1km (entry-type.mjs:132). But a single-way, access=no,
     // non-relation path with no network is not a destination.
     // The pipeline needs a stronger signal than just length for
     // standalone mtb-trail paths (e.g., minimum way count, or
     // access=no should disqualify).
-    expect(e.type).not.toBe('destination');
+    expect(e.type, `chelsea-creek-path type${traceCtx(e)}`).not.toBe('destination');
   });
 });
 
-// ── Tier2 display threshold ─────────────────────────────────────────
+// ── Tier2 display threshold (synthetic — no pipeline needed) ────────
 
 describe('networks with 3 or fewer short segments should show them inline', () => {
   it('tier2 members are promoted to tier1 when count <= 3', () => {
