@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { html, raw, buildPlacePopup, buildPathPopup, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
+import { html, raw, buildPlacePopup, buildPathPopup, buildPathCardContent, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
 import polylineCodec from '@mapbox/polyline';
 
 describe('html tagged template', () => {
@@ -280,6 +280,105 @@ describe('buildPathPopup with segment', () => {
     expect(segmentNameIdx).toBeGreaterThan(breadcrumbIdx);
     // View details uses the same inline link class as Mode A.
     expect(html).toContain('path-popup-link');
+  });
+});
+
+describe('buildPathCardContent', () => {
+  const baseInput = {
+    name: 'Sentier Trans-Canada Gatineau – Montréal',
+    url: '/bike-paths/sentier-trans-canada-gatineau-montreal',
+    length_km: 46.2,
+    surface: 'asphalt',
+    path_type: 'mtb-trail',
+  };
+
+  it('Mode A: renders entry name + meta when no segment is provided', () => {
+    const html = buildPathCardContent({ ...baseInput });
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).toContain('46.2 km');
+    expect(html).toContain('asphalt');
+    expect(html).toContain('map-path-card-primary');
+    expect(html).not.toContain('map-path-card-parent-link');
+  });
+
+  it('Mode A: normalizes hyphens so near-duplicate names fall through', () => {
+    const html = buildPathCardContent({
+      name: 'Sentier du Parc de la Gatineau',
+      url: '/bike-paths/sentier-du-parc-de-la-gatineau',
+      surface: 'asphalt',
+      path_type: 'mup',
+      segment: {
+        name: 'Sentier du Parc-de-la-Gatineau',
+        surface_mix: [{ value: 'asphalt', km: 3.2 }],
+        lineCount: 10,
+      },
+    });
+    // No breadcrumb class — the normalization collapsed the two names.
+    expect(html).not.toContain('map-path-card-parent-link');
+    expect(html).toContain('Sentier du Parc de la Gatineau');
+  });
+
+  it('Mode A: empty-string segment name falls through to entry rendering', () => {
+    const html = buildPathCardContent({
+      ...baseInput,
+      segment: {
+        name: '',
+        surface_mix: [{ value: 'asphalt', km: 0.4 }],
+        lineCount: 3,
+      },
+    });
+    expect(html).not.toContain('map-path-card-parent-link');
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+  });
+
+  it('Mode B: renders parent breadcrumb + segment name + surface_mix when segment differs', () => {
+    const html = buildPathCardContent({
+      ...baseInput,
+      segment: {
+        name: 'Trail #36',
+        surface_mix: [
+          { value: 'ground', km: 6.6 },
+          { value: 'gravel', km: 0.1 },
+        ],
+        lineCount: 12,
+      },
+    });
+    // Parent breadcrumb element is present with the entry name inside it.
+    expect(html).toContain('map-path-card-parent-link');
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    // Segment name is present.
+    expect(html).toContain('Trail #36');
+    // Segment-level surface mix, not the entry-level `asphalt` aggregate.
+    expect(html).toContain('ground');
+    expect(html).toContain('gravel');
+    // Entry path_type is humanized in the secondary row.
+    expect(html).toContain('mountain bike trail');
+    // Structural ordering: breadcrumb appears before the segment name.
+    const breadcrumbIdx = html.indexOf('map-path-card-parent-link');
+    const segmentNameIdx = html.indexOf('Trail #36');
+    expect(breadcrumbIdx).toBeGreaterThanOrEqual(0);
+    expect(segmentNameIdx).toBeGreaterThan(breadcrumbIdx);
+    // Mode B deliberately omits the aggregate `length_km` and entry-level
+    // `surface` — the whole point is to avoid the aggregate-label error
+    // when the user clicked a specific sub-section.
+    expect(html).not.toContain('46.2 km');
+  });
+
+  it('Mode B: escapes segment and parent names', () => {
+    const html = buildPathCardContent({
+      name: 'Parent & "Trail"',
+      url: '/bike-paths/parent',
+      path_type: 'mup',
+      segment: {
+        name: '<script>alert(1)</script>',
+        surface_mix: [{ value: 'asphalt', km: 1.0 }],
+        lineCount: 2,
+      },
+    });
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('&amp;');
+    expect(html).toContain('&quot;');
   });
 });
 

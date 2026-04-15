@@ -77,7 +77,10 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
 
 <script>
   import { createMapSession, createPolylineLayer, createPhotoLayer, createPlaceLayer, createTilePathLayer, createGpsLayer } from '../lib/maps/layers';
-  import { html, raw } from '../lib/maps/map-helpers';
+  import { html, raw, buildPathCardContent } from '../lib/maps/map-helpers';
+  import { createMapPathCard, type MapPathCardHandle } from '../lib/maps/map-path-card';
+  import { setupPathHighlight, type PathHighlightHandle } from '../lib/maps/path-highlight';
+  import type { Segment } from '../lib/maps/tile-types';
   import { buildImageUrl } from '../lib/media/image-service';
   import { muteBaseCyclingLayers, restoreBaseCyclingLayers } from '../lib/maps/base-layer-control';
   import { createMtbFilter } from '../lib/maps/map-mtb-toggle';
@@ -134,10 +137,57 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
     const manifestPromise = hasPaths
       ? fetch('/bike-paths/geo/tiles/manifest.json').then(r => r.ok ? r.json() : []).catch(() => [])
       : Promise.resolve([]);
+
+    // --- Path card + highlight (only when the paths tab is active) ---
+    //
+    // Clicks on path features route through `onPathClick` to the
+    // shared card flow instead of opening a MapLibre popup. Matches
+    // the paths-browse-map (bike paths index) behavior: lock the
+    // highlight, show a floating card at the bottom. Difference: we
+    // deliberately do NOT fitBounds — the user keeps the view they
+    // had so the whole map stays visible behind the card.
+    let _highlightHandle: PathHighlightHandle | null = null;
+    let _pathCard: MapPathCardHandle | null = null;
+
+    function showCardForSlug(slug: string, segment?: Segment) {
+      if (!_pathCard || !_highlightHandle) return;
+      // Toggle off when clicking the already-locked path.
+      if (_highlightHandle.lockedSlug() === slug) {
+        _highlightHandle.unlock();
+        return;
+      }
+      const features = tilePathLayer.queryFeaturesBySlug(slug);
+      if (features.length === 0) return;
+      // BigMap has no server-provided slugInfo, so we build from
+      // tile feature properties. URL construction mirrors the fallback
+      // branch in tile-path-interactions.ts.
+      const props = features[0]?.properties || {};
+      const featureName = (props.name as string) || slug;
+      const memberOf = (props.memberOf as string) || '';
+      let pathUrl = '';
+      if (slug && (props.hasPage === true || props.hasPage === 'true')) {
+        pathUrl = memberOf ? `/bike-paths/${memberOf}/${slug}` : `/bike-paths/${slug}`;
+      } else if (memberOf) {
+        pathUrl = `/bike-paths/${memberOf}`;
+      }
+      const cardHtml = buildPathCardContent({
+        name: featureName,
+        url: pathUrl || undefined,
+        length_km: props.length_km ? Number(props.length_km) : undefined,
+        surface: (props.surface as string) || undefined,
+        path_type: (props.path_type as string) || undefined,
+        segment,
+      });
+      _highlightHandle.lock(slug);
+      _pathCard.show(cardHtml);
+      // Deliberately no fitBounds — the map keeps its current view.
+    }
+
     const tilePathLayer = createTilePathLayer({
       manifestPromise,
       fetchPath: '/bike-paths/geo/tiles/',
       foreground: true,
+      onPathClick: (slug, segment) => { showCardForSlug(slug, segment); },
     });
 
     const session = createMapSession({ el, center, zoom: 11, fitBounds: false })
@@ -152,6 +202,19 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
     let pathsVisible = initialShowPaths;
     const mtbFilter = hasPaths ? createMtbFilter(map) : null;
 
+    // Create the card eagerly when paths are available — the DOM
+    // element sits hidden until a click shows it. Lives in #big-map
+    // so `.big-map` can be the outside-click scope: clicks anywhere
+    // outside the map container dismiss the card, clicks on the map
+    // or card itself do not.
+    if (hasPaths) {
+      _pathCard = createMapPathCard({
+        container: el,
+        outsideClickScope: '.big-map',
+        onClose: () => { _highlightHandle?.unlock(); },
+      });
+    }
+
     session.start(() => {
       // Photos off by default on big map (unless user previously enabled)
       if (!loadToggleState('map-photos', false)) {
@@ -164,6 +227,21 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
         muteBaseCyclingLayers(map);
       } else if (hasPaths) {
         tilePathLayer.setVisible!(map, false);
+      }
+
+      // Wire the highlight lock after tile path layers are registered
+      // (session.start waits for tilePathLayer.setup). The `listSelector`
+      // matches nothing — BigMap has no sidebar list to hover-sync with;
+      // only the programmatic lock() call is used here.
+      if (hasPaths) {
+        _highlightHandle = setupPathHighlight(map, {
+          listSelector: '.big-map-has-no-list',
+          layerIds: ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb'],
+          queryFeatures: (slug) => tilePathLayer.queryFeaturesBySlug(slug),
+          onLockChange: (locked) => {
+            if (!locked) _pathCard?.hide();
+          },
+        });
       }
     });
 
@@ -228,6 +306,9 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
         polylineLayer.setVisible!(map, true);
         restoreBaseCyclingLayers(map);
         showTuning(false);
+        // Dismiss any locked path when leaving the paths tab so the
+        // card doesn't linger over the routes view.
+        _highlightHandle?.unlock();
       }
       renderControls();
     }

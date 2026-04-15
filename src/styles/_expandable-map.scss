@@ -175,6 +175,28 @@
   min-width: 0;
 }
 
+// Mode B only: the parent entry rendered above the segment name as a
+// small quiet breadcrumb. Dimmer than the primary name, clickable,
+// inherits the card's text color so it works in both light and dark
+// card backgrounds without a separate dark-mode rule.
+.map-path-card-parent-link {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  opacity: 0.62;
+  color: inherit;
+  text-decoration: none;
+  margin-bottom: 1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  &:hover {
+    opacity: 0.85;
+    text-decoration: underline;
+  }
+}
+
 .map-path-card-primary {
   display: flex;
   align-items: baseline;

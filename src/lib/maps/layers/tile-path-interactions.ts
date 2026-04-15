@@ -131,8 +131,11 @@ export interface PathInteractionOptions {
   slugInfo?: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }>;
   labels?: { viewDetails?: string };
   /** If provided, clicks on path features invoke this callback with the slug
-   *  instead of opening a MapLibre popup. */
-  onPathClick?: (slug: string) => void;
+   *  AND the resolved `Segment` (when the clicked sub-line maps to a named
+   *  segment different from the entry), instead of opening a MapLibre popup.
+   *  The card flow consumes both to render Mode A (entry only) or Mode B
+   *  (segment-first with parent breadcrumb). */
+  onPathClick?: (slug: string, segment?: Segment) => void;
 }
 
 // TODO: some features (e.g. Ottawa River Pathway) open an empty popup —
@@ -187,23 +190,22 @@ export function setupPathInteractions(
 
     const slug = props.slug as string || '';
 
-    // Delegate to caller when a handler is provided — used by paths-browse-map
-    // so map clicks and sidebar clicks run through the same lock/card flow.
-    // Segment resolution is deliberately skipped when delegating: the card
-    // flow doesn't render per-segment data, so the O(sub-lines) geometric
-    // search would be wasted work on every index-page click.
-    if (onPathClick && slug) {
-      onPathClick(slug);
-      return;
-    }
-
-    // Resolve the clicked sub-line to its logical Segment so the popup
-    // can render Mode B (segment-first, entry as context) when the
-    // clicked segment has a distinct name from the parent entry.
+    // Resolve the clicked sub-line to its logical Segment before any
+    // routing — both the popup flow and the delegated card flow consume
+    // the segment to render Mode B (segment-first, entry as context)
+    // when the clicked segment has a distinct name from the parent.
+    // Cost is sub-millisecond even on Ottawa's worst feature.
     const segment = resolveSegmentFromClick(
       feature as unknown as { properties?: Record<string, unknown>; geometry: { type: string; coordinates: unknown } },
       e.lngLat,
     );
+
+    // Delegate to caller when a handler is provided — used by paths-browse-map
+    // and BigMap so map clicks run through the same lock/card flow.
+    if (onPathClick && slug) {
+      onPathClick(slug, segment);
+      return;
+    }
 
     const info = slugInfo?.[slug];
     if (info) {

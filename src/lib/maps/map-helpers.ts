@@ -294,14 +294,59 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
 /**
  * Build the inner content markup for the paths-browse map path card.
  * Takes the same data shape as buildPathPopup. The surrounding card
- * container + close button are created by paths-browse-map.ts.
+ * container + close button are created by paths-browse-map.ts /
+ * BigMap.astro.
  *
- * Compact two-row layout: primary row is name + meta on a single line,
- * optional secondary row carries network + vibe. Clicking the name
- * navigates to the detail page — no separate "view details" link so
- * the card stays short enough to see the map behind.
+ * Two render modes, matching `buildPathPopup`:
+ *
+ * - **Mode B** — the resolved segment has a name distinct from the entry.
+ *   Renders a small parent-entry breadcrumb above a primary row whose
+ *   name is the segment name and whose meta is the segment's
+ *   `surface_mix`. The parent `path_type` moves to the secondary row.
+ *   Triggered when a click on a heterogeneous long trail lands on a
+ *   cyclist-meaningful sub-section — the whole point of pageless path
+ *   segments is to avoid showing the aggregate entry label as "the
+ *   thing you clicked on".
+ *
+ * - **Mode A** — no segment, or segment and entry names match (modulo
+ *   punctuation, via `normalizeNameForComparison`). Compact two-row
+ *   layout: primary row is entry name + entry meta, optional secondary
+ *   row is network + vibe. The existing behaviour.
+ *
+ * Clicking the primary name navigates to the entry detail page — no
+ * separate "view details" link so the card stays short enough to see
+ * the map behind.
  */
 export function buildPathCardContent(data: PathPopupData): string {
+  const seg = data.segment;
+  if (
+    seg !== undefined && seg.name && data.name &&
+    normalizeNameForComparison(seg.name) !== normalizeNameForComparison(data.name)
+  ) {
+    // Mode B: segment-first with parent breadcrumb.
+    const surfaceLine = formatSurfaceMix(seg.surface_mix);
+    const typeLabel = formatPathType(data.path_type);
+
+    const parentEl = data.url
+      ? html`<a class="map-path-card-parent-link" href="${data.url}">${data.name}</a>`
+      : html`<span class="map-path-card-parent-link">${data.name}</span>`;
+
+    const nameEl = data.url
+      ? html`<a class="map-path-card-name" href="${data.url}">${seg.name}</a>`
+      : html`<span class="map-path-card-name">${seg.name}</span>`;
+
+    const metaEl = surfaceLine
+      ? html`<span class="map-path-card-meta">${surfaceLine}</span>`
+      : '';
+
+    let body = `${parentEl}<div class="map-path-card-primary">${nameEl}${metaEl}</div>`;
+    if (typeLabel) {
+      body += html`<div class="map-path-card-secondary"><span>${typeLabel}</span></div>`;
+    }
+    return body;
+  }
+
+  // Mode A: entry-level rendering (unchanged).
   const meta: string[] = [];
   if (data.length_km) meta.push(`${data.length_km} km`);
   if (data.surface) meta.push(escapeHtml(data.surface));
