@@ -200,6 +200,11 @@ function buildEntries(
         parallelMerged++;
         console.log(`  ~ merged parallel geometry into: ${existingEntry.name}`);
       }
+      // Even when merging into an existing entry, register the way IDs so
+      // ghost-removal sees the full overlap for both entries.
+      if (candidate._wayIds && candidate._wayIds.length > 0) {
+        wayRegistry.claim(existingEntry, candidate._wayIds);
+      }
       continue;
     }
 
@@ -216,6 +221,12 @@ function buildEntries(
     result.push(entry);
     bySlug.set(slug, entry);
     byName.set(candidate.name.toLowerCase(), entry);
+    // Register the way IDs so structural ghost-removal in finalize-resolve
+    // can see that scott-street-style parallel entries overlap with a
+    // relation entry and drop them.
+    if (candidate._wayIds && candidate._wayIds.length > 0) {
+      wayRegistry.claim(entry, candidate._wayIds);
+    }
     parallelAdded++;
     console.log(`  + parallel lane: ${candidate.name}`);
   }

@@ -76,6 +76,10 @@ export interface ParallelLaneCandidate {
   parallel_to: string;
   anchors: [number, number][];
   tags: Record<string, any>;
+  /** OSM way IDs of every segment in every chain that belongs to this
+   * candidate. Used to register the parallel-lane entry with WayRegistry
+   * so structural ghost-removal can see its overlap with other entries. */
+  _wayIds?: number[];
 }
 
 /** A non-cycling relation candidate (step 2d output) */

@@ -215,6 +215,57 @@ describe('named ways with shared name should be one entry', () => {
   });
 });
 
+describe('known ways must survive the pipeline', () => {
+  // These are way IDs for trails a human has eyeballed and knows should
+  // appear on an app page somewhere. If the pipeline silently drops them
+  // (ghost-removal overreach, dedup bug, classification misfire) the
+  // regression surfaces here instead of on the deployed map.
+
+  function entriesContainingWay(wayId) {
+    return entries.filter(e => (e.osm_way_ids ?? []).includes(wayId));
+  }
+
+  it('way 380250817 (Trail #54 in Parc de la Gatineau) is claimed by some entry', () => {
+    // Trail #54 is a real MTB trail in Gatineau Park. It was previously a
+    // member entry of parc-de-la-gatineau. A ghost-removal regression in
+    // finalize-resolve.ts (April 2026) started dropping it because every
+    // member way was also claimed by an overlapping relation and the
+    // check was too coarse about what "mostly owned by a relation" meant.
+    const owners = entriesContainingWay(380250817);
+    expect(
+      owners.length,
+      `way 380250817 must be in at least one entry; dropped as ghost?`
+    ).toBeGreaterThan(0);
+  });
+
+  it('way 380250817 is a member of parc-de-la-gatineau (directly or transitively)', () => {
+    const owners = entriesContainingWay(380250817);
+    const underPdg = owners.some(e =>
+      e.member_of === 'parc-de-la-gatineau' || e.slug === 'parc-de-la-gatineau'
+    );
+    expect(
+      underPdg,
+      `way 380250817 should live under parc-de-la-gatineau; owners=${owners.map(o => o.slug ?? o.name).join(', ')}`
+    ).toBe(true);
+  });
+
+  it('scott-street (parallel-lane duplicate of East–West Crosstown Bikeway) does not exist', () => {
+    // Scott Street was discovered as a parallel_to candidate — the cycleway
+    // alongside the road named "Scott Street". Its ways are ~73% inside the
+    // East–West Crosstown Bikeway relation (7234399), so the parallel entry
+    // is a structural ghost of the bikeway. The pipeline must drop it; if
+    // it doesn't, the map shows a rogue "Scott Street" popup when you click
+    // on what is really part of the bikeway.
+    const scott = bySlug.get('scott-street');
+    expect(
+      scott,
+      scott
+        ? `scott-street must be dropped as a ghost of eastwest-crosstown-bikeway (type=${scott.type}, ways=${scott.osm_way_ids?.length ?? 0})`
+        : undefined,
+    ).toBeUndefined();
+  });
+});
+
 describe('relation geometry enrichment', () => {
   // These entries have osm_relations pointing to large routes. The pipeline
   // must use the relation geometry, not a tiny name-match fragment from the

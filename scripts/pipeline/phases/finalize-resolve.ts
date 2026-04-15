@@ -117,6 +117,12 @@ export const finalizeResolvePhase: Phase<Inputs, Output> = async ({
       const e = grouped[i];
       if (e.type === 'network') continue;
       if (e.osm_relations?.length > 0) continue; // keep relation entries
+      // Members of a resolved network are structured entries, not orphan
+      // name-based duplicates. Their ways often overlap with a promoted
+      // non-cycling relation (e.g. a piste/hiking route through the same
+      // park) which carries osm_relations — the structural check would
+      // otherwise mistake legitimate members for ghosts of that relation.
+      if (e.member_of) continue;
 
       const wayIds = wayRegistry.wayIdsFor(e);
 

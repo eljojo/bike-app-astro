@@ -41,15 +41,28 @@ function groupByRoadAndProximity(results: any[], proximityM: number): ParallelLa
     }
   }
 
-  return groups.map(g => ({
-    name: g.roadName,
-    parallel_to: g.roadName,
-    anchors: [
-      [g.bbox.west, g.bbox.south],
-      [g.bbox.east, g.bbox.north],
-    ] as [number, number][],
-    tags: mergeWayTags(g.allTags.map((t: any, i: number) => ({ tags: t, id: i }))),
-  }));
+  return groups.map(g => {
+    // Collect every segment's OSM way ID across every chain in the group so
+    // the resulting candidate carries full way-level provenance. Without
+    // this, parallel-lane entries never enter the WayRegistry and
+    // structural ghost-removal can't see their overlap with relations.
+    const wayIds: number[] = [];
+    for (const chain of g.chains) {
+      for (const id of chain.segmentIds ?? []) {
+        if (typeof id === 'number') wayIds.push(id);
+      }
+    }
+    return {
+      name: g.roadName,
+      parallel_to: g.roadName,
+      anchors: [
+        [g.bbox.west, g.bbox.south],
+        [g.bbox.east, g.bbox.north],
+      ] as [number, number][],
+      tags: mergeWayTags(g.allTags.map((t: any, i: number) => ({ tags: t, id: i }))),
+      _wayIds: wayIds.length > 0 ? [...new Set(wayIds)] : undefined,
+    };
+  });
 }
 
 function bboxDistance(a: any, b: any): number {
