@@ -289,21 +289,14 @@ describe('relation geometry enrichment', () => {
 // the build-output level against real heterogeneous OSM data.
 // ---------------------------------------------------------------------------
 
-describe('pageless segment invariants', () => {
+const PAGELESS_SEGMENT_CACHE_DIR = path.resolve('.cache', 'bikepath-geometry', 'ottawa');
+const hasPagelessCacheForSegmentsTest = fs.existsSync(PAGELESS_SEGMENT_CACHE_DIR);
+
+describe.skipIf(!hasPagelessCacheForSegmentsTest)('pageless segment invariants', () => {
   let tileFeatures; // all merged tile features across the whole pipeline run
 
   beforeAll(() => {
-    const cacheDir = path.resolve('.cache', 'bikepath-geometry', 'ottawa');
-    if (!fs.existsSync(cacheDir)) {
-      // Cache hasn't been generated yet — these assertions only run once
-      // `make prebuild` (or `scripts/cache-path-geometry.ts`) has populated
-      // .cache/bikepath-geometry/ottawa. A non-vacuous skip: other tests
-      // in this file still assert on pipeline output, so this only
-      // weakens the integration coverage for segment invariants.
-      console.warn(`[segments-test] No cache at ${cacheDir}, skipping`);
-      tileFeatures = [];
-      return;
-    }
+    const cacheDir = PAGELESS_SEGMENT_CACHE_DIR;
 
     // Build the metadata map the same way generate-geo-metadata.ts does —
     // from loadBikePathEntries() pages — so geoIds line up exactly with
@@ -347,7 +340,6 @@ describe('pageless segment invariants', () => {
   }, 120_000);
 
   it('every tile feature with _segments has lineCount sum equal to geometry line count', () => {
-    if (tileFeatures.length === 0) return;
     const withSegments = tileFeatures.filter((f) => Array.isArray(f.properties?._segments));
     expect(withSegments.length).toBeGreaterThan(0);
     for (const f of withSegments) {
@@ -363,7 +355,6 @@ describe('pageless segment invariants', () => {
   });
 
   it('Sentier Trans-Canada road feature has at least 10 distinct named segments', () => {
-    if (tileFeatures.length === 0) return;
     const tctRoad = tileFeatures.find(
       (f) =>
         f.properties?.slug === 'sentier-trans-canada-gatineau-montreal' &&
@@ -373,7 +364,11 @@ describe('pageless segment invariants', () => {
       tctRoad,
       'sentier-trans-canada-gatineau-montreal road tile feature must exist',
     ).toBeDefined();
-    const segments = tctRoad.properties._segments ?? [];
+    const segments = tctRoad.properties._segments;
+    expect(
+      segments,
+      'tctRoad.properties._segments must exist on a tile feature emitted by mergeFeatures',
+    ).toBeDefined();
     const namedSegments = segments.filter((s) => s.name !== undefined);
     expect(
       namedSegments.length,
@@ -396,7 +391,6 @@ describe('pageless segment invariants', () => {
     // pulls in per-member geoIds with their own disjoint way sets), and
     // those are legitimately allowed to have different surface_mix
     // arrays — each computed from its own subset of ways.
-    if (tileFeatures.length === 0) return;
     const seen = new Map(); // key: _geoId::name → surface_mix
     for (const f of tileFeatures) {
       const geoId = f.properties?._geoId;
@@ -413,6 +407,14 @@ describe('pageless segment invariants', () => {
           ).toEqual(prev);
         }
       }
+    }
+
+    // Non-vacuous guard: if beforeAll ran successfully on a non-empty cache,
+    // at least one named segment must have existed. This catches a regression
+    // that accidentally strips all names from tile features — Assertion 2 would
+    // catch it for TCT specifically, but this broader assertion would miss it.
+    if (tileFeatures.length > 0) {
+      expect(seen.size, 'no named segments found across all tile features').toBeGreaterThan(0);
     }
   });
 });
