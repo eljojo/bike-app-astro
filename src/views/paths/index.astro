@@ -248,6 +248,52 @@ for (const cat of categories) {
   categoryGeoIds[cat.key] = allIds;
 }
 
+// Precompute bounds per network and category from page points (build-time).
+// Client uses these directly for fitBounds — no async tile loading needed.
+type Bounds = [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+function boundsFromPoints(pts: Array<{ lat: number; lng: number }>): Bounds | null {
+  if (pts.length === 0) return null;
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  for (const p of pts) {
+    if (p.lng < minLng) minLng = p.lng;
+    if (p.lng > maxLng) maxLng = p.lng;
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+  }
+  return [minLng, minLat, maxLng, maxLat];
+}
+
+const networkBounds: Record<string, Bounds> = {};
+for (const net of networkPages) {
+  const allPoints: Array<{ lat: number; lng: number }> = [...net.points];
+  for (const m of net.memberRefs ?? []) {
+    if (extractedLdSlugs.has(m.slug)) continue;
+    const memberPage = pageBySlug.get(m.slug);
+    if (memberPage) allPoints.push(...memberPage.points);
+  }
+  const b = boundsFromPoints(allPoints);
+  if (b) networkBounds[net.slug] = b;
+}
+
+const categoryBounds: Record<string, Bounds> = {};
+for (const cat of categories) {
+  const allPoints: Array<{ lat: number; lng: number }> = [];
+  for (const net of cat.networks) {
+    const netPage = networkPages.find(n => n.slug === net.slug);
+    if (netPage) allPoints.push(...netPage.points);
+    for (const m of (netPage?.memberRefs ?? [])) {
+      if (extractedLdSlugs.has(m.slug)) continue;
+      const memberPage = pageBySlug.get(m.slug);
+      if (memberPage) allPoints.push(...memberPage.points);
+    }
+  }
+  if (cat.standalonePaths) {
+    for (const p of cat.standalonePaths) allPoints.push(...p.points);
+  }
+  const b = boundsFromPoints(allPoints);
+  if (b) categoryBounds[cat.key] = b;
+}
+
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
 const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
 const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { width: 1200, height: 630, fit: 'cover' }) : undefined;
@@ -274,6 +320,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               data-category-geo-ids={JSON.stringify(categoryGeoIds)}
           data-slug-info={JSON.stringify(slugInfo)}
           data-slug-to-network={JSON.stringify(slugToNetwork)}
+          data-network-bounds={JSON.stringify(networkBounds)}
+          data-category-bounds={JSON.stringify(categoryBounds)}
           data-label-view-details={t('paths.view_details', locale)}
               style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
             ></div>
@@ -418,16 +466,14 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
     const slugToNetworkMap: Record<string, string> = JSON.parse(container.dataset.slugToNetwork || '{}');
+    const networkBounds: Record<string, [number, number, number, number]> = JSON.parse(container.dataset.networkBounds || '{}');
+    const categoryBounds: Record<string, [number, number, number, number]> = JSON.parse(container.dataset.categoryBounds || '{}');
 
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     let flyBackFn: (() => void) | undefined;
-    function fitOptsFor(slug: string | undefined) {
-      // Trails paths extend far beyond the city (Sentier Trans-Canada etc.)
-      // — don't zoom out past city level
-      return slug === 'trails' ? { padding: 60, maxZoom: 10 } : undefined;
-    }
 
-    const { map, highlightGeoIds, fitToGeoIds, unlockHighlight, isHighlightLocked } = createPathsBrowseMap({
+
+    const { map, highlightGeoIds, unlockHighlight, isHighlightLocked } = createPathsBrowseMap({
       container,
       touchLockEl: document.getElementById('paths-map-touch-lock'),
       center,
@@ -440,21 +486,27 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       networkGeoIds,
       labels: { viewDetails: container.dataset.labelViewDetails },
       onHighlightClear: isMobile ? () => flyBackFn?.() : undefined,
-      onReady: async () => {
+      onReady: () => {
         // Activate first tab's highlight once layers are ready
         const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
         const activeSlug = activeTab?.dataset.network;
         if (activeSlug && activeSlug !== 'all') {
           const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
           highlightGeoIds(geoIds ?? null, false);
-          if (geoIds) {
-            const fitted = await fitToGeoIds(geoIds, fitOptsFor(activeSlug));
-            if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
-          }
+          fitToBounds(activeSlug);
         }
-
       },
     });
+
+    /** Fit map to precomputed bounds for a network or category slug. */
+    function fitToBounds(slug: string) {
+      const bounds = categoryBounds[slug] ?? networkBounds[slug];
+      if (!bounds) { map.flyTo({ center: mapCenter, zoom: 11, duration: 500 }); return; }
+      const [minLng, minLat, maxLng, maxLat] = bounds;
+      const opts: { padding: number; animate: boolean; duration: number; maxZoom?: number } = { padding: 60, animate: true, duration: 500 };
+      if (slug === 'trails') opts.maxZoom = 10;
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], opts);
+    }
 
     // --- Tab interaction (index-specific) ---
     const tabBar = document.getElementById('network-tabs');
@@ -462,7 +514,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       const tabs = tabBar.querySelectorAll<HTMLButtonElement>('.network-tab');
       const panels = document.querySelectorAll<HTMLElement>('.network-panel');
 
-      async function activateTab(networkSlug: string) {
+      function activateTab(networkSlug: string) {
         unlockHighlight();
         tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
         panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
@@ -473,8 +525,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         } else {
           const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
           highlightGeoIds(geoIds ?? null, false);
-          const fitted = geoIds ? await fitToGeoIds(geoIds, fitOptsFor(networkSlug)) : false;
-          if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
+          fitToBounds(networkSlug);
         }
       }
 
@@ -484,14 +535,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           if (slug) activateTab(slug);
         });
         if (!isMobile) {
-          tab.addEventListener('mouseenter', async () => {
+          tab.addEventListener('mouseenter', () => {
             if (isHighlightLocked()) return;
             const slug = tab.dataset.network;
             if (slug && slug !== 'all') {
               const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
               highlightGeoIds(geoIds ?? null, false);
-              const fitted = geoIds ? await fitToGeoIds(geoIds, fitOptsFor(slug)) : false;
-              if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
+              fitToBounds(slug);
             }
           });
           tab.addEventListener('mouseleave', () => {
@@ -510,16 +560,12 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
     }
 
     // --- Fly back to category extent when leaving a group (not between items) ---
-    async function flyBackToCategory() {
+    function flyBackToCategory() {
       if (isHighlightLocked()) return;
       const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
       const activeSlug = activeTab?.dataset.network;
-      const geoIds = activeSlug && activeSlug !== 'all'
-        ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
-        : undefined;
-      if (geoIds && geoIds.length > 0) {
-        const fitted = await fitToGeoIds(geoIds, fitOptsFor(activeSlug));
-        if (!fitted) map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
+      if (activeSlug && activeSlug !== 'all') {
+        fitToBounds(activeSlug);
       } else {
         map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
       }
