@@ -148,8 +148,10 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .cache/overpass
-          key: overpass-${{ hashFiles('scripts/pipeline/lib/overpass.ts') }}
-          restore-keys: overpass-
+          key: overpass-${{ steps.lfs-period.outputs.period }}-build-${{ inputs.city }}-${{ github.run_id }}
+          restore-keys: |
+            overpass-${{ steps.lfs-period.outputs.period }}-build-${{ inputs.city }}-
+            overpass-${{ steps.lfs-period.outputs.period }}-
 
       - name: Run prebuild
         if: ${{ !inputs.deploy-only }}
