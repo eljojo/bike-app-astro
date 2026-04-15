@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { html, raw, buildPlacePopup, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
+import { html, raw, buildPlacePopup, buildPathPopup, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
 import polylineCodec from '@mapbox/polyline';
 
 describe('html tagged template', () => {
@@ -172,6 +172,69 @@ describe('buildWaypointPopup', () => {
     expect(popup).toContain('Pottery village with good food');
     expect(popup).toContain('Plaza de Armas, Pomaire');
     expect(popup).toContain('Website');
+  });
+});
+
+describe('buildPathPopup with segment', () => {
+  const baseInput = {
+    name: 'Sentier Trans-Canada Gatineau – Montréal',
+    url: '/bike-paths/sentier-trans-canada-gatineau-montreal',
+    surface: 'asphalt',
+    path_type: 'mtb-trail',
+  };
+
+  it('Mode A: renders the entry as today when segment is undefined', () => {
+    const html = buildPathPopup({ ...baseInput, segment: undefined });
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).toContain('asphalt');
+    expect(html).not.toContain('Path #15');
+  });
+
+  it('Mode A: renders the entry as today when segment name matches entry name', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      name: 'Aviation Pathway',
+      segment: {
+        name: 'Aviation Pathway',
+        surface_mix: [{ value: 'asphalt', km: 3.2 }],
+        lineCount: 15,
+      },
+    });
+    expect(html).toContain('Aviation Pathway');
+    const occurrences = (html.match(/Aviation Pathway/g) ?? []).length;
+    expect(occurrences).toBeGreaterThanOrEqual(1);
+    expect(occurrences).toBeLessThanOrEqual(2);
+  });
+
+  it('Mode A: renders the entry as today when segment name is undefined', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      segment: {
+        name: undefined,
+        surface_mix: [{ value: 'asphalt', km: 0.4 }],
+        lineCount: 3,
+      },
+    });
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+  });
+
+  it('Mode B: renders segment name and surface_mix when segment name differs from entry name', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      segment: {
+        name: 'Path #15',
+        surface_mix: [
+          { value: 'asphalt', km: 9.0 },
+          { value: 'gravel',  km: 0.1 },
+        ],
+        lineCount: 12,
+      },
+    });
+    expect(html).toContain('Path #15');
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).toContain('asphalt');
+    expect(html).toContain('gravel');
+    expect(html).toContain('mtb-trail');
   });
 });
 

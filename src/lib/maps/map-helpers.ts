@@ -1,6 +1,7 @@
 import { buildImageUrl } from '../media/image-service';
 import polylineCodec from '@mapbox/polyline';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
+import type { Segment } from './tile-types';
 
 /**
  * Yield every [lng, lat] coordinate from a collection of GeoJSON features.
@@ -136,9 +137,80 @@ export interface PathPopupData {
   vibe?: string;
   network?: string;
   networkUrl?: string;
+  /**
+   * Optional resolved segment for per-click context. When set and the
+   * segment has a distinct name from the entry, `buildPathPopup` renders
+   * Mode B (segment-first, entry as parent context). When undefined —
+   * or when the segment is unnamed or shares its name with the entry —
+   * the popup falls through to Mode A, which is the existing rendering
+   * used everywhere before Phase 1 of the pageless-path-segments plan.
+   */
+  segment?: Segment;
+}
+
+/**
+ * Format a `surface_mix` array for popup display. Returns strings like:
+ *   "asphalt"                            (single value)
+ *   "9 km asphalt · 0.1 km gravel"       (multi-value)
+ * Input is expected to be sorted descending by km (per `Segment.surface_mix`
+ * invariant). Km values are rendered with 1dp precision, with a trailing
+ * `.0` stripped so whole-number kilometres read naturally.
+ */
+function formatSurfaceMix(mix: Array<{ value: string; km: number }>): string {
+  if (mix.length === 0) return '';
+  if (mix.length === 1) return mix[0].value;
+  return mix.map(m => `${formatKm(m.km)} km ${m.value}`).join(' \u00b7 ');
+}
+
+function formatKm(km: number): string {
+  const s = km.toFixed(1);
+  return s.endsWith('.0') ? s.slice(0, -2) : s;
+}
+
+/** Human-readable label for a `path_type` value. Unknown types pass through as-is. */
+function formatPathType(pathType: string | undefined): string {
+  if (!pathType) return '';
+  switch (pathType) {
+    case 'mup': return 'multi-use pathway';
+    case 'bike-lane': return 'bike lane';
+    case 'separated-lane': return 'separated bike lane';
+    case 'paved-shoulder': return 'paved shoulder';
+    case 'trail': return 'trail';
+    case 'mtb-trail': return 'mountain bike trail';
+    default: return pathType;
+  }
 }
 
 export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: string }): string {
+  // Mode B: the resolved segment has a distinct name from the entry.
+  // Render segment-first with the parent entry shown as context below.
+  // Deliberately does NOT include the entry's aggregate `surface` —
+  // aggregate surface is misleading for heterogeneous long trails,
+  // which is the whole reason Mode B exists.
+  const seg = data.segment;
+  if (seg !== undefined && seg.name !== undefined && seg.name !== data.name) {
+    const surfaceLine = formatSurfaceMix(seg.surface_mix);
+    const typeLabel = formatPathType(data.path_type);
+    const viewDetailsLabel = labels?.viewDetails ?? 'View details';
+
+    let popup = '<div class="path-popup path-popup-segment">';
+    popup += html`<strong class="path-popup-segment-name">${seg.name}</strong>`;
+    if (surfaceLine) {
+      popup += html`<div class="path-popup-segment-surface">${surfaceLine}</div>`;
+    }
+    popup += '<hr class="path-popup-divider" />';
+    popup += html`<div class="path-popup-parent">part of <strong>${data.name}</strong></div>`;
+    const parentMeta: string[] = [];
+    if (typeLabel) parentMeta.push(html`<span class="path-popup-parent-type" data-path-type="${data.path_type ?? ''}">${typeLabel}</span>`);
+    if (data.url) parentMeta.push(html`<a href="${data.url}" class="path-popup-link">${viewDetailsLabel} \u2192</a>`);
+    if (parentMeta.length > 0) {
+      popup += `<div class="path-popup-parent-meta">${parentMeta.join(' \u00b7 ')}</div>`;
+    }
+    popup += '</div>';
+    return popup;
+  }
+
+  // Mode A: the existing rendering — unchanged.
   const meta: string[] = [];
   if (data.length_km) meta.push(`${data.length_km} km`);
   if (data.surface) meta.push(escapeHtml(data.surface));

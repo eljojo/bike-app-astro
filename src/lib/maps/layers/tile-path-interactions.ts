@@ -185,24 +185,25 @@ export function setupPathInteractions(
     if (!foreground && props.hasPage !== 'true') return;
     if (!hasPopupData(props)) return;
 
-    // Resolve the clicked sub-line to its logical Segment. Task 6 will
-    // thread this through buildPathPopup's signature at both call sites
-    // below; for now the `void` sink keeps tsc's noUnusedLocals happy
-    // and documents that the binding is intentionally unused until then.
-    const segment = resolveSegmentFromClick(
-      feature as unknown as { properties?: Record<string, unknown>; geometry: { type: string; coordinates: unknown } },
-      e.lngLat,
-    );
-    void segment;
-
     const slug = props.slug as string || '';
 
     // Delegate to caller when a handler is provided — used by paths-browse-map
     // so map clicks and sidebar clicks run through the same lock/card flow.
+    // Segment resolution is deliberately skipped when delegating: the card
+    // flow doesn't render per-segment data, so the O(sub-lines) geometric
+    // search would be wasted work on every index-page click.
     if (onPathClick && slug) {
       onPathClick(slug);
       return;
     }
+
+    // Resolve the clicked sub-line to its logical Segment so the popup
+    // can render Mode B (segment-first, entry as context) when the
+    // clicked segment has a distinct name from the parent entry.
+    const segment = resolveSegmentFromClick(
+      feature as unknown as { properties?: Record<string, unknown>; geometry: { type: string; coordinates: unknown } },
+      e.lngLat,
+    );
 
     const info = slugInfo?.[slug];
     if (info) {
@@ -211,6 +212,7 @@ export function setupPathInteractions(
         length_km: info.length_km, surface: info.surface,
         path_type: info.path_type, vibe: info.vibe,
         network: info.network, networkUrl: info.networkUrl,
+        segment,
       }, labels);
       showPopup(map, new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
         .setLngLat(e.lngLat).setHTML(content));
@@ -233,6 +235,7 @@ export function setupPathInteractions(
       length_km: lengthKm || undefined,
       surface: props.surface || undefined,
       path_type: props.path_type || undefined,
+      segment,
     }, labels);
 
     showPopup(map, new maplibregl.Popup({ closeButton: true, maxWidth: '280px' })
