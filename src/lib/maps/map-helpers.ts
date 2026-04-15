@@ -241,10 +241,14 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
     popup += data.url
       ? html`<a href="${data.url}" class="path-popup-parent-link">${data.name}</a>`
       : html`<div class="path-popup-parent-link">${data.name}</div>`;
-    // Segment name is the only bold element in Mode B. In Mode A the
-    // name wraps a link to the entry page; here the segment has no
-    // page of its own, so the `<strong>` stays unwrapped.
-    popup += html`<strong class="path-popup-name">${seg.name}</strong>`;
+    // Segment name is the only bold element in Mode B. When the
+    // parent entry has a URL, the segment name links to it — same
+    // destination as the breadcrumb above and the View details link
+    // below. Segments don't have their own pages; all three
+    // affordances go to the parent entry.
+    popup += data.url
+      ? html`<strong class="path-popup-name"><a href="${data.url}">${seg.name}</a></strong>`
+      : html`<strong class="path-popup-name">${seg.name}</strong>`;
     if (surfaceLine) {
       popup += html`<div class="path-popup-meta">${surfaceLine}</div>`;
     }
