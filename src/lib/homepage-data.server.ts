@@ -307,13 +307,7 @@ function findHomepageVideo(
   // Featured routes already have locale-resolved names
   for (const fr of featuredRoutes) {
     if (fr.videoKey) {
-      const entry: HomepageVideo = {
-        key: fr.videoKey,
-        duration: fr.videoDuration,
-        routeSlug: fr.slug,
-        localeRouteSlug: fr.localeSlug,
-        routeName: fr.name,
-      };
+      const entry = featuredRouteToHomepageVideo(fr);
       pool.push(entry, entry);
     }
   }
@@ -323,15 +317,7 @@ function findHomepageVideo(
     if (featuredSlugs.has(route.id)) continue;
     const video = getVideo(route);
     if (video) {
-      const trans = locale ? route.data.translations?.[locale] : undefined;
-      pool.push({
-        key: video.key,
-        duration: video.duration,
-        routeSlug: route.id,
-        localeRouteSlug: localeRouteSlug(route, locale),
-        routeName: trans?.name || route.data.name,
-        caption: video.caption,
-      });
+      pool.push(routeVideoToHomepageVideo(route, video, locale));
     }
   }
 
@@ -373,6 +359,40 @@ function localeRouteSlug(route: RouteEntry, locale?: string): string {
     if (typeof slug === 'string') return slug;
   }
   return route.id;
+}
+
+/**
+ * Pure projection: FeaturedRoute (with a video) → HomepageVideo.
+ * Caller must guarantee fr.videoKey is defined.
+ */
+function featuredRouteToHomepageVideo(fr: FeaturedRoute): HomepageVideo {
+  return {
+    key: fr.videoKey!,
+    duration: fr.videoDuration,
+    routeSlug: fr.slug,
+    localeRouteSlug: fr.localeSlug,
+    routeName: fr.name,
+  };
+}
+
+/**
+ * Pure projection: (route entry, resolved media video, locale) → HomepageVideo.
+ * Applies locale-aware route name resolution.
+ */
+function routeVideoToHomepageVideo(
+  route: RouteEntry,
+  video: { key: string; duration?: string; caption?: string },
+  locale: string | undefined,
+): HomepageVideo {
+  const trans = locale ? route.data.translations?.[locale] : undefined;
+  return {
+    key: video.key,
+    duration: video.duration,
+    routeSlug: route.id,
+    localeRouteSlug: localeRouteSlug(route, locale),
+    routeName: trans?.name || route.data.name,
+    caption: video.caption,
+  };
 }
 
 
