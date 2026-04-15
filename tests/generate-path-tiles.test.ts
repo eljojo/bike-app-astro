@@ -111,6 +111,125 @@ describe('merge', () => {
     // 1 from LineString + 2 from MultiLineString
     expect(geom.coordinates).toHaveLength(3);
   });
+
+  it('emits a single _segments entry for a single-named asphalt path', () => {
+    const input = new Map([
+      [
+        'geo-1',
+        fc(
+          line([[-75.7, 45.4], [-75.69, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+          line([[-75.69, 45.4], [-75.68, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+        ),
+      ],
+    ]);
+    const { tiles } = buildTiles(input, new Map([['geo-1', meta({ slug: 'foo' })]]));
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+    const f = features[0];
+    const segments = (f.properties as any)._segments;
+    expect(Array.isArray(segments)).toBe(true);
+    expect(segments).toHaveLength(1);
+    expect(segments[0].name).toBe('Path #15');
+    expect(segments[0].surface_mix[0].value).toBe('asphalt');
+    expect(segments[0].lineCount).toBe(2);
+  });
+
+  it('emits one _segments entry per distinct name, in contiguous-ordering', () => {
+    const input = new Map([
+      [
+        'geo-2',
+        fc(
+          line([[-75.7, 45.4], [-75.69, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+          line([[-75.69, 45.4], [-75.68, 45.4]], { name: 'Chemin Kingsmere', surface: 'asphalt' }),
+          line([[-75.68, 45.4], [-75.67, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+        ),
+      ],
+    ]);
+    const { tiles } = buildTiles(input, new Map([['geo-2', meta({ slug: 'foo' })]]));
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+    const f = features[0];
+    const segments = (f.properties as any)._segments;
+    expect(segments).toHaveLength(2);
+
+    // Contiguous ordering invariant: lineCount sum equals geometry line count
+    const totalLineCount = segments.reduce((acc: number, s: any) => acc + s.lineCount, 0);
+    const geomLineCount = f.geometry.type === 'MultiLineString'
+      ? (f.geometry as any).coordinates.length
+      : 1;
+    expect(totalLineCount).toBe(geomLineCount);
+
+    // Path #15 has 2 ways, Chemin Kingsmere has 1 — lineCounts sum correctly
+    const pathSeg = segments.find((s: any) => s.name === 'Path #15');
+    const kingSeg = segments.find((s: any) => s.name === 'Chemin Kingsmere');
+    expect(pathSeg.lineCount).toBe(2);
+    expect(kingSeg.lineCount).toBe(1);
+  });
+
+  it('duplicates a mixed-surface segment across road and gravel features with identical surface_mix', () => {
+    // Path #15 has two asphalt ways (→ road feature) and one gravel
+    // way (→ gravel feature). Both features should contain a Path #15
+    // segment with the same full surface_mix, and per-feature lineCount
+    // reflecting only that category's ways.
+    const input = new Map([
+      [
+        'geo-3',
+        fc(
+          line([[-75.7, 45.4], [-75.69, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+          line([[-75.69, 45.4], [-75.68, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+          line([[-75.68, 45.4], [-75.67, 45.4]], { name: 'Path #15', surface: 'gravel' }),
+        ),
+      ],
+    ]);
+    const { tiles } = buildTiles(input, new Map([['geo-3', meta({ slug: 'foo' })]]));
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(2); // road and gravel features
+
+    const road = features.find(f => (f.properties as any).surface_category === 'road');
+    const gravel = features.find(f => (f.properties as any).surface_category === 'gravel');
+    expect(road).toBeDefined();
+    expect(gravel).toBeDefined();
+
+    const roadSegs = (road!.properties as any)._segments;
+    const gravelSegs = (gravel!.properties as any)._segments;
+    expect(roadSegs).toHaveLength(1);
+    expect(gravelSegs).toHaveLength(1);
+
+    // Same name in both
+    expect(roadSegs[0].name).toBe('Path #15');
+    expect(gravelSegs[0].name).toBe('Path #15');
+
+    // Identical segment-wide surface_mix (includes both asphalt and gravel)
+    expect(roadSegs[0].surface_mix).toEqual(gravelSegs[0].surface_mix);
+    expect(roadSegs[0].surface_mix).toHaveLength(2);
+
+    // Per-feature lineCount reflects ONLY that category's ways
+    expect(roadSegs[0].lineCount).toBe(2);
+    expect(gravelSegs[0].lineCount).toBe(1);
+  });
+
+  it('collapses unnamed ways into a single {name: undefined} segment per feature', () => {
+    const input = new Map([
+      [
+        'geo-4',
+        fc(
+          line([[-75.7, 45.4], [-75.69, 45.4]], { surface: 'asphalt' }),
+          line([[-75.69, 45.4], [-75.68, 45.4]], { surface: 'asphalt' }),
+          line([[-75.68, 45.4], [-75.67, 45.4]], { surface: 'asphalt' }),
+        ),
+      ],
+    ]);
+    const { tiles } = buildTiles(input, new Map([['geo-4', meta({ slug: 'foo' })]]));
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+    const segments = (features[0].properties as any)._segments;
+    expect(segments).toHaveLength(1);
+    expect(segments[0].name).toBeUndefined();
+    expect(segments[0].lineCount).toBe(3);
+  });
 });
 
 // ── coordinate precision ──────────────────────────────────────────
