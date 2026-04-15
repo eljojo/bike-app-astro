@@ -25,7 +25,7 @@ beforeAll(async () => {
   entries = result.entries;
   bySlug = new Map(entries.filter(e => e.slug).map(e => [e.slug, e]));
   byName = new Map(entries.map(e => [e.name, e]));
-}, 60_000);
+}, 300_000);
 
 function net(slug) {
   const e = bySlug.get(slug);

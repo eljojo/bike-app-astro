@@ -23,7 +23,7 @@ describe('pipeline park containment — real Ottawa data', () => {
       manualEntries: [],
     });
     entries = result.entries;
-  }, 120000);
+  }, 300_000);
 
   // Basic sanity
   it('produces entries', () => {

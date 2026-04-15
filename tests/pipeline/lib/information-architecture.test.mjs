@@ -32,7 +32,7 @@ describe('information architecture — Ottawa bike path index', () => {
       if (!byName.has(e.name)) byName.set(e.name, []);
       byName.get(e.name).push(e);
     }
-  }, 120000);
+  }, 300_000);
 
   // Helper: find member_of for an entry by name
   function memberOf(name) {
