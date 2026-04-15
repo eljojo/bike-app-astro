@@ -8,8 +8,12 @@
  * Pipeline setup is shared via tests/pipeline/ottawa-pipeline.ts so the
  * same in-memory run can be reused by other Ottawa regression tests.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { loadOttawaPipelineResult } from './ottawa-pipeline.ts';
+import { buildTiles } from '../../scripts/generate-path-tiles.ts';
+import { loadBikePathEntries } from '../../src/lib/bike-paths/bike-path-entries.server.ts';
 
 let entries;
 let bySlug;
@@ -275,5 +279,140 @@ describe('relation geometry enrichment', () => {
     const e = bySlug.get('route-verte-1');
     if (!e) return; // may not exist in all cities
     expect(e.osm_way_ids?.length, 'should have many way IDs from the full relation').toBeGreaterThan(50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pageless segment invariants — runtime assertions on the merged tile
+// features produced by buildTiles against the live Ottawa bikepath-geometry
+// cache. The unit tests cover synthetic inputs; these catch regressions at
+// the build-output level against real heterogeneous OSM data.
+// ---------------------------------------------------------------------------
+
+describe('pageless segment invariants', () => {
+  let tileFeatures; // all merged tile features across the whole pipeline run
+
+  beforeAll(() => {
+    const cacheDir = path.resolve('.cache', 'bikepath-geometry', 'ottawa');
+    if (!fs.existsSync(cacheDir)) {
+      // Cache hasn't been generated yet — these assertions only run once
+      // `make prebuild` (or `scripts/cache-path-geometry.ts`) has populated
+      // .cache/bikepath-geometry/ottawa. A non-vacuous skip: other tests
+      // in this file still assert on pipeline output, so this only
+      // weakens the integration coverage for segment invariants.
+      console.warn(`[segments-test] No cache at ${cacheDir}, skipping`);
+      tileFeatures = [];
+      return;
+    }
+
+    // Build the metadata map the same way generate-geo-metadata.ts does —
+    // from loadBikePathEntries() pages — so geoIds line up exactly with
+    // the cache filenames.
+    const { pages } = loadBikePathEntries();
+    const metadata = new Map();
+    for (const page of pages) {
+      for (const file of page.geoFiles) {
+        const geoId = file.replace(/\.geojson$/, '');
+        if (metadata.has(geoId)) continue; // first-write-wins (member before network)
+        metadata.set(geoId, {
+          slug: page.slug,
+          name: page.name,
+          memberOf: page.memberOf ?? '',
+          surface: page.surface ?? '',
+          hasPage: page.standalone,
+          path_type: page.path_type ?? '',
+          length_km: page.length_km ?? 0,
+        });
+      }
+    }
+
+    // Load all geojson files listed in the manifest (authoritative set),
+    // falling back to directory glob if no manifest is present.
+    const input = new Map();
+    const manifestPath = path.join(cacheDir, 'manifest.json');
+    let files;
+    if (fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      files = manifest.files.filter((f) => fs.existsSync(path.join(cacheDir, f)));
+    } else {
+      files = fs.readdirSync(cacheDir).filter((f) => f.endsWith('.geojson'));
+    }
+    for (const f of files) {
+      const geoId = f.replace(/\.geojson$/, '');
+      input.set(geoId, JSON.parse(fs.readFileSync(path.join(cacheDir, f), 'utf-8')));
+    }
+
+    const { tiles } = buildTiles(input, metadata);
+    tileFeatures = [...tiles.values()].flatMap((t) => t.features);
+  }, 120_000);
+
+  it('every tile feature with _segments has lineCount sum equal to geometry line count', () => {
+    if (tileFeatures.length === 0) return;
+    const withSegments = tileFeatures.filter((f) => Array.isArray(f.properties?._segments));
+    expect(withSegments.length).toBeGreaterThan(0);
+    for (const f of withSegments) {
+      const lineCountSum = f.properties._segments.reduce((acc, s) => acc + s.lineCount, 0);
+      const geomLineCount = f.geometry.type === 'MultiLineString'
+        ? f.geometry.coordinates.length
+        : 1;
+      expect(
+        lineCountSum,
+        `feature ${f.properties._fid ?? f.properties._geoId} lineCount sum mismatch`,
+      ).toBe(geomLineCount);
+    }
+  });
+
+  it('Sentier Trans-Canada road feature has at least 10 distinct named segments', () => {
+    if (tileFeatures.length === 0) return;
+    const tctRoad = tileFeatures.find(
+      (f) =>
+        f.properties?.slug === 'sentier-trans-canada-gatineau-montreal' &&
+        f.properties?.surface_category === 'road',
+    );
+    expect(
+      tctRoad,
+      'sentier-trans-canada-gatineau-montreal road tile feature must exist',
+    ).toBeDefined();
+    const segments = tctRoad.properties._segments ?? [];
+    const namedSegments = segments.filter((s) => s.name !== undefined);
+    expect(
+      namedSegments.length,
+      `expected >=10 named segments, got ${namedSegments.length}`,
+    ).toBeGreaterThanOrEqual(10);
+  });
+
+  it('every copy of a named segment across surface-category features has identical surface_mix', () => {
+    // When a named segment's ways straddle multiple surface categories
+    // (e.g. asphalt main line with a 40m wooden footbridge), mergeFeatures
+    // emits the segment into each category's tile feature with the SAME
+    // segment-wide surface_mix (groupWaysIntoSegments computes it once per
+    // geoId, across all ways in the segment regardless of category, and
+    // mergeFeatures shares the same array across categories). This
+    // assertion guards against a regression that would recompute
+    // surface_mix per category.
+    //
+    // Key is `_geoId::name`, not `slug::name`: multiple geoIds can
+    // aggregate into the same network slug (gatineau-cycling-network
+    // pulls in per-member geoIds with their own disjoint way sets), and
+    // those are legitimately allowed to have different surface_mix
+    // arrays — each computed from its own subset of ways.
+    if (tileFeatures.length === 0) return;
+    const seen = new Map(); // key: _geoId::name → surface_mix
+    for (const f of tileFeatures) {
+      const geoId = f.properties?._geoId;
+      for (const seg of f.properties?._segments ?? []) {
+        if (seg.name === undefined) continue;
+        const key = `${geoId}::${seg.name}`;
+        const prev = seen.get(key);
+        if (prev === undefined) {
+          seen.set(key, seg.surface_mix);
+        } else {
+          expect(
+            seg.surface_mix,
+            `segment ${key} surface_mix differs across surface-category copies`,
+          ).toEqual(prev);
+        }
+      }
+    }
   });
 });
