@@ -1,6 +1,12 @@
 // src/lib/maps/layers/tile-path-interactions.ts
 //
 // Click popup and hover cursor handlers for the bike path tile overlay.
+//
+// Clicks use a padded bbox hit test instead of MapLibre's strict per-layer
+// click binding — bike path lines are thin, so a strict pixel hit test
+// feels unreliable and misses taps on mobile. The global click handler
+// queries a small pixel box around the click point; any path within the
+// box counts as a hit. Touch devices get more padding than desktop.
 
 import maplibregl from 'maplibre-gl';
 import { showPopup } from '../map-init';
@@ -23,6 +29,18 @@ function hasPopupData(props: Record<string, unknown>): boolean {
   return !!(props.name);
 }
 
+/** Half-width (pixels) of the click-hit box around the tap/click point.
+ *  Touch devices use a larger pad because finger taps are less precise. */
+const CLICK_PAD_DESKTOP = 8;
+const CLICK_PAD_TOUCH = 14;
+
+function clickPadding(): number {
+  if (typeof window === 'undefined') return CLICK_PAD_DESKTOP;
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    ? CLICK_PAD_TOUCH
+    : CLICK_PAD_DESKTOP;
+}
+
 /**
  * Wire click and hover handlers for path features.
  * Returns a cleanup function that removes all event listeners.
@@ -33,9 +51,23 @@ export function setupPathInteractions(
 ): () => void {
   const { foreground, slugInfo, labels, onPathClick } = opts;
 
-  const clickHandler = (e: maplibregl.MapLayerMouseEvent) => {
-    if (!e.features?.length) return;
-    const props = e.features[0].properties!;
+  const pad = clickPadding();
+  const layers = foreground ? CLICKABLE_LAYERS : LINE_LAYERS;
+
+  const clickHandler = (e: maplibregl.MapMouseEvent) => {
+    // Padded bbox around the click point — any path within `pad` pixels
+    // counts as a hit. Larger pad on touch devices.
+    const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+      [e.point.x - pad, e.point.y - pad],
+      [e.point.x + pad, e.point.y + pad],
+    ];
+    const availableLayers = layers.filter(id => map.getLayer(id));
+    if (availableLayers.length === 0) return;
+
+    const features = map.queryRenderedFeatures(bbox, { layers: availableLayers });
+    if (features.length === 0) return;
+
+    const props = features[0].properties!;
     if (!foreground && props.hasPage !== 'true') return;
     if (!hasPopupData(props)) return;
 
@@ -83,6 +115,8 @@ export function setupPathInteractions(
       .setLngLat(e.lngLat).setHTML(content));
   };
 
+  // Hover cursor: strict per-layer binding is fine here — it's a cosmetic
+  // cue, not a click target. Less invasive than a global mousemove listener.
   const enterHandler = (e: maplibregl.MapLayerMouseEvent) => {
     if (!e.features?.length) return;
     const props = e.features[0].properties!;
@@ -94,11 +128,11 @@ export function setupPathInteractions(
 
   const leaveHandler = () => { map.getCanvas().style.cursor = ''; };
 
-  // In foreground mode, attach to all layers (including bg); otherwise line layers only
-  const layers = foreground ? CLICKABLE_LAYERS : LINE_LAYERS;
+  // Global click handler — one listener across all path layers so the bbox
+  // query can span them. Hover still attaches per-layer for cursor change.
+  map.on('click', clickHandler);
   for (const id of layers) {
     if (map.getLayer(id)) {
-      map.on('click', id, clickHandler);
       map.on('mouseenter', id, enterHandler);
       map.on('mouseleave', id, leaveHandler);
     }
@@ -106,10 +140,10 @@ export function setupPathInteractions(
 
   // Cleanup: remove from all possible layers (safe — off() for unattached is a no-op)
   return () => {
+    map.off('click', clickHandler);
     const all = new Set([...LINE_LAYERS, ...CLICKABLE_LAYERS]);
     for (const id of all) {
       if (map.getLayer(id)) {
-        map.off('click', id, clickHandler);
         map.off('mouseenter', id, enterHandler);
         map.off('mouseleave', id, leaveHandler);
       }
