@@ -185,11 +185,14 @@ export function setupPathInteractions(
     if (!foreground && props.hasPage !== 'true') return;
     if (!hasPopupData(props)) return;
 
+    // Resolve the clicked sub-line to its logical Segment. Task 6 will
+    // thread this through buildPathPopup's signature at both call sites
+    // below; for now the `void` sink keeps tsc's noUnusedLocals happy
+    // and documents that the binding is intentionally unused until then.
     const segment = resolveSegmentFromClick(
       feature as unknown as { properties?: Record<string, unknown>; geometry: { type: string; coordinates: unknown } },
       e.lngLat,
     );
-    // Task 6 will extend buildPathPopup to accept `segment` and wire it in at both call sites.
     void segment;
 
     const slug = props.slug as string || '';

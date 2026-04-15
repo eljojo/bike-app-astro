@@ -86,6 +86,46 @@ describe('resolveSegmentFromClick', () => {
     expect(resolved?.name).toBe('Alpha');
   });
 
+  it('breaks ties at segment boundaries toward the earlier segment', () => {
+    // A click exactly on the shared vertex between _segments[0]'s
+    // last sub-line and _segments[1]'s first sub-line. The running-
+    // offset walk with strict `<` resolves such ties toward the earlier
+    // segment, because `bestIdx` stays at whichever sub-line was seen
+    // first when distances are equal.
+    const feature = featureWithSegments(
+      [
+        [[-75.70, 45.40], [-75.69, 45.40]], // line 0 — segment Alpha
+        [[-75.69, 45.40], [-75.68, 45.40]], // line 1 — segment Beta (shares endpoint at -75.69)
+      ],
+      [
+        { name: 'Alpha', lineCount: 1 },
+        { name: 'Beta', lineCount: 1 },
+      ],
+    );
+    const resolved = resolveSegmentFromClick(feature, { lng: -75.69, lat: 45.40 });
+    expect(resolved?.name).toBe('Alpha');
+  });
+
+  it('parses _segments when stored as a JSON string', () => {
+    // MapLibre can serialize object-valued feature properties to JSON
+    // strings when a feature round-trips through a vector tile source.
+    // Defensive; shouldn't happen for current-pipeline GeoJSON tiles.
+    const feature: Feature<MultiLineString> = {
+      type: 'Feature',
+      properties: {
+        _segments: JSON.stringify([
+          { name: 'FromString', surface_mix: [{ value: 'asphalt', km: 1.0 }], lineCount: 1 },
+        ]),
+      },
+      geometry: {
+        type: 'MultiLineString',
+        coordinates: [[[-75.70, 45.40], [-75.69, 45.40]]],
+      },
+    };
+    const resolved = resolveSegmentFromClick(feature, { lng: -75.695, lat: 45.4 });
+    expect(resolved?.name).toBe('FromString');
+  });
+
   it('handles a LineString geometry (not just MultiLineString)', () => {
     const feature: Feature<any> = {
       type: 'Feature',
