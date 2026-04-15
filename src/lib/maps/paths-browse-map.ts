@@ -212,14 +212,14 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         length_km: info.length_km, surface: info.surface,
         path_type: info.path_type, vibe: info.vibe,
         network: info.network, networkUrl: info.networkUrl,
-      }, opts.labels)
+      })
       : buildPathCardContent({
         name: features[0]?.properties?.name || slug,
         url: undefined,
         length_km: features[0]?.properties?.length_km ? Number(features[0].properties.length_km) : undefined,
         surface: features[0]?.properties?.surface || undefined,
         path_type: features[0]?.properties?.path_type || undefined,
-      }, opts.labels);
+      });
 
     // Lock now that we know features exist. Overrides any previous lock
     // (switching paths). Hover suppression stays on until the user
@@ -228,10 +228,18 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     showPathCard(cardHtml);
 
     // Fly to path bounds so the locked path is visible above the card.
+    // Use an asymmetric padding so the card's rendered height (variable
+    // based on whether a vibe/network line is present) is excluded from
+    // the fit zone — otherwise the bottom of the path sits behind the
+    // frosted card.
     const bounds = boundsFromCoords(iterLineCoords(features));
     if (bounds) {
+      const bottomCoverage = card.offsetHeight + 12 + 20; // card + bottom offset + breathing room
       map.fitBounds(toFitBoundsArg(bounds), {
-        padding: 60, maxZoom: 14, animate: true, duration: 500,
+        padding: { top: 60, right: 60, bottom: bottomCoverage, left: 60 },
+        maxZoom: 14,
+        animate: true,
+        duration: 500,
       });
     }
   }

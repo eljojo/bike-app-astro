@@ -171,30 +171,39 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
  * Build the inner content markup for the paths-browse map path card.
  * Takes the same data shape as buildPathPopup. The surrounding card
  * container + close button are created by paths-browse-map.ts.
+ *
+ * Compact two-row layout: primary row is name + meta on a single line,
+ * optional secondary row carries network + vibe. Clicking the name
+ * navigates to the detail page — no separate "view details" link so
+ * the card stays short enough to see the map behind.
  */
-export function buildPathCardContent(data: PathPopupData, labels?: { viewDetails?: string }): string {
+export function buildPathCardContent(data: PathPopupData): string {
   const meta: string[] = [];
   if (data.length_km) meta.push(`${data.length_km} km`);
   if (data.surface) meta.push(escapeHtml(data.surface));
   if (data.path_type) meta.push(escapeHtml(data.path_type));
 
-  let body = data.url
-    ? html`<strong class="map-path-card-name"><a href="${data.url}">${data.name}</a></strong>`
-    : html`<strong class="map-path-card-name">${data.name}</strong>`;
+  const nameEl = data.url
+    ? html`<a class="map-path-card-name" href="${data.url}">${data.name}</a>`
+    : html`<span class="map-path-card-name">${data.name}</span>`;
 
-  if (meta.length > 0) {
-    body += `<div class="map-path-card-meta">${meta.join(' \u00b7 ')}</div>`;
-  }
+  const metaEl = meta.length > 0
+    ? `<span class="map-path-card-meta">${meta.join(' \u00b7 ')}</span>`
+    : '';
+
+  const secondary: string[] = [];
   if (data.network) {
-    body += data.networkUrl
-      ? html`<div class="map-path-card-network"><a href="${data.networkUrl}">${data.network}</a></div>`
-      : html`<div class="map-path-card-network">${data.network}</div>`;
+    secondary.push(data.networkUrl
+      ? html`<a href="${data.networkUrl}">${data.network}</a>`
+      : html`<span>${data.network}</span>`);
   }
   if (data.vibe) {
-    body += html`<div class="map-path-card-vibe">${data.vibe}</div>`;
+    secondary.push(html`<span>${data.vibe}</span>`);
   }
-  if (data.url) {
-    body += html`<a href="${data.url}" class="map-path-card-link">${labels?.viewDetails ?? 'View details'} \u2192</a>`;
+
+  let body = `<div class="map-path-card-primary">${nameEl}${metaEl}</div>`;
+  if (secondary.length > 0) {
+    body += `<div class="map-path-card-secondary">${secondary.join('<span class="map-path-card-sep">·</span>')}</div>`;
   }
   return body;
 }
