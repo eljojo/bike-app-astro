@@ -161,13 +161,16 @@ export const defaultBase: BasePalette = {
   // Buildings
   building: '#d9d0c8',
   buildingOutline: '#c8bfb5',
-  // Roads — the desert: pale, quiet, just enough to orient
+  // Roads — the desert: pale, quiet, just enough to orient.
+  // Country/secondary darkened so tertiary highways (parkways, back roads
+  // through forests) remain readable against grassland/forest backgrounds —
+  // these are exactly where you bridge gaps between bike paths.
   majorRoad: '#c8c4bc',
   majorRoadCasing: '#aaa69c',
-  secondaryRoad: '#d0cdc6',
-  secondaryRoadCasing: '#b5b0a5',
-  countryRoad: '#dbd8d0',
-  countryRoadCasing: '#c8c2b8',
+  secondaryRoad: '#cac6bb',
+  secondaryRoadCasing: '#a39e90',
+  countryRoad: '#cfcabc',
+  countryRoadCasing: '#aba596',
   road: '#e2dfd8',
   roadCasing: '#d6d2ca',
   service: '#e8e5de',
