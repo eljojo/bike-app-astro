@@ -184,16 +184,31 @@ function formatPathType(pathType: string | undefined): string {
   }
 }
 
+/**
+ * Normalize a name for same-entity comparison. Lowercases, collapses
+ * runs of whitespace and dash characters (hyphen, en-dash, em-dash)
+ * into a single space, and trims. Used to decide whether a segment
+ * name and its parent entry name refer to the same thing for popup
+ * rendering (Mode A vs Mode B). Does NOT strip diacritics — "é" stays
+ * distinct from "e" so different French names don't get falsely merged.
+ *
+ * Motivating case: an OSM relation `Sentier du Parc de la Gatineau`
+ * containing member ways tagged `Sentier du Parc-de-la-Gatineau`.
+ * Without normalization the strict `!==` check fires Mode B and the
+ * popup reads as two near-duplicate headlines stacked on each other.
+ */
+function normalizeNameForComparison(s: string): string {
+  return s.toLowerCase().replace(/[\s\-\u2013\u2014]+/g, ' ').trim();
+}
+
 export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: string }): string {
   // Mode B: the resolved segment has a distinct name from the entry.
-  // Render segment-first with the parent entry shown as context below.
-  // Deliberately does NOT include the entry's aggregate `surface` —
-  // aggregate surface is misleading for heterogeneous long trails,
-  // which is the whole reason Mode B exists.
+  // Rendered as: parent breadcrumb (small, quiet, clickable) → segment
+  // name (single primary heading) → segment surface_mix → parent
+  // path_type (small, muted) → View details button (visible CTA).
   //
-  // Mode B: segment-first rendering. Intentionally shows only
-  // segment name, segment-level surface_mix, parent entry name,
-  // parent path_type, and the details link — NOT the entry's
+  // Intentionally shows only segment name, segment-level surface_mix,
+  // parent entry name, and parent path_type — NOT the entry's
   // aggregate `surface`, `length_km`, `vibe`, `network`, or
   // `networkUrl`. Those fields belong to the entry as a whole and
   // would be misleading when the user clicked on a specific
@@ -201,24 +216,37 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
   // the aggregate-label category error). Phase 2 may reconsider
   // whether to surface a segment-scoped length if the popup UX
   // needs it.
+  //
+  // The guard uses `normalizeNameForComparison` so that near-duplicate
+  // names differing only in punctuation (e.g. `Sentier du Parc-de-la-
+  // Gatineau` vs `Sentier du Parc de la Gatineau`) fall through to
+  // Mode A instead of stacking two near-identical headlines on top of
+  // each other.
   const seg = data.segment;
-  if (seg !== undefined && seg.name && data.name && seg.name !== data.name) {
+  if (
+    seg !== undefined && seg.name && data.name &&
+    normalizeNameForComparison(seg.name) !== normalizeNameForComparison(data.name)
+  ) {
     const surfaceLine = formatSurfaceMix(seg.surface_mix);
     const typeLabel = formatPathType(data.path_type);
     const viewDetailsLabel = labels?.viewDetails ?? 'View details';
 
     let popup = '<div class="path-popup path-popup-segment">';
+    // Parent as small clickable breadcrumb above. Clicking it goes to
+    // the same URL as the CTA below — two affordances, one destination.
+    popup += data.url
+      ? html`<a href="${data.url}" class="path-popup-parent-link">${data.name}</a>`
+      : html`<div class="path-popup-parent-link">${data.name}</div>`;
+    // Segment name is the only bold element in the popup.
     popup += html`<strong class="path-popup-segment-name">${seg.name}</strong>`;
     if (surfaceLine) {
       popup += html`<div class="path-popup-segment-surface">${surfaceLine}</div>`;
     }
-    popup += '<hr class="path-popup-divider" />';
-    popup += html`<div class="path-popup-parent">part of <strong>${data.name}</strong></div>`;
-    const parentMeta: string[] = [];
-    if (typeLabel) parentMeta.push(html`<span class="path-popup-parent-type" data-path-type="${data.path_type ?? ''}">${typeLabel}</span>`);
-    if (data.url) parentMeta.push(html`<a href="${data.url}" class="path-popup-link">${viewDetailsLabel} \u2192</a>`);
-    if (parentMeta.length > 0) {
-      popup += `<div class="path-popup-parent-meta">${parentMeta.join(' \u00b7 ')}</div>`;
+    if (typeLabel) {
+      popup += html`<div class="path-popup-segment-type" data-path-type="${data.path_type ?? ''}">${typeLabel}</div>`;
+    }
+    if (data.url) {
+      popup += html`<a href="${data.url}" class="path-popup-cta">${viewDetailsLabel} \u2192</a>`;
     }
     popup += '</div>';
     return popup;

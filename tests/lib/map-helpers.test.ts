@@ -228,10 +228,32 @@ describe('buildPathPopup with segment', () => {
       },
     });
     // Should fall through to Mode A — no headless segment name,
-    // no "part of" framing.
+    // no segment-first structure.
     expect(html).toContain('Sentier Trans-Canada Gatineau');
-    expect(html).not.toContain('part of');
     expect(html).not.toContain('path-popup-segment-name');
+    expect(html).not.toContain('path-popup-parent-link');
+  });
+
+  it('Mode A: normalizes punctuation so near-duplicate names fall through', () => {
+    // Real-world OSM case: the relation is tagged
+    // "Sentier du Parc de la Gatineau" and its member ways are tagged
+    // "Sentier du Parc-de-la-Gatineau" (hyphens). The two refer to
+    // the same entity — Mode B should NOT fire just because the
+    // punctuation differs.
+    const html = buildPathPopup({
+      name: 'Sentier du Parc de la Gatineau',
+      url: '/bike-paths/sentier-du-parc-de-la-gatineau',
+      surface: 'asphalt',
+      path_type: 'mup',
+      segment: {
+        name: 'Sentier du Parc-de-la-Gatineau',
+        surface_mix: [{ value: 'asphalt', km: 3.2 }],
+        lineCount: 10,
+      },
+    });
+    expect(html).toContain('Sentier du Parc de la Gatineau');
+    expect(html).not.toContain('path-popup-segment-name');
+    expect(html).not.toContain('path-popup-parent-link');
   });
 
   it('Mode B: renders segment name and surface_mix when segment name differs from entry name', () => {
@@ -250,14 +272,21 @@ describe('buildPathPopup with segment', () => {
     expect(html).toContain('Sentier Trans-Canada Gatineau');
     expect(html).toContain('asphalt');
     expect(html).toContain('gravel');
+    // path_type is preserved as a data-attribute on the segment-type
+    // element, so the raw slug remains grep-findable even though the
+    // visible label is the humanized form.
     expect(html).toContain('mtb-trail');
-    // Structural ordering: segment name appears before "part of"
-    // parent framing. A copy-paste bug that swapped the two blocks
-    // would still pass the toContain() checks above.
-    const segIdx = html.indexOf('Path #15');
-    const parentIdx = html.indexOf('part of');
-    expect(segIdx).toBeGreaterThanOrEqual(0);
-    expect(parentIdx).toBeGreaterThan(segIdx);
+    expect(html).toContain('mountain bike trail');
+    // Structural ordering: the parent breadcrumb now appears ABOVE
+    // the segment name in Mode B. A copy-paste bug that moved the
+    // breadcrumb below the segment would still pass the toContain
+    // checks above.
+    const breadcrumbIdx = html.indexOf('path-popup-parent-link');
+    const segIdx = html.indexOf('path-popup-segment-name');
+    expect(breadcrumbIdx).toBeGreaterThanOrEqual(0);
+    expect(segIdx).toBeGreaterThan(breadcrumbIdx);
+    // CTA button is present.
+    expect(html).toContain('path-popup-cta');
   });
 });
 
