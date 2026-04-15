@@ -167,6 +167,38 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
   return popup;
 }
 
+/**
+ * Build the inner content markup for the paths-browse map path card.
+ * Takes the same data shape as buildPathPopup. The surrounding card
+ * container + close button are created by paths-browse-map.ts.
+ */
+export function buildPathCardContent(data: PathPopupData, labels?: { viewDetails?: string }): string {
+  const meta: string[] = [];
+  if (data.length_km) meta.push(`${data.length_km} km`);
+  if (data.surface) meta.push(escapeHtml(data.surface));
+  if (data.path_type) meta.push(escapeHtml(data.path_type));
+
+  let body = data.url
+    ? html`<strong class="map-path-card-name"><a href="${data.url}">${data.name}</a></strong>`
+    : html`<strong class="map-path-card-name">${data.name}</strong>`;
+
+  if (meta.length > 0) {
+    body += `<div class="map-path-card-meta">${meta.join(' \u00b7 ')}</div>`;
+  }
+  if (data.network) {
+    body += data.networkUrl
+      ? html`<div class="map-path-card-network"><a href="${data.networkUrl}">${data.network}</a></div>`
+      : html`<div class="map-path-card-network">${data.network}</div>`;
+  }
+  if (data.vibe) {
+    body += html`<div class="map-path-card-vibe">${data.vibe}</div>`;
+  }
+  if (data.url) {
+    body += html`<a href="${data.url}" class="map-path-card-link">${labels?.viewDetails ?? 'View details'} \u2192</a>`;
+  }
+  return body;
+}
+
 export interface WaypointPopupData {
   label: string;
   type: string;

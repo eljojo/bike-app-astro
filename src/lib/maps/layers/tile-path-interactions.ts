@@ -11,6 +11,9 @@ export interface PathInteractionOptions {
   foreground: boolean;
   slugInfo?: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }>;
   labels?: { viewDetails?: string };
+  /** If provided, clicks on path features invoke this callback with the slug
+   *  instead of opening a MapLibre popup. */
+  onPathClick?: (slug: string) => void;
 }
 
 // TODO: some features (e.g. Ottawa River Pathway) open an empty popup —
@@ -28,7 +31,7 @@ export function setupPathInteractions(
   map: maplibregl.Map,
   opts: PathInteractionOptions,
 ): () => void {
-  const { foreground, slugInfo, labels } = opts;
+  const { foreground, slugInfo, labels, onPathClick } = opts;
 
   const clickHandler = (e: maplibregl.MapLayerMouseEvent) => {
     if (!e.features?.length) return;
@@ -37,6 +40,14 @@ export function setupPathInteractions(
     if (!hasPopupData(props)) return;
 
     const slug = props.slug as string || '';
+
+    // Delegate to caller when a handler is provided — used by paths-browse-map
+    // so map clicks and sidebar clicks run through the same lock/card flow.
+    if (onPathClick && slug) {
+      onPathClick(slug);
+      return;
+    }
+
     const info = slugInfo?.[slug];
     if (info) {
       const content = buildPathPopup({

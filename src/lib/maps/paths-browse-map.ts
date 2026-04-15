@@ -8,7 +8,7 @@
  * Browser-only — uses DOM APIs and MapLibre. Import only from <script> blocks.
  */
 
-import { initMap, showPopup, closePopup } from './map-init';
+import { initMap, closePopup } from './map-init';
 import { pathForeground } from './map-swatch';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
@@ -16,7 +16,7 @@ import { setupPathHighlight, type PathHighlightHandle } from './path-highlight';
 import { createMapExpandButton } from './map-expand-button';
 import { createTilePathLayer } from './layers/tile-path-layer';
 import { muteBaseCyclingLayers } from './base-layer-control';
-import { buildPathPopup, iterLineCoords } from './map-helpers';
+import { buildPathCardContent, iterLineCoords } from './map-helpers';
 import { boundsFromCoords, toFitBoundsArg } from '../geo/bounds';
 import maplibregl from 'maplibre-gl';
 
@@ -81,7 +81,8 @@ export interface PathsBrowseMapResult {
   unlockHighlight: () => void;
   /** Whether the list highlight is currently locked. */
   isHighlightLocked: () => boolean;
-  /** Show a popup for a slug by querying loaded tile features. Flies to the path and locks. */
+  /** Select a path/network by slug: locks the highlight, flies the map
+   *  to its bounds, and shows the floating path card at the bottom. */
   showPopupForSlug: (slug: string) => void;
   /** Expand button controller. */
   expandButton: ReturnType<typeof createMapExpandButton>;
@@ -119,32 +120,55 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   if (isMobile && touchLockEl) touchLockEl.style.display = 'none';
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
 
-  // Unlock button — sits next to the expand button, visible only while a
-  // path/network is locked. Click clears the lock (closes popup +
-  // releases highlight). Its visibility is driven by the path-highlight
-  // onLockChange callback wired up after the map loads.
-  const unlockBtn = document.createElement('button');
-  unlockBtn.className = 'map-unlock-btn';
-  unlockBtn.type = 'button';
-  unlockBtn.innerHTML = '&#x2715;'; // ✕
-  unlockBtn.setAttribute('aria-label', 'Clear map selection');
-  unlockBtn.title = 'Clear selection';
-  container.appendChild(unlockBtn);
-  unlockBtn.addEventListener('click', (e) => {
+  // ── Path card (replaces the MapLibre popup) ─────────────────────
+  //
+  // A floating island at the bottom of the map that shows info for the
+  // currently-locked path or network. Slides up from below on lock,
+  // slides back down on unlock. The X inside the card triggers unlock.
+  // Created once and updated in place so switching between paths
+  // swaps content without flicker.
+
+  const card = document.createElement('div');
+  card.className = 'map-path-card';
+  card.setAttribute('role', 'status');
+  card.setAttribute('aria-live', 'polite');
+
+  const cardContent = document.createElement('div');
+  cardContent.className = 'map-path-card-content';
+  card.appendChild(cardContent);
+
+  const cardClose = document.createElement('button');
+  cardClose.type = 'button';
+  cardClose.className = 'map-path-card-close';
+  cardClose.innerHTML = '&#x2715;'; // ✕
+  cardClose.setAttribute('aria-label', 'Clear selection');
+  cardClose.title = 'Clear selection';
+  card.appendChild(cardClose);
+
+  container.appendChild(card);
+
+  cardClose.addEventListener('click', (e) => {
     e.stopPropagation();
     _highlightHandle?.unlock();
-    closePopup(map);
   });
 
-  // Close the popup (but keep the lock) when the user clicks anywhere
-  // outside the entire browse widget — the map, its tabs, and the list
-  // panels all live under `.paths-browse`, so any click outside that
-  // container is "not interacting with the widget." Lock persistence is
-  // handled separately inside showPopupForSlugImpl.
+  function showPathCard(html: string) {
+    cardContent.innerHTML = html;
+    card.classList.add('map-path-card--visible');
+  }
+  function hidePathCard() {
+    card.classList.remove('map-path-card--visible');
+  }
+
+  // Clicks anywhere outside the browse widget clear the lock. The card
+  // is the visual for the locked state, so dismissing it releases the
+  // lock too — consistent with the old "outside click closes popup"
+  // behavior, just applied to the card/lock as a unit now.
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement | null;
     if (!target || target.closest('.paths-browse')) return;
-    closePopup(map);
+    _highlightHandle?.unlock();
+    closePopup(map); // defensive: clears any stray popup from other flows
   });
   // ── Tile path layer ─────────────────────────────────────────────
 
@@ -158,58 +182,38 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     interactiveGeoIds,
     slugInfo,
     labels: opts.labels,
+    // Route map-feature clicks through the same flow as sidebar list
+    // clicks — both lock the highlight and render the card.
+    onPathClick: (slug) => { showPathCardForSlug(slug); },
   });
 
   // ── Highlight lock / popup ─────────────────────────────────────
 
   let _highlightHandle: PathHighlightHandle | null = null;
 
-  async function showPopupForSlugImpl(slug: string) {
-    // Toggle off: clicking the currently-locked path/network clears
-    // everything. Popup-close (X) alone doesn't unlock — the lock only
-    // clears when the user explicitly dismisses by re-clicking the same
-    // item, picks a different item, or switches tabs.
+  async function showPathCardForSlug(slug: string) {
+    // Toggle off: clicking the currently-locked path/network unlocks.
+    // The card auto-hides via the onLockChange callback.
     if (_highlightHandle?.lockedSlug() === slug) {
       _highlightHandle.unlock();
-      closePopup(map);
       return;
     }
 
     const features = tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds);
     if (features.length === 0) return;
 
-    // Lock now that we know features exist. Overrides any previous lock
-    // (switching paths). Hover suppression stays on until the user
-    // explicitly unlocks (toggle-off, tab switch).
-    _highlightHandle?.lock(slug);
-
-    // Collect coordinates once — needed for both bounds and the midpoint popup anchor.
-    const allCoords: [number, number][] = [...iterLineCoords(features)];
-    const bounds = boundsFromCoords(allCoords);
-    if (!bounds) return;
-
-    // Fly to path bounds
-    map.fitBounds(toFitBoundsArg(bounds), {
-      padding: 60, maxZoom: 14, animate: true, duration: 500,
-    });
-
-    // Wait for fly animation, then show popup
-    await new Promise(r => setTimeout(r, 550));
-    if (_highlightHandle?.lockedSlug() !== slug) return; // lock moved while flying
-
-    // Position popup at path midpoint
-    const lngLat = allCoords[Math.floor(allCoords.length / 2)];
-
-    // Build popup content from slugInfo or tile properties
+    // Build card content from slugInfo or tile properties, then show it
+    // immediately (before the fly) so the user gets an instant
+    // confirmation of what they clicked.
     const info = slugInfo?.[slug];
-    const content = info
-      ? buildPathPopup({
+    const cardHtml = info
+      ? buildPathCardContent({
         name: info.name, url: info.url,
         length_km: info.length_km, surface: info.surface,
         path_type: info.path_type, vibe: info.vibe,
         network: info.network, networkUrl: info.networkUrl,
       }, opts.labels)
-      : buildPathPopup({
+      : buildPathCardContent({
         name: features[0]?.properties?.name || slug,
         url: undefined,
         length_km: features[0]?.properties?.length_km ? Number(features[0].properties.length_km) : undefined,
@@ -217,10 +221,19 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         path_type: features[0]?.properties?.path_type || undefined,
       }, opts.labels);
 
-    const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '280px', closeOnClick: false })
-      .setLngLat(lngLat)
-      .setHTML(content);
-    showPopup(map, popup);
+    // Lock now that we know features exist. Overrides any previous lock
+    // (switching paths). Hover suppression stays on until the user
+    // explicitly unlocks.
+    _highlightHandle?.lock(slug);
+    showPathCard(cardHtml);
+
+    // Fly to path bounds so the locked path is visible above the card.
+    const bounds = boundsFromCoords(iterLineCoords(features));
+    if (bounds) {
+      map.fitBounds(toFitBoundsArg(bounds), {
+        padding: 60, maxZoom: 14, animate: true, duration: 500,
+      });
+    }
   }
 
   // ── Result object (delegates to layer) ──────────────────────────
@@ -232,7 +245,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     lockOnSlug: (slug) => _highlightHandle?.lock(slug),
     unlockHighlight: () => _highlightHandle?.unlock(),
     isHighlightLocked: () => _highlightHandle?.isLocked() ?? false,
-    showPopupForSlug: (slug) => { showPopupForSlugImpl(slug); },
+    showPopupForSlug: (slug) => { showPathCardForSlug(slug); },
     expandButton,
   };
 
@@ -260,14 +273,14 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: PATH_OPACITY,
         lineOpacityDim: pathForeground.hover.dimOpacity,
-        onListClick: (slug) => showPopupForSlugImpl(slug),
+        onListClick: (slug) => showPathCardForSlug(slug),
         sourceId: SOURCE_ID,
         queryFeatures: (slug) => tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds),
         slugToNetwork,
         networkGeoIds,
         mobile: isMobile,
         onLockChange: (locked) => {
-          unlockBtn.style.display = locked ? 'flex' : 'none';
+          if (!locked) hidePathCard();
         },
         onHighlight: (slug) => {
           // Cancel any pending fly-back when a new path is highlighted

@@ -31,6 +31,10 @@ export interface TilePathLayerOptions {
   slugInfo?: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }>;
   /** Localized labels for popups. */
   labels?: { viewDetails?: string };
+  /** If provided, path feature clicks call this with the slug instead of
+   *  spawning a MapLibre popup. Used by paths-browse-map to route all
+   *  clicks (map + sidebar) through the same lock/card flow. */
+  onPathClick?: (slug: string) => void;
 }
 
 export interface FitOptions { maxZoom?: number; padding?: number }
@@ -87,7 +91,7 @@ function extractCoords(geom: GeoJSON.Geometry): GeoJSON.Position[] {
 // ── Factory ─────────────────────────────────────────────────────
 
 export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
-  const { manifestPromise, fetchPath, highlightGeoIds, foreground = false, interactiveGeoIds, slugInfo, labels } = opts;
+  const { manifestPromise, fetchPath, highlightGeoIds, foreground = false, interactiveGeoIds, slugInfo, labels, onPathClick } = opts;
   const isDetailMode = highlightGeoIds != null && highlightGeoIds.size > 0;
 
   let tileLoader: TileLoader | null = null;
@@ -139,7 +143,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       });
 
       addPathLayers(map, isDetailMode, foreground);
-      removeInteractions = setupPathInteractions(map, { foreground, slugInfo, labels });
+      removeInteractions = setupPathInteractions(map, { foreground, slugInfo, labels, onPathClick });
       layersCreated = true;
 
       moveEndHandler = async () => {
