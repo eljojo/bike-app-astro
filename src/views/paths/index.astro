@@ -43,6 +43,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               data-network-bounds={JSON.stringify(mapData.networkBounds)}
               data-category-bounds={JSON.stringify(mapData.categoryBounds)}
               data-label-view-details={t('paths.view_details', locale)}
+              data-label-clear-selection={t('paths.clear_selection', locale)}
               style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
             ></div>
             <div class="map-touch-lock" id="paths-map-touch-lock">
@@ -204,7 +205,10 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       listSelector: '.paths-list li[data-slug], .network-members-list li[data-slug], .network-panel-header[data-slug]',
       slugToNetwork: slugToNetworkMap,
       networkGeoIds,
-      labels: { viewDetails: container.dataset.labelViewDetails },
+      labels: {
+        viewDetails: container.dataset.labelViewDetails,
+        clearSelection: container.dataset.labelClearSelection,
+      },
       onHighlightClear: isMobile ? () => flyBackFn?.() : undefined,
       onReady: () => {
         // Activate first tab's highlight once layers are ready

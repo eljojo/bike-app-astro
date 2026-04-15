@@ -598,6 +598,7 @@
   "paths.osm_edit": "Aidez à l'améliorer",
   "paths.osm_search": "chercher sur OpenStreetMap",
   "paths.view_details": "Voir les d\u00e9tails",
+  "paths.clear_selection": "Effacer la s\u00e9lection",
   "paths.click_to_explore": "Cliquer pour explorer",
   "paths.tap_to_explore": "Toucher pour explorer",
   "paths.close_map": "Fermer la carte",

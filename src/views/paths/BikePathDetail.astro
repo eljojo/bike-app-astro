@@ -231,6 +231,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
             data-interactive-geo-ids={JSON.stringify(interactiveGeoIds ?? [])}
             data-slug-info={JSON.stringify(networkMapSlugInfo)}
             data-label-view-details={t('paths.view_details', locale)}
+            data-label-clear-selection={t('paths.clear_selection', locale)}
             style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
           ></div>
           <div class="map-touch-lock" id="network-map-touch-lock">
@@ -703,7 +704,10 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
       slugInfo,
       interactiveGeoIds: new Set(interactiveGeoIdsList),
       listSelector: '.network-members-list li[data-slug], .network-member-long-distance[data-slug]',
-      labels: { viewDetails: container.dataset.labelViewDetails },
+      labels: {
+        viewDetails: container.dataset.labelViewDetails,
+        clearSelection: container.dataset.labelClearSelection,
+      },
       onHighlightClear: (result) => {
         result.fitToGeoIds(allMemberGeoIds);
       },

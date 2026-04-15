@@ -66,8 +66,8 @@ export interface PathsBrowseMapOptions {
   onHighlightClear?: (result: PathsBrowseMapResult) => void;
   /** Called after tile layers are set up and ready for interaction. */
   onReady?: (result: PathsBrowseMapResult) => void;
-  /** Localized UI labels for the map popup. */
-  labels?: { viewDetails?: string };
+  /** Localized UI labels for the map popup and card chrome. */
+  labels?: { viewDetails?: string; clearSelection?: string };
 }
 
 export interface PathsBrowseMapResult {
@@ -108,7 +108,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     compactHeight, expandedHeight,
     slugInfo, interactiveGeoIds,
     listSelector, slugToNetwork, networkGeoIds,
-    onHighlightClear, onReady,
+    onHighlightClear, onReady, labels,
   } = opts;
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -135,6 +135,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   const pathCard = createMapPathCard({
     container,
     outsideClickScope: '.paths-browse',
+    closeLabel: labels?.clearSelection,
     onClose: () => {
       _highlightHandle?.unlock();
       closePopup(map); // defensive: clear any stray popup from other flows

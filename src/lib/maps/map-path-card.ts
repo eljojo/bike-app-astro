@@ -42,6 +42,13 @@ export interface MapPathCardOptions {
    * treated as "inside". Anything else on the document dismisses.
    */
   outsideClickScope?: string;
+  /**
+   * Localized label for the close (×) button — used as both `aria-label`
+   * and `title`. Callers on fr/es instances should pass the translated
+   * `paths.clear_selection` string. Falls back to English when omitted
+   * so that tests and single-locale callers don't have to plumb it.
+   */
+  closeLabel?: string;
 }
 
 export interface MapPathCardHandle {
@@ -70,8 +77,9 @@ export function createMapPathCard(opts: MapPathCardOptions): MapPathCardHandle {
   close.type = 'button';
   close.className = 'map-path-card-close';
   close.innerHTML = '&#x2715;'; // ✕
-  close.setAttribute('aria-label', 'Clear selection');
-  close.title = 'Clear selection';
+  const closeLabel = opts.closeLabel ?? 'Clear selection';
+  close.setAttribute('aria-label', closeLabel);
+  close.title = closeLabel;
   card.appendChild(close);
 
   opts.container.appendChild(card);

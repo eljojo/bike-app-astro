@@ -15,11 +15,12 @@ interface Props {
   hasPaths?: boolean;
   routesLabel?: string;
   pathsLabel?: string;
+  clearSelectionLabel?: string;
 }
 
 import { getCityConfig } from '../lib/config/city-config';
 import './SubTabToggle.scss';
-const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.props;
+const { routes, center, hasPaths = false, routesLabel, pathsLabel, clearSelectionLabel } = Astro.props;
 ---
 
 <div class="big-map">
@@ -38,6 +39,7 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
     data-center={JSON.stringify(center)}
     data-cdn-url={import.meta.env.R2_PUBLIC_URL || getCityConfig().cdn_url}
     data-has-paths={hasPaths ? 'true' : ''}
+    data-label-clear-selection={clearSelectionLabel}
   ></div>
   <div id="big-map-controls"></div>
   {import.meta.env.DEV && (
@@ -211,6 +213,7 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
       _pathCard = createMapPathCard({
         container: el,
         outsideClickScope: '.big-map',
+        closeLabel: el.dataset.labelClearSelection,
         onClose: () => { _highlightHandle?.unlock(); },
       });
     }
