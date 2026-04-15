@@ -12,6 +12,119 @@ import maplibregl from 'maplibre-gl';
 import { showPopup } from '../map-init';
 import { buildPathPopup } from '../map-helpers';
 import { LINE_LAYERS, CLICKABLE_LAYERS } from './tile-path-styles';
+import type { Segment } from '../tile-types';
+
+/**
+ * Map a click point on a merged tile feature to the logical Segment
+ * that contains the closest sub-line.
+ *
+ * Depends on the contiguous-ordering invariant set up by
+ * `scripts/generate-path-tiles.ts::mergeFeatures`: sub-lines of
+ * `_segments[i]` must all come before any sub-line of `_segments[i+1]`
+ * in the feature's MultiLineString. The walk below uses a running
+ * `lineCount` offset to find the owning segment in O(segments) after
+ * an O(sub-lines) geometric search.
+ *
+ * Returns undefined when the feature has no segments or the click
+ * can't be resolved to one (defensive — shouldn't happen for tile
+ * features built by the current pipeline, but matters for backward-
+ * compatible rendering of older tiles).
+ */
+export function resolveSegmentFromClick(
+  feature: { properties?: Record<string, unknown> | null; geometry: { type: string; coordinates: unknown } },
+  lngLat: maplibregl.LngLat | { lng: number; lat: number },
+): Segment | undefined {
+  const props = feature.properties ?? {};
+  const rawSegments = (props as Record<string, unknown>)._segments;
+  let segments: Segment[] | undefined;
+  if (Array.isArray(rawSegments)) {
+    segments = rawSegments as Segment[];
+  } else if (typeof rawSegments === 'string') {
+    // MapLibre sometimes serializes object-valued feature properties to
+    // JSON strings when a feature round-trips through a vector tile
+    // source. Our tile features are GeoJSON, so this branch is defensive
+    // but cheap.
+    try {
+      const parsed = JSON.parse(rawSegments);
+      segments = Array.isArray(parsed) ? (parsed as Segment[]) : undefined;
+    } catch {
+      segments = undefined;
+    }
+  }
+  if (!segments || segments.length === 0) return undefined;
+
+  const geom = feature.geometry;
+  let lines: Array<Array<[number, number]>>;
+  if (geom.type === 'LineString') {
+    lines = [geom.coordinates as Array<[number, number]>];
+  } else if (geom.type === 'MultiLineString') {
+    lines = geom.coordinates as Array<Array<[number, number]>>;
+  } else {
+    return undefined;
+  }
+  if (lines.length === 0) return undefined;
+
+  const px = (lngLat as { lng: number }).lng;
+  const py = (lngLat as { lat: number }).lat;
+
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < lines.length; i++) {
+    const d = pointToPolylineDistanceSq(px, py, lines[i]);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  }
+
+  // Walk segments with running offset until we pass `bestIdx`.
+  let running = 0;
+  for (const seg of segments) {
+    running += seg.lineCount;
+    if (bestIdx < running) return seg;
+  }
+  // Defensive: if lineCount sum < number of lines, fall through to the last segment.
+  return segments[segments.length - 1];
+}
+
+function pointToPolylineDistanceSq(px: number, py: number, line: Array<[number, number]>): number {
+  if (line.length === 0) return Infinity;
+  if (line.length === 1) {
+    const dx = px - line[0][0];
+    const dy = py - line[0][1];
+    return dx * dx + dy * dy;
+  }
+  let min = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const d = pointToSegmentDistanceSq(px, py, line[i - 1][0], line[i - 1][1], line[i][0], line[i][1]);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+function pointToSegmentDistanceSq(
+  px: number, py: number,
+  ax: number, ay: number,
+  bx: number, by: number,
+): number {
+  // Planar approximation: fine for finding the minimum over a handful
+  // of sub-segments in Ottawa-scale latitudes. Haversine is unnecessary
+  // for min-finding; we only use this to pick the closest sub-line, not
+  // to report actual distance.
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) {
+    const ex = px - ax;
+    const ey = py - ay;
+    return ex * ex + ey * ey;
+  }
+  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+  if (t < 0) t = 0;
+  else if (t > 1) t = 1;
+  const cx = ax + t * dx;
+  const cy = ay + t * dy;
+  const ex = px - cx;
+  const ey = py - cy;
+  return ex * ex + ey * ey;
+}
 
 export interface PathInteractionOptions {
   foreground: boolean;
@@ -67,9 +180,17 @@ export function setupPathInteractions(
     const features = map.queryRenderedFeatures(bbox, { layers: availableLayers });
     if (features.length === 0) return;
 
-    const props = features[0].properties!;
+    const feature = features[0];
+    const props = feature.properties!;
     if (!foreground && props.hasPage !== 'true') return;
     if (!hasPopupData(props)) return;
+
+    const segment = resolveSegmentFromClick(
+      feature as unknown as { properties?: Record<string, unknown>; geometry: { type: string; coordinates: unknown } },
+      e.lngLat,
+    );
+    // Task 6 will extend buildPathPopup to accept `segment` and wire it in at both call sites.
+    void segment;
 
     const slug = props.slug as string || '';
 
