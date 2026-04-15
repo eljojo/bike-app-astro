@@ -80,6 +80,33 @@ export interface MemberRef {
   vibe?: string;
 }
 
+/**
+ * Pure projection: BikePathPage → MemberRef. Keep in sync with the MemberRef
+ * interface above. Narrows overlapping_relations to {id, name, route} — the
+ * richer fields on the source are intentionally dropped from the network-page
+ * bundle.
+ */
+export function toMemberRef(p: BikePathPage): MemberRef {
+  return {
+    slug: p.slug,
+    name: p.name,
+    length_km: p.length_km,
+    thumbnail_key: p.thumbnail_key,
+    standalone: p.standalone,
+    memberOf: p.memberOf,
+    hasMarkdown: p.hasMarkdown,
+    entryType: p.ymlEntries[0]?.type,
+    overlappingRelations: p.overlapping_relations?.map(r => ({
+      id: r.id,
+      name: r.name,
+      route: r.route,
+    })),
+    surface: p.surface,
+    path_type: p.path_type,
+    vibe: p.vibe,
+  };
+}
+
 /** A bike path page to be generated — merged YML + markdown data. */
 export interface BikePathPage {
   slug: string;
@@ -651,20 +678,7 @@ export function loadBikePathEntries(): {
       continue;
     }
 
-    const memberRefs: MemberRef[] = memberPages.map(p => ({
-      slug: p.slug,
-      name: p.name,
-      length_km: p.length_km,
-      thumbnail_key: p.thumbnail_key,
-      standalone: p.standalone,
-      memberOf: p.memberOf,
-      hasMarkdown: p.hasMarkdown,
-      entryType: p.ymlEntries[0]?.type,
-      overlappingRelations: p.overlapping_relations?.map(r => ({ id: r.id, name: r.name, route: r.route })),
-      surface: p.surface,
-      path_type: p.path_type,
-      vibe: p.vibe,
-    }));
+    const memberRefs: MemberRef[] = memberPages.map(toMemberRef);
 
     // Aggregate geometry from all members
     const allMemberEntries = memberPages.flatMap(p => p.ymlEntries);
@@ -746,20 +760,7 @@ export function loadBikePathEntries(): {
       .map((e: SluggedBikePathYml) => pageBySlug.get(e.slug))
       .filter((mp: BikePathPage | undefined): mp is BikePathPage => !!mp && mp.slug !== p.slug);
     if (memberPages.length < 2) continue;
-    p.memberRefs = memberPages.map((mp: BikePathPage) => ({
-      slug: mp.slug,
-      name: mp.name,
-      length_km: mp.length_km,
-      thumbnail_key: mp.thumbnail_key,
-      standalone: mp.standalone,
-      memberOf: mp.memberOf,
-      hasMarkdown: mp.hasMarkdown,
-      entryType: mp.ymlEntries[0]?.type,
-      overlappingRelations: mp.overlapping_relations?.map(r => ({ id: r.id, name: r.name, route: r.route })),
-      surface: mp.surface,
-      path_type: mp.path_type,
-      vibe: mp.vibe,
-    }));
+    p.memberRefs = memberPages.map(toMemberRef);
   }
 
   // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)
