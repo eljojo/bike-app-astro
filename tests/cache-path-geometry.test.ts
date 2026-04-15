@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { overpassToGeoJSON, anchorBbox, buildNameQuery } from '../scripts/cache-path-geometry';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  overpassToGeoJSON,
+  anchorBbox,
+  buildNameQuery,
+  cleanupOrphanedCacheFiles,
+} from '../scripts/cache-path-geometry';
 
 describe('overpassToGeoJSON', () => {
   it('converts Overpass way elements to GeoJSON FeatureCollection with [lon, lat] coordinates', () => {
@@ -207,5 +215,90 @@ describe('buildNameQuery', () => {
     // Both should have the highway filter
     const matches = query.match(/\["highway"/g);
     expect(matches).toHaveLength(2);
+  });
+});
+
+describe('cleanupOrphanedCacheFiles', () => {
+  function mkCache(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'cache-cleanup-'));
+  }
+
+  function touch(dir: string, file: string, content = '{}') {
+    fs.writeFileSync(path.join(dir, file), content);
+  }
+
+  it('removes .geojson files that are not in the active set', () => {
+    const dir = mkCache();
+    try {
+      touch(dir, 'ways-alpha.geojson');
+      touch(dir, 'ways-beta.geojson');
+      touch(dir, 'name-stale.geojson');   // orphan — not in active set
+      touch(dir, '7234399.geojson');       // orphan — relation file from a removed entry
+      touch(dir, 'manifest.json');         // must not be touched
+
+      const result = cleanupOrphanedCacheFiles(dir, new Set([
+        'ways-alpha.geojson',
+        'ways-beta.geojson',
+      ]));
+
+      const remaining = fs.readdirSync(dir).sort();
+      expect(remaining).toEqual([
+        'manifest.json',
+        'ways-alpha.geojson',
+        'ways-beta.geojson',
+      ]);
+      expect(new Set(result.removed)).toEqual(new Set([
+        'name-stale.geojson',
+        '7234399.geojson',
+      ]));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('also removes the .geojson.hash sidecar when removing a stale .geojson', () => {
+    const dir = mkCache();
+    try {
+      touch(dir, 'ways-alpha.geojson');
+      touch(dir, 'ways-alpha.geojson.hash', 'abc123');
+      touch(dir, 'name-stale.geojson');
+      touch(dir, 'name-stale.geojson.hash', 'def456');
+
+      cleanupOrphanedCacheFiles(dir, new Set(['ways-alpha.geojson']));
+
+      expect(fs.existsSync(path.join(dir, 'name-stale.geojson'))).toBe(false);
+      expect(fs.existsSync(path.join(dir, 'name-stale.geojson.hash'))).toBe(false);
+      expect(fs.existsSync(path.join(dir, 'ways-alpha.geojson'))).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'ways-alpha.geojson.hash'))).toBe(true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('leaves non-geojson files (manifest.json, README) alone', () => {
+    const dir = mkCache();
+    try {
+      touch(dir, 'manifest.json', '{"files": []}');
+      touch(dir, 'README.md', 'hello');
+      touch(dir, 'name-orphan.geojson');
+
+      cleanupOrphanedCacheFiles(dir, new Set());
+
+      expect(fs.existsSync(path.join(dir, 'manifest.json'))).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'README.md'))).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'name-orphan.geojson'))).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('is a no-op for an empty directory', () => {
+    const dir = mkCache();
+    try {
+      const result = cleanupOrphanedCacheFiles(dir, new Set(['ways-alpha.geojson']));
+      expect(result.removed).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -1,19 +1,16 @@
 /**
- * Regression test: OSM way 311604378 ("Trail #1" next to Penguin Picnic Area,
- * fine_gravel, 2m wide, bicycle=designated) is in Gatineau Park at -75.83, 45.50.
- *
- * The deployed name-trail-1-1.geojson was poisoned: it has the correct filename
- * but contains Gatineau Park geometry (ways 218548947 and 311604378) instead of
- * the Kanata/Greenbelt geometry it should have. The cache-path-geometry script
- * is incremental (skip existing files), so the wrong file persists across builds.
- *
- * This caused /bike-paths/ncc-greenbelt/trail-1-1/ to show a 4.3 km trail in
- * Gatineau Park instead of the actual 2.1 km trail in the Greenbelt.
+ * Regression test for "Trail #1" cache poisoning. Originally: the deployed
+ * name-trail-1-1.geojson had wrong content, showing a Gatineau Park trail on
+ * a Kanata/Greenbelt detail page. The fix moved the cache to content-addressed
+ * files plus a manifest, and assertions here check the ACTIVE cache file for
+ * trail-1-1 (whichever name geoFilesForEntry resolves to) against the
+ * current YML anchor. When the YML evolves, the test follows the active file
+ * rather than a hardcoded name.
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseBikePathsYml } from '../src/lib/bike-paths/bikepaths-yml.server';
+import { parseBikePathsYml, geoFilesForEntry } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 const GATINEAU_PARK_WAY_IDS = [218548947, 311604378];
 const CACHE_DIR = path.resolve('.cache', 'bikepath-geometry', 'ottawa');
@@ -24,58 +21,58 @@ describe('Trail #1 near Penguin Picnic Area belongs to Gatineau Park, not Greenb
     'ottawa', 'bikepaths.yml'
   );
 
-  it('name-trail-1-1.geojson must NOT contain Gatineau Park ways', () => {
-    // This is the core bug: the file has the right name but wrong content.
-    // The cache-path-geometry script fetched geometry for "Trail 1" and wrote
-    // Gatineau Park ways into name-trail-1-1.geojson (which should contain
-    // Kanata/Greenbelt ways).
-    const geoPath = path.join(CACHE_DIR, 'name-trail-1-1.geojson');
-    if (!fs.existsSync(geoPath)) return;
-
-    const data = JSON.parse(fs.readFileSync(geoPath, 'utf-8'));
-    const wayIds = (data.features || []).map((f: any) => f.properties?.wayId).filter(Boolean);
-
-    for (const gatiWay of GATINEAU_PARK_WAY_IDS) {
-      expect(
-        wayIds,
-        `name-trail-1-1.geojson must not contain Gatineau Park way ${gatiWay} — the file has wrong content`
-      ).not.toContain(gatiWay);
-    }
-  });
-
-  it('name-trail-1-1.geojson geometry must be near its YML anchors (Kanata, ~45.33)', () => {
-    // trail-1-1 anchors are at [-75.87, 45.33] — Kanata/Greenbelt area.
-    // If the geojson has coordinates north of 45.45, it's Gatineau Park.
-    const geoPath = path.join(CACHE_DIR, 'name-trail-1-1.geojson');
-    if (!fs.existsSync(geoPath)) return;
-
+  function loadTrail11() {
     const content = fs.readFileSync(ymlPath, 'utf-8');
     const { entries } = parseBikePathsYml(content);
     const trail11 = entries.find(e => e.slug === 'trail-1-1');
-    expect(trail11).toBeDefined();
+    expect(trail11, 'trail-1-1 must exist in bikepaths.yml').toBeDefined();
+    const files = geoFilesForEntry(trail11!);
+    expect(files.length, `trail-1-1 must resolve to at least one cache file; got ${JSON.stringify(files)}`).toBeGreaterThan(0);
+    return { entry: trail11!, files };
+  }
 
-    // Get anchor latitude
-    const anchors = trail11!.anchors ?? [];
-    expect(anchors.length).toBeGreaterThan(0);
-    const anchorLat = Array.isArray(anchors[0]) ? (anchors[0] as number[])[1] : (anchors[0] as any).lat;
-
-    // Get geojson coordinate range
+  function readFeatures(file: string) {
+    const geoPath = path.join(CACHE_DIR, file);
+    expect(fs.existsSync(geoPath), `active cache file ${file} must exist on disk — run cache-path-geometry`).toBe(true);
     const data = JSON.parse(fs.readFileSync(geoPath, 'utf-8'));
-    const allLats: number[] = [];
-    for (const feature of data.features || []) {
-      for (const coord of feature.geometry?.coordinates ?? []) {
-        allLats.push(coord[1]);
+    return (data.features || []) as Array<{ properties?: { wayId?: number }; geometry?: { coordinates?: [number, number][] } }>;
+  }
+
+  it('active cache file(s) for trail-1-1 must NOT contain Gatineau Park ways', () => {
+    const { files } = loadTrail11();
+    for (const file of files) {
+      const features = readFeatures(file);
+      const wayIds = features.map(f => f.properties?.wayId).filter((v): v is number => typeof v === 'number');
+      for (const gatiWay of GATINEAU_PARK_WAY_IDS) {
+        expect(
+          wayIds,
+          `${file} must not contain Gatineau Park way ${gatiWay} — trail-1-1 belongs to the Greenbelt`
+        ).not.toContain(gatiWay);
       }
     }
-    expect(allLats.length).toBeGreaterThan(0);
+  });
 
-    const avgLat = allLats.reduce((a, b) => a + b, 0) / allLats.length;
+  it('active cache file(s) for trail-1-1 must have geometry near its YML anchors', () => {
+    const { entry, files } = loadTrail11();
+    const anchors = entry.anchors ?? [];
+    expect(anchors.length).toBeGreaterThan(0);
+    const anchorLat = Array.isArray(anchors[0]) ? (anchors[0] as number[])[1] : (anchors[0] as { lat: number }).lat;
 
-    // Geometry should be within ~10km of the anchor (~0.1 degrees latitude)
-    expect(
-      Math.abs(avgLat - anchorLat),
-      `Geometry center (${avgLat.toFixed(4)}) is too far from anchor (${anchorLat.toFixed(4)}) — wrong trail in the file`
-    ).toBeLessThan(0.1);
+    for (const file of files) {
+      const features = readFeatures(file);
+      const allLats: number[] = [];
+      for (const feature of features) {
+        for (const coord of feature.geometry?.coordinates ?? []) {
+          allLats.push(coord[1]);
+        }
+      }
+      expect(allLats.length, `${file} must contain geometry`).toBeGreaterThan(0);
+      const avgLat = allLats.reduce((a, b) => a + b, 0) / allLats.length;
+      expect(
+        Math.abs(avgLat - anchorLat),
+        `${file} geometry center (${avgLat.toFixed(4)}) is too far from anchor (${anchorLat.toFixed(4)}) — wrong trail in the file`,
+      ).toBeLessThan(0.1);
+    }
   });
 
   // TODO: fails after pipeline refactor — way may have moved between entries. Investigate after Gatineau Park network redesign.

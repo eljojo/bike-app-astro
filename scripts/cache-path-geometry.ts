@@ -59,6 +59,40 @@ export function anchorBbox(anchors: Array<[number, number]>): string {
   return `${Math.min(...lats) - pad},${Math.min(...lngs) - pad},${Math.max(...lats) + pad},${Math.max(...lngs) + pad}`;
 }
 
+/**
+ * Remove cached .geojson files that are not in the active set.
+ *
+ * The manifest tells the reader which files are authoritative, but the
+ * cache dir still accumulates orphans every time an entry's slug or
+ * discovery mechanism changes (e.g. `name-foo.geojson` -> `ways-foo.geojson`
+ * when osm_way_ids are added). Orphans are invisible to the tile build
+ * but surface as ghost test failures and bloat the working tree — so we
+ * delete them alongside their .hash sidecars whenever the manifest is
+ * refreshed.
+ *
+ * Non-geojson files (manifest.json, README, etc.) are left alone.
+ */
+export function cleanupOrphanedCacheFiles(
+  cacheDir: string,
+  activeFiles: Set<string>,
+): { removed: string[] } {
+  const removed: string[] = [];
+  if (!fs.existsSync(cacheDir)) return { removed };
+
+  for (const file of fs.readdirSync(cacheDir)) {
+    if (!file.endsWith('.geojson')) continue;
+    if (activeFiles.has(file)) continue;
+
+    fs.rmSync(path.join(cacheDir, file));
+    removed.push(file);
+
+    const hashSidecar = path.join(cacheDir, `${file}.hash`);
+    if (fs.existsSync(hashSidecar)) fs.rmSync(hashSidecar);
+  }
+
+  return { removed };
+}
+
 /** Fetch raw Overpass data and process into GeoJSON. The pipeline cache handles
  *  dedup — same query string = cache hit, no network request. */
 async function fetchAndProcess(query: string, id: number | string, outPath: string): Promise<boolean> {
@@ -235,13 +269,22 @@ if (!dryRun) {
       files.push(file);
     }
   }
+  const activeFiles = new Set(files);
   const manifest = {
     city: CITY,
     generated: new Date().toISOString(),
-    files: [...new Set(files)].sort(),
+    files: [...activeFiles].sort(),
   };
   fs.writeFileSync(path.join(CACHE_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2));
   console.log(`[path-geo] Wrote manifest with ${manifest.files.length} expected geo files`);
+
+  // Delete orphans that accumulated from prior YML revisions so the cache
+  // dir stays in sync with the manifest. Prevents stale name-foo.geojson
+  // from lingering after an entry gains osm_way_ids, etc.
+  const { removed } = cleanupOrphanedCacheFiles(CACHE_DIR, activeFiles);
+  if (removed.length > 0) {
+    console.log(`[path-geo] Cleaned ${removed.length} orphaned geo file(s)`);
+  }
 }
 
 // --- Elevation enrichment (featured paths only) ---
