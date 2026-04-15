@@ -2,6 +2,26 @@ import { buildImageUrl } from '../media/image-service';
 import polylineCodec from '@mapbox/polyline';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
 
+/**
+ * Yield every [lng, lat] coordinate from a collection of GeoJSON features.
+ * Handles LineString and MultiLineString geometries; other types are skipped.
+ * Shared by bounds/midpoint computations across multiple map modules.
+ */
+export function* iterLineCoords(
+  features: Iterable<GeoJSON.Feature>,
+): Generator<[number, number]> {
+  for (const f of features) {
+    const geom = f.geometry;
+    if (geom.type === 'LineString') {
+      yield* (geom as GeoJSON.LineString).coordinates as [number, number][];
+    } else if (geom.type === 'MultiLineString') {
+      for (const line of (geom as GeoJSON.MultiLineString).coordinates) {
+        yield* line as [number, number][];
+      }
+    }
+  }
+}
+
 // --- Category filtering for ?category= query param on /map ---
 
 interface FilterablePlace {

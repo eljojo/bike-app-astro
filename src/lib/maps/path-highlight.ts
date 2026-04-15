@@ -7,6 +7,8 @@
 // A sync loop reads `wantSlug` and applies it to the map. This decoupling
 // eliminates race conditions from mouseenter/mouseleave event ordering.
 import type maplibregl from 'maplibre-gl';
+import { boundsFromCoords, toFitBoundsArg } from '../geo/bounds';
+import { iterLineCoords } from './map-helpers';
 
 export interface PathHighlightOptions {
   /** CSS selector for list items with data-slug attributes */
@@ -157,23 +159,10 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
 
     if (features.length === 0) return;
 
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-    for (const f of features) {
-      const geom = f.geometry;
-      const coords = geom.type === 'LineString' ? (geom as GeoJSON.LineString).coordinates
-        : geom.type === 'MultiLineString' ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-        : [];
-      for (const [lng, lat] of coords as [number, number][]) {
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      }
-    }
+    const bounds = boundsFromCoords(iterLineCoords(features));
+    if (!bounds) return;
 
-    if (minLng === Infinity) return;
-
-    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+    map.fitBounds(toFitBoundsArg(bounds), {
       padding: 60,
       maxZoom: 14,
       animate: !instant,

@@ -16,7 +16,8 @@ import { setupPathHighlight, type PathHighlightHandle } from './path-highlight';
 import { createMapExpandButton } from './map-expand-button';
 import { createTilePathLayer } from './layers/tile-path-layer';
 import { muteBaseCyclingLayers } from './base-layer-control';
-import { buildPathPopup } from './map-helpers';
+import { buildPathPopup, iterLineCoords } from './map-helpers';
+import { boundsFromCoords, toFitBoundsArg } from '../geo/bounds';
 import maplibregl from 'maplibre-gl';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -142,28 +143,13 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     // Lock now that we know features exist — suppresses hover until popup closes
     _highlightHandle?.lock(slug);
 
-    // Compute bounds + collect coordinates for midpoint
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-    const allCoords: [number, number][] = [];
-    for (const f of features) {
-      const geom = f.geometry;
-      const coords = geom.type === 'LineString'
-        ? (geom as GeoJSON.LineString).coordinates
-        : geom.type === 'MultiLineString'
-          ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-          : [];
-      for (const [lng, lat] of coords as [number, number][]) {
-        allCoords.push([lng, lat]);
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      }
-    }
-    if (allCoords.length === 0) return;
+    // Collect coordinates once — needed for both bounds and the midpoint popup anchor.
+    const allCoords: [number, number][] = [...iterLineCoords(features)];
+    const bounds = boundsFromCoords(allCoords);
+    if (!bounds) return;
 
     // Fly to path bounds
-    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+    map.fitBounds(toFitBoundsArg(bounds), {
       padding: 60, maxZoom: 14, animate: true, duration: 500,
     });
 
