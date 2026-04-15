@@ -29,13 +29,16 @@ import { haversineKm } from '../geo/proximity';
 
 /**
  * Per-way input to the grouper. `lines` is an array of polylines (each
- * polyline is an array of [lng, lat] tuples), mirroring the shape of a
- * GeoJSON LineString or MultiLineString after truncation.
+ * polyline is an array of positions), mirroring the shape of a GeoJSON
+ * LineString or MultiLineString after truncation. Positions are typed
+ * as `readonly number[]` so that a GeoJSON `Position[][]` (which may
+ * carry elevation as a third coordinate) is assignable without a cast;
+ * the grouper only reads `coord[0]` (lng) and `coord[1]` (lat).
  */
 export interface WayInput {
   name?: string;
   surface?: string;
-  lines: Array<Array<[number, number]>>;
+  lines: ReadonlyArray<ReadonlyArray<readonly number[]>>;
 }
 
 /**
@@ -45,17 +48,21 @@ export interface WayInput {
  * place, sorted descending by km. `ways` is a pass-through of the
  * input objects for each way that belongs to this segment, so the
  * caller can distribute them across surface-category features.
+ *
+ * Generic over `W extends WayInput` so the caller can pass a narrower
+ * way type (e.g. with concrete `Position[][]` lines) and read it back
+ * out on the `ways` array without a cast.
  */
-export interface LogicalSegment {
+export interface LogicalSegment<W extends WayInput = WayInput> {
   name?: string;
   surface_mix: Array<{ value: string; km: number }>;
-  ways: WayInput[];
+  ways: W[];
 }
 
-export function groupWaysIntoSegments(ways: WayInput[]): LogicalSegment[] {
-  // Map<nameKey, WayInput[]>. `undefined` is a valid key via a special value.
+export function groupWaysIntoSegments<W extends WayInput>(ways: W[]): LogicalSegment<W>[] {
+  // Map<nameKey, W[]>. `undefined` is a valid key via a special value.
   const UNNAMED = Symbol('unnamed') as unknown as undefined;
-  const buckets = new Map<string | typeof UNNAMED, WayInput[]>();
+  const buckets = new Map<string | typeof UNNAMED, W[]>();
   for (const w of ways) {
     const key = (w.name && w.name.length > 0) ? w.name : UNNAMED;
     let bucket = buckets.get(key);
@@ -66,7 +73,7 @@ export function groupWaysIntoSegments(ways: WayInput[]): LogicalSegment[] {
     bucket.push(w);
   }
 
-  const segments: LogicalSegment[] = [];
+  const segments: LogicalSegment<W>[] = [];
   for (const [key, bucketWays] of buckets) {
     const name = key === UNNAMED ? undefined : (key as string);
     const kmBySurface = new Map<string, number>();
@@ -84,7 +91,7 @@ export function groupWaysIntoSegments(ways: WayInput[]): LogicalSegment[] {
 }
 
 /** Total length in km of a list of polylines using the project's haversine helper. */
-function linesLengthKm(lines: Array<Array<[number, number]>>): number {
+function linesLengthKm(lines: ReadonlyArray<ReadonlyArray<readonly number[]>>): number {
   let total = 0;
   for (const line of lines) {
     for (let i = 1; i < line.length; i++) {

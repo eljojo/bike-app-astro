@@ -211,6 +211,59 @@ describe('merge', () => {
     expect(gravelSegs[0].lineCount).toBe(1);
   });
 
+  it('duplicates a segment across all three surface categories with identical surface_mix', () => {
+    const input = new Map([
+      [
+        'geo-5',
+        fc(
+          line([[-75.7, 45.4], [-75.69, 45.4]], { name: 'Path #15', surface: 'asphalt' }),
+          line([[-75.69, 45.4], [-75.68, 45.4]], { name: 'Path #15', surface: 'gravel' }),
+          line([[-75.68, 45.4], [-75.67, 45.4]], { name: 'Path #15', surface: 'ground' }),
+        ),
+      ],
+    ]);
+    const { tiles } = buildTiles(input, new Map([['geo-5', meta({ slug: 'foo' })]]));
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(3);
+
+    const byCat: Record<string, any> = {};
+    for (const f of features) {
+      byCat[(f.properties as any).surface_category] = f;
+    }
+    expect(byCat.road).toBeDefined();
+    expect(byCat.gravel).toBeDefined();
+    expect(byCat.mtb).toBeDefined();
+
+    const roadSegs = (byCat.road.properties as any)._segments;
+    const gravelSegs = (byCat.gravel.properties as any)._segments;
+    const mtbSegs = (byCat.mtb.properties as any)._segments;
+
+    expect(roadSegs).toHaveLength(1);
+    expect(gravelSegs).toHaveLength(1);
+    expect(mtbSegs).toHaveLength(1);
+
+    // All three copies of the segment carry the same full surface_mix
+    expect(roadSegs[0].surface_mix).toEqual(gravelSegs[0].surface_mix);
+    expect(roadSegs[0].surface_mix).toEqual(mtbSegs[0].surface_mix);
+    expect(roadSegs[0].surface_mix).toHaveLength(3);
+
+    // Per-category lineCount — each got exactly one way
+    expect(roadSegs[0].lineCount).toBe(1);
+    expect(gravelSegs[0].lineCount).toBe(1);
+    expect(mtbSegs[0].lineCount).toBe(1);
+
+    // Contiguous-ordering invariant: per-feature lineCount sum = geometry line count
+    for (const f of [byCat.road, byCat.gravel, byCat.mtb]) {
+      const segs = (f.properties as any)._segments;
+      const totalLineCount = segs.reduce((acc: number, s: any) => acc + s.lineCount, 0);
+      const geomLineCount = f.geometry.type === 'MultiLineString'
+        ? (f.geometry as any).coordinates.length
+        : 1;
+      expect(totalLineCount).toBe(geomLineCount);
+    }
+  });
+
   it('collapses unnamed ways into a single {name: undefined} segment per feature', () => {
     const input = new Map([
       [

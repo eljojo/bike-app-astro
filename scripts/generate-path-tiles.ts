@@ -190,7 +190,13 @@ function mergeFeatures(
   const meta = metadata?.get(geoId);
 
   // ── Phase 1: collect per-way inputs with name and surface ────────
-  const wayInputs: WayInput[] = [];
+  // Local narrowing: mergeFeatures builds lines as `Position[][]`
+  // (mutable) and reads them back in Phase 3 to push into per-category
+  // buckets typed `Position[][]`. The generic `groupWaysIntoSegments<W>`
+  // preserves this narrower type through `LogicalSegment<W>.ways`, so
+  // no cast is needed at the Phase 3 read-back site.
+  type LocalWayInput = WayInput & { lines: Position[][] };
+  const wayInputs: LocalWayInput[] = [];
   for (const feature of fc.features) {
     const truncatedLines = collectLines(feature.geometry);
     if (truncatedLines.length === 0) continue;
@@ -200,7 +206,7 @@ function mergeFeatures(
     wayInputs.push({
       name,
       surface,
-      lines: truncatedLines as Array<Array<[number, number]>>,
+      lines: truncatedLines,
     });
   }
   if (wayInputs.length === 0) return [];
@@ -230,6 +236,11 @@ function mergeFeatures(
       // Per-way surface tag wins; fall back to the entry-level metadata
       // surface so ways with no explicit surface still land in the right
       // category (preserves prior behaviour).
+      // Note: a way with no OSM `surface` tag is labelled "unknown" in the
+      // segment's surface_mix (segments.ts::groupWaysIntoSegments) but
+      // routes to the entry's declared surface for category bucketing —
+      // preserving prior rendering behaviour for untagged ways on
+      // long-distance trails.
       const cat = classifySurface(way.surface ?? meta?.surface);
       for (const waysLine of way.lines) {
         linesByCategory[cat].push(waysLine);
