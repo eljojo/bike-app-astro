@@ -228,7 +228,9 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
         }
       }
       if (minLng === Infinity) return false;
-      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: opts?.padding ?? 60, maxZoom: opts?.maxZoom, animate: true, duration: 500 });
+      const fitOpts: maplibregl.FitBoundsOptions = { padding: opts?.padding ?? 60, animate: true, duration: 500 };
+      if (opts?.maxZoom != null) fitOpts.maxZoom = opts.maxZoom;
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], fitOpts);
       return true;
     },
 
