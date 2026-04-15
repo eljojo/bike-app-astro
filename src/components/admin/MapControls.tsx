@@ -6,9 +6,11 @@ interface Props {
   onTogglePhotos?: (visible: boolean) => void;
   onTogglePlaces?: (visible: boolean) => void;
   onToggleGps?: (visible: boolean) => void;
+  onToggleMtb?: (visible: boolean) => void;
   onToggleStyle?: (key: MapStyleKey) => void;
   hasPhotos?: boolean;
   hasPlaces?: boolean;
+  hasMtbToggle?: boolean;
   defaultPhotos?: boolean;
 }
 
@@ -24,10 +26,11 @@ export function saveToggleState(key: string, value: boolean): void {
   localStorage.setItem(key, String(value));
 }
 
-export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGps, onToggleStyle, hasPhotos = true, hasPlaces = true, defaultPhotos = true }: Props) {
+export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGps, onToggleMtb, onToggleStyle, hasPhotos = true, hasPlaces = true, hasMtbToggle = false, defaultPhotos = true }: Props) {
   const [photos, setPhotos] = useState(defaultPhotos);
   const [places, setPlaces] = useState(true);
   const [gps, setGps] = useState(false);
+  const [mtb, setMtb] = useState(true);
   const [styleKey, setStyleKey] = useState<MapStyleKey>('default');
 
   useEffect(() => {
@@ -45,7 +48,7 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
     }
   }, []);
 
-  function toggle(which: 'photos' | 'places' | 'gps') {
+  function toggle(which: 'photos' | 'places' | 'gps' | 'mtb') {
     if (which === 'photos') {
       const next = !photos;
       setPhotos(next);
@@ -56,6 +59,11 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
       setPlaces(next);
       saveToggleState('map-places', next);
       onTogglePlaces?.(next);
+    } else if (which === 'mtb') {
+      const next = !mtb;
+      setMtb(next);
+      saveToggleState('map-mtb', next);
+      onToggleMtb?.(next);
     } else {
       const next = !gps;
       setGps(next);
@@ -83,6 +91,16 @@ export default function MapControls({ onTogglePhotos, onTogglePlaces, onToggleGp
           aria-pressed={places}
         >
           <Icon name="map-pin" weight="fill" size={20} />
+        </button>
+      )}
+      {hasMtbToggle && (
+        <button
+          class={`map-control-btn ${mtb ? 'active' : ''}`}
+          onClick={() => toggle('mtb')}
+          title={mtb ? 'Hide MTB trails' : 'Show MTB trails'}
+          aria-pressed={mtb}
+        >
+          <Icon name="mountains" size={20} />
         </button>
       )}
       <button

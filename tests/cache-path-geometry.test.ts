@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { overpassToGeoJSON, anchorBbox, buildNameQuery } from '../scripts/cache-path-geometry';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  overpassToGeoJSON,
+  anchorBbox,
+  buildNameQuery,
+  cleanupOrphanedCacheFiles,
+  verifyGeometryMatchesAnchors,
+} from '../scripts/cache-path-geometry';
+import type { Feature, LineString } from 'geojson';
 
 describe('overpassToGeoJSON', () => {
   it('converts Overpass way elements to GeoJSON FeatureCollection with [lon, lat] coordinates', () => {
@@ -36,7 +46,7 @@ describe('overpassToGeoJSON', () => {
       [-75.7, 45.4],
       [-75.71, 45.41],
     ]);
-    expect(result.features[0].properties).toEqual({ wayId: 12345, sourceId: 99999 });
+    expect(result.features[0].properties).toEqual({ wayId: 12345, sourceId: 99999, surface: '' });
 
     // Second feature
     expect((result.features[1].geometry as GeoJSON.LineString).coordinates).toEqual([
@@ -44,7 +54,7 @@ describe('overpassToGeoJSON', () => {
       [-75.61, 45.51],
       [-75.62, 45.52],
     ]);
-    expect(result.features[1].properties).toEqual({ wayId: 67890, sourceId: 99999 });
+    expect(result.features[1].properties).toEqual({ wayId: 67890, sourceId: 99999, surface: '' });
   });
 
   it('skips non-way elements and elements without geometry', () => {
@@ -67,7 +77,7 @@ describe('overpassToGeoJSON', () => {
     const result = overpassToGeoJSON(data, 100);
 
     expect(result.features).toHaveLength(1);
-    expect(result.features[0].properties).toEqual({ wayId: 4, sourceId: 100 });
+    expect(result.features[0].properties).toEqual({ wayId: 4, sourceId: 100, surface: '' });
   });
 
   it('handles empty elements array', () => {
@@ -75,6 +85,36 @@ describe('overpassToGeoJSON', () => {
 
     expect(result.type).toBe('FeatureCollection');
     expect(result.features).toEqual([]);
+  });
+
+  it('preserves OSM surface tag from way tags', () => {
+    const data = {
+      elements: [
+        {
+          type: 'way',
+          id: 111,
+          tags: { surface: 'asphalt', highway: 'cycleway' },
+          geometry: [
+            { lat: 45.0, lon: -75.0 },
+            { lat: 45.1, lon: -75.1 },
+          ],
+        },
+        {
+          type: 'way',
+          id: 222,
+          tags: { surface: 'gravel' },
+          geometry: [
+            { lat: 45.2, lon: -75.2 },
+            { lat: 45.3, lon: -75.3 },
+          ],
+        },
+      ],
+    };
+
+    const result = overpassToGeoJSON(data, 99);
+
+    expect(result.features[0].properties!.surface).toBe('asphalt');
+    expect(result.features[1].properties!.surface).toBe('gravel');
   });
 
   it('works with string sourceId (slug-based entries)', () => {
@@ -96,6 +136,7 @@ describe('overpassToGeoJSON', () => {
     expect(result.features[0].properties).toEqual({
       wayId: 555,
       sourceId: 'ottawa-river-pathway',
+      surface: '',
     });
   });
 });
@@ -176,5 +217,175 @@ describe('buildNameQuery', () => {
     // Both should have the highway filter
     const matches = query.match(/\["highway"/g);
     expect(matches).toHaveLength(2);
+  });
+});
+
+describe('cleanupOrphanedCacheFiles', () => {
+  function mkCache(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'cache-cleanup-'));
+  }
+
+  function touch(dir: string, file: string, content = '{}') {
+    fs.writeFileSync(path.join(dir, file), content);
+  }
+
+  it('removes .geojson files that are not in the active set', () => {
+    const dir = mkCache();
+    try {
+      touch(dir, 'ways-alpha.geojson');
+      touch(dir, 'ways-beta.geojson');
+      touch(dir, 'name-stale.geojson');   // orphan — not in active set
+      touch(dir, '7234399.geojson');       // orphan — relation file from a removed entry
+      touch(dir, 'manifest.json');         // must not be touched
+
+      const result = cleanupOrphanedCacheFiles(dir, new Set([
+        'ways-alpha.geojson',
+        'ways-beta.geojson',
+      ]));
+
+      const remaining = fs.readdirSync(dir).sort();
+      expect(remaining).toEqual([
+        'manifest.json',
+        'ways-alpha.geojson',
+        'ways-beta.geojson',
+      ]);
+      expect(new Set(result.removed)).toEqual(new Set([
+        'name-stale.geojson',
+        '7234399.geojson',
+      ]));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('also removes the .geojson.hash sidecar when removing a stale .geojson', () => {
+    const dir = mkCache();
+    try {
+      touch(dir, 'ways-alpha.geojson');
+      touch(dir, 'ways-alpha.geojson.hash', 'abc123');
+      touch(dir, 'name-stale.geojson');
+      touch(dir, 'name-stale.geojson.hash', 'def456');
+
+      cleanupOrphanedCacheFiles(dir, new Set(['ways-alpha.geojson']));
+
+      expect(fs.existsSync(path.join(dir, 'name-stale.geojson'))).toBe(false);
+      expect(fs.existsSync(path.join(dir, 'name-stale.geojson.hash'))).toBe(false);
+      expect(fs.existsSync(path.join(dir, 'ways-alpha.geojson'))).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'ways-alpha.geojson.hash'))).toBe(true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('leaves non-geojson files (manifest.json, README) alone', () => {
+    const dir = mkCache();
+    try {
+      touch(dir, 'manifest.json', '{"files": []}');
+      touch(dir, 'README.md', 'hello');
+      touch(dir, 'name-orphan.geojson');
+
+      cleanupOrphanedCacheFiles(dir, new Set());
+
+      expect(fs.existsSync(path.join(dir, 'manifest.json'))).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'README.md'))).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'name-orphan.geojson'))).toBe(false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('is a no-op for an empty directory', () => {
+    const dir = mkCache();
+    try {
+      const result = cleanupOrphanedCacheFiles(dir, new Set(['ways-alpha.geojson']));
+      expect(result.removed).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('verifyGeometryMatchesAnchors', () => {
+  function line(coords: [number, number][]): Feature<LineString> {
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: coords },
+    };
+  }
+
+  it('passes when the entry has no anchors (nothing to compare against)', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X' },
+      [line([[-75.7, 45.4], [-75.6, 45.5]])],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when there are no features (empty fetch result)', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4], [-75.6, 45.5]] as Array<[number, number]> },
+      [],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when the geometry centroid lies inside the anchor bbox', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4], [-75.6, 45.5]] as Array<[number, number]> },
+      [line([[-75.65, 45.44], [-75.64, 45.46]])],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes for long-distance trails whose bbox spans the whole route', () => {
+    // 200km trail from Ottawa to Kingston — anchors at the endpoints, centroid in the middle.
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'long-trail', name: 'Long Trail', anchors: [[-75.7, 45.4], [-76.5, 44.2]] as Array<[number, number]> },
+      [line([[-76.1, 44.8], [-76.0, 44.85]])],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when the centroid is within the threshold distance of the bbox', () => {
+    // bbox is a tight square at [-75.7, 45.4] -> [-75.6, 45.5]; centroid just outside by ~2km.
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4], [-75.6, 45.5]] as Array<[number, number]> },
+      [line([[-75.55, 45.52]])],
+      10,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('fails when the centroid is far outside the anchor bbox (trail-1-1 poisoned shape)', () => {
+    // Actual trail-1-1 numbers: anchors around [45.49, -76.08], poisoned centroid around [45.33, -75.87] (~18km away).
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'trail-1-1', name: 'Trail 1', anchors: [[-76.0868, 45.4918], [-76.0788, 45.4924]] as Array<[number, number]> },
+      [line([[-75.87, 45.33], [-75.86, 45.34]])],
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.distanceKm).toBeGreaterThan(10);
+    }
+  });
+
+  it('reports the centroid and distance when it fails', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4]] as Array<[number, number]> },
+      [line([[-70, 50]])],
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.centroid).toBeDefined();
+      expect(result.distanceKm).toBeGreaterThan(100);
+    }
+  });
+
+  it('handles the {lat, lng} object form of anchors (not just tuples)', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [{ lat: 45.4, lng: -75.7 }, { lat: 45.5, lng: -75.6 }] },
+      [line([[-75.65, 45.44]])],
+    );
+    expect(result.ok).toBe(true);
   });
 });

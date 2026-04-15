@@ -7,6 +7,7 @@
 import maplibregl from 'maplibre-gl';
 import { pathForeground } from '../map-swatch';
 import { createTileLoader, type TileLoader, type TileManifestEntry } from '../tile-loader';
+import { loadFeaturesForGeoIds } from '../geo-id-resolver';
 import { SOURCE_ID, ALL_LAYER_IDS, LINE_LAYERS, BG_LAYERS, addPathLayers } from './tile-path-styles';
 import { setupPathInteractions } from './tile-path-interactions';
 import type { MapLayer, LayerContext } from './types';
@@ -30,11 +31,17 @@ export interface TilePathLayerOptions {
   slugInfo?: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }>;
   /** Localized labels for popups. */
   labels?: { viewDetails?: string };
+  /** If provided, path feature clicks call this with the slug instead of
+   *  spawning a MapLibre popup. Used by paths-browse-map to route all
+   *  clicks (map + sidebar) through the same lock/card flow. */
+  onPathClick?: (slug: string) => void;
 }
 
+export interface FitOptions { maxZoom?: number; padding?: number }
+
 export interface TilePathLayer extends MapLayer {
-  highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean): void;
-  fitToGeoIds(map: maplibregl.Map, geoIds: string[]): void;
+  highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly?: boolean, flyOpts?: FitOptions): void;
+  fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions): Promise<boolean>;
   /** Query in-memory features by slug or network geoIds. No renderer dependency. */
   queryFeaturesBySlug(slug: string, networkGeoIds?: Record<string, string[]>): GeoJSON.Feature[];
 }
@@ -84,7 +91,7 @@ function extractCoords(geom: GeoJSON.Geometry): GeoJSON.Position[] {
 // ── Factory ─────────────────────────────────────────────────────
 
 export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
-  const { manifestPromise, fetchPath, highlightGeoIds, foreground = false, interactiveGeoIds, slugInfo, labels } = opts;
+  const { manifestPromise, fetchPath, highlightGeoIds, foreground = false, interactiveGeoIds, slugInfo, labels, onPathClick } = opts;
   const isDetailMode = highlightGeoIds != null && highlightGeoIds.size > 0;
 
   let tileLoader: TileLoader | null = null;
@@ -136,7 +143,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       });
 
       addPathLayers(map, isDetailMode, foreground);
-      removeInteractions = setupPathInteractions(map, { foreground, slugInfo, labels });
+      removeInteractions = setupPathInteractions(map, { foreground, slugInfo, labels, onPathClick });
       layersCreated = true;
 
       moveEndHandler = async () => {
@@ -180,7 +187,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       }
     },
 
-    highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly = false) {
+    highlightGeoIds(map: maplibregl.Map, geoIds: string[] | null, fly = false, flyOpts?: FitOptions) {
       if (!map.getLayer('paths-network-highlight')) return;
       if (geoIds && geoIds.length > 0) {
         map.setFilter('paths-network-highlight', ['in', ['get', 'relationId'], ['literal', geoIds]]);
@@ -190,7 +197,7 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
         for (const id of BG_LAYERS) {
           if (map.getLayer(id)) map.setPaintProperty(id, 'line-opacity', pathForeground.highlight.dimOther);
         }
-        if (fly) this.fitToGeoIds(map, geoIds);
+        if (fly) this.fitToGeoIds(map, geoIds, flyOpts);
       } else {
         map.setFilter('paths-network-highlight', ['==', ['get', 'relationId'], '']);
         for (const id of LINE_LAYERS) {
@@ -202,13 +209,19 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
       }
     },
 
-    fitToGeoIds(map: maplibregl.Map, geoIds: string[]) {
-      if (!tileLoader) return;
-      const geoIdSet = new Set(geoIds);
-      const features = tileLoader.allLoadedFeatures().filter(
-        f => f.properties?.relationId && geoIdSet.has(f.properties.relationId),
-      );
-      if (features.length === 0) return;
+    async fitToGeoIds(map: maplibregl.Map, geoIds: string[], opts?: FitOptions) {
+      if (!tileLoader) return false;
+      // Load exactly the tiles that contain these geoIds, then filter
+      const features = await loadFeaturesForGeoIds(tileLoader, geoIds);
+      if (features.length === 0) return false;
+
+      // Update the map source with newly loaded features
+      const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        const all = tileLoader.allLoadedFeatures();
+        tagFeatures(all);
+        source.setData({ type: 'FeatureCollection', features: all });
+      }
       let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
       for (const f of features) {
         for (const [lng, lat] of extractCoords(f.geometry) as [number, number][]) {
@@ -218,8 +231,11 @@ export function createTilePathLayer(opts: TilePathLayerOptions): TilePathLayer {
           if (lat > maxLat) maxLat = lat;
         }
       }
-      if (minLng === Infinity) return;
-      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, animate: true, duration: 500 });
+      if (minLng === Infinity) return false;
+      const fitOpts: maplibregl.FitBoundsOptions = { padding: opts?.padding ?? 60, animate: true, duration: 500 };
+      if (opts?.maxZoom != null) fitOpts.maxZoom = opts.maxZoom;
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], fitOpts);
+      return true;
     },
 
     queryFeaturesBySlug(slug: string, netGeoIds?: Record<string, string[]>) {

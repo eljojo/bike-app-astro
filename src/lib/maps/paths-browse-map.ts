@@ -12,10 +12,12 @@ import { initMap, closePopup } from './map-init';
 import { pathForeground } from './map-swatch';
 import { loadStylePreference, getStyleUrl } from './map-style-switch';
 import { setupMapTouchLock } from './map-touch-lock';
-import { setupPathHighlight } from './path-highlight';
+import { setupPathHighlight, type PathHighlightHandle } from './path-highlight';
 import { createMapExpandButton } from './map-expand-button';
 import { createTilePathLayer } from './layers/tile-path-layer';
 import { muteBaseCyclingLayers } from './base-layer-control';
+import { buildPathCardContent, iterLineCoords } from './map-helpers';
+import { boundsFromCoords, toFitBoundsArg } from '../geo/bounds';
 import maplibregl from 'maplibre-gl';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -70,9 +72,18 @@ export interface PathsBrowseMapResult {
   /** The MapLibre map instance. */
   map: maplibregl.Map;
   /** Highlight a set of geo IDs on the highlight layer. Pass null to clear. */
-  highlightGeoIds: (geoIds: string[] | null, fly?: boolean) => void;
-  /** Fit the map to the bounds of features matching the given geo IDs. */
-  fitToGeoIds: (geoIds: string[]) => void;
+  highlightGeoIds: (geoIds: string[] | null, fly?: boolean, flyOpts?: { maxZoom?: number; padding?: number }) => void;
+  /** Fit the map to the bounds of features matching the given geo IDs. Returns false if no features found. */
+  fitToGeoIds: (geoIds: string[], opts?: { maxZoom?: number; padding?: number }) => Promise<boolean>;
+  /** Lock the list highlight on a slug — hover is suppressed until unlock. */
+  lockOnSlug: (slug: string) => void;
+  /** Unlock the list highlight, clearing the locked slug. */
+  unlockHighlight: () => void;
+  /** Whether the list highlight is currently locked. */
+  isHighlightLocked: () => boolean;
+  /** Select a path/network by slug: locks the highlight, flies the map
+   *  to its bounds, and shows the floating path card at the bottom. */
+  showPopupForSlug: (slug: string) => void;
   /** Expand button controller. */
   expandButton: ReturnType<typeof createMapExpandButton>;
 }
@@ -109,6 +120,56 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   if (isMobile && touchLockEl) touchLockEl.style.display = 'none';
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
 
+  // ── Path card (replaces the MapLibre popup) ─────────────────────
+  //
+  // A floating island at the bottom of the map that shows info for the
+  // currently-locked path or network. Slides up from below on lock,
+  // slides back down on unlock. The X inside the card triggers unlock.
+  // Created once and updated in place so switching between paths
+  // swaps content without flicker.
+
+  const card = document.createElement('div');
+  card.className = 'map-path-card';
+  card.setAttribute('role', 'status');
+  card.setAttribute('aria-live', 'polite');
+
+  const cardContent = document.createElement('div');
+  cardContent.className = 'map-path-card-content';
+  card.appendChild(cardContent);
+
+  const cardClose = document.createElement('button');
+  cardClose.type = 'button';
+  cardClose.className = 'map-path-card-close';
+  cardClose.innerHTML = '&#x2715;'; // ✕
+  cardClose.setAttribute('aria-label', 'Clear selection');
+  cardClose.title = 'Clear selection';
+  card.appendChild(cardClose);
+
+  container.appendChild(card);
+
+  cardClose.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _highlightHandle?.unlock();
+  });
+
+  function showPathCard(html: string) {
+    cardContent.innerHTML = html;
+    card.classList.add('map-path-card--visible');
+  }
+  function hidePathCard() {
+    card.classList.remove('map-path-card--visible');
+  }
+
+  // Clicks anywhere outside the browse widget clear the lock. The card
+  // is the visual for the locked state, so dismissing it releases the
+  // lock too — consistent with the old "outside click closes popup"
+  // behavior, just applied to the card/lock as a unit now.
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest('.paths-browse')) return;
+    _highlightHandle?.unlock();
+    closePopup(map); // defensive: clears any stray popup from other flows
+  });
   // ── Tile path layer ─────────────────────────────────────────────
 
   const manifestPromise = fetch('/bike-paths/geo/tiles/manifest.json')
@@ -121,14 +182,78 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     interactiveGeoIds,
     slugInfo,
     labels: opts.labels,
+    // Route map-feature clicks through the same flow as sidebar list
+    // clicks — both lock the highlight and render the card.
+    onPathClick: (slug) => { showPathCardForSlug(slug); },
   });
+
+  // ── Highlight lock / popup ─────────────────────────────────────
+
+  let _highlightHandle: PathHighlightHandle | null = null;
+
+  async function showPathCardForSlug(slug: string) {
+    // Toggle off: clicking the currently-locked path/network unlocks.
+    // The card auto-hides via the onLockChange callback.
+    if (_highlightHandle?.lockedSlug() === slug) {
+      _highlightHandle.unlock();
+      return;
+    }
+
+    const features = tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds);
+    if (features.length === 0) return;
+
+    // Build card content from slugInfo or tile properties, then show it
+    // immediately (before the fly) so the user gets an instant
+    // confirmation of what they clicked.
+    const info = slugInfo?.[slug];
+    const cardHtml = info
+      ? buildPathCardContent({
+        name: info.name, url: info.url,
+        length_km: info.length_km, surface: info.surface,
+        path_type: info.path_type, vibe: info.vibe,
+        network: info.network, networkUrl: info.networkUrl,
+      })
+      : buildPathCardContent({
+        name: features[0]?.properties?.name || slug,
+        url: undefined,
+        length_km: features[0]?.properties?.length_km ? Number(features[0].properties.length_km) : undefined,
+        surface: features[0]?.properties?.surface || undefined,
+        path_type: features[0]?.properties?.path_type || undefined,
+      });
+
+    // Lock now that we know features exist. Overrides any previous lock
+    // (switching paths). Hover suppression stays on until the user
+    // explicitly unlocks.
+    _highlightHandle?.lock(slug);
+    showPathCard(cardHtml);
+
+    // Fly to path bounds so the locked path is visible above the card.
+    // Use an asymmetric padding so the card's rendered height (variable
+    // based on whether a vibe/network line is present) is excluded from
+    // the fit zone — otherwise the bottom of the path sits behind the
+    // frosted card.
+    const bounds = boundsFromCoords(iterLineCoords(features));
+    if (bounds) {
+      const bottomCoverage = card.offsetHeight + 12 + 20; // card + bottom offset + breathing room
+      map.fitBounds(toFitBoundsArg(bounds), {
+        padding: { top: 60, right: 60, bottom: bottomCoverage, left: 60 },
+        maxZoom: 14,
+        animate: true,
+        duration: 500,
+      });
+    }
+  }
 
   // ── Result object (delegates to layer) ──────────────────────────
 
   const result: PathsBrowseMapResult = {
     map,
-    highlightGeoIds: (geoIds, fly) => tilePathLayer.highlightGeoIds(map, geoIds, fly),
-    fitToGeoIds: (geoIds) => tilePathLayer.fitToGeoIds(map, geoIds),
+    highlightGeoIds: (geoIds, fly, flyOpts) => tilePathLayer.highlightGeoIds(map, geoIds, fly, flyOpts),
+    fitToGeoIds: (geoIds, opts) => tilePathLayer.fitToGeoIds(map, geoIds, opts),
+    lockOnSlug: (slug) => _highlightHandle?.lock(slug),
+    unlockHighlight: () => _highlightHandle?.unlock(),
+    isHighlightLocked: () => _highlightHandle?.isLocked() ?? false,
+    showPopupForSlug: (slug) => { showPathCardForSlug(slug); },
     expandButton,
   };
 
@@ -149,24 +274,28 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
     if (listSelector) {
       let clearDebounce: ReturnType<typeof setTimeout> | null = null;
 
-      const highlight = setupPathHighlight(map, {
+      _highlightHandle = setupPathHighlight(map, {
         listSelector,
-        layerIds: ['paths-network-line', 'paths-network-line-dashed'],
+        layerIds: ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb'],
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: PATH_OPACITY,
         lineOpacityDim: pathForeground.hover.dimOpacity,
+        onListClick: (slug) => showPathCardForSlug(slug),
         sourceId: SOURCE_ID,
         queryFeatures: (slug) => tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds),
         slugToNetwork,
         networkGeoIds,
         mobile: isMobile,
+        onLockChange: (locked) => {
+          if (!locked) hidePathCard();
+        },
         onHighlight: (slug) => {
           // Cancel any pending fly-back when a new path is highlighted
           if (clearDebounce) { clearTimeout(clearDebounce); clearDebounce = null; }
 
-          // Mobile: close popup when highlight clears (map tap dismiss)
-          if (isMobile && !slug) {
+          // Close popup when highlight clears (background click/tap dismiss)
+          if (!slug) {
             closePopup(map);
           }
 
@@ -178,7 +307,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
           // For bg layers: instead of hiding entirely, apply the same highlight
           // filter so matching features stay visible. This is needed because some
           // network members have hasPage=false and only exist on bg layers.
-          for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+          for (const id of ['paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb']) {
             if (!map.getLayer(id)) continue;
             if (slug) {
               const isNetwork = networkGeoIds?.[slug];
@@ -203,16 +332,16 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         },
       });
 
-      // Mobile: tap on map background dismisses popup and clears highlight
-      if (isMobile) {
+      // Click/tap on map background dismisses popup and clears highlight
+      {
         map.on('click', (e) => {
           // Don't dismiss if the click was on a path feature (tile layer handles those)
           const features = map.queryRenderedFeatures(e.point, {
-            layers: ['paths-network-line', 'paths-network-line-dashed',
-                     'paths-network-bg', 'paths-network-bg-dashed'],
+            layers: ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb',
+                     'paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb'],
           });
           if (features.length > 0) return;
-          highlight.clear();
+          _highlightHandle!.clear();
         });
       }
     }

@@ -130,6 +130,7 @@ How the app works. Read to understand *what* things are.
 - [blog-instance](_ctx/blog-instance.md) — blog city is always blog/, CITY=blog, consumer repo, sync.js
 - [bike-paths](_ctx/bike-paths.md) — how bikepaths.yml (OSM) and markdown cooperate, overlay model, networks
 - [bike-path-tiles](_ctx/bike-path-tiles.md) — adaptive quadtree tiles with baked metadata, client-side tile loading
+- [tile-data-loading](_ctx/tile-data-loading.md) — resolve geoIds to tiles before computing, never depend on viewport
 - [pipeline-overview](_ctx/pipeline-overview.md) — pipeline steps, engine architecture, trace workflow, historical bug clusters
 - [pipeline-graph](_ctx/pipeline-graph.md) — auto-generated phase dependency graph with data-flow labels
 - [naming-unnamed-chains](_ctx/naming-unnamed-chains.md) — how the pipeline names unnamed chains from nearby parks/roads

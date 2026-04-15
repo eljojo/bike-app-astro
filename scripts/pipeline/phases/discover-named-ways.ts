@@ -201,7 +201,7 @@ out geom tags;`;
         _ways: combinedWays.length > 0
           ? combinedWays
           : clusterWays.filter((w: any) => w.geometry?.length >= 2).map((w: any) => w.geometry),
-        _wayIds: clusterWays.filter((w: any) => w.id).map((w: any) => w.id),
+        _wayIds: [...seenIds],
       });
     }
   }

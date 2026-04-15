@@ -80,6 +80,33 @@ export interface MemberRef {
   vibe?: string;
 }
 
+/**
+ * Pure projection: BikePathPage → MemberRef. Keep in sync with the MemberRef
+ * interface above. Narrows overlapping_relations to {id, name, route} — the
+ * richer fields on the source are intentionally dropped from the network-page
+ * bundle.
+ */
+export function toMemberRef(p: BikePathPage): MemberRef {
+  return {
+    slug: p.slug,
+    name: p.name,
+    length_km: p.length_km,
+    thumbnail_key: p.thumbnail_key,
+    standalone: p.standalone,
+    memberOf: p.memberOf,
+    hasMarkdown: p.hasMarkdown,
+    entryType: p.ymlEntries[0]?.type,
+    overlappingRelations: p.overlapping_relations?.map(r => ({
+      id: r.id,
+      name: r.name,
+      route: r.route,
+    })),
+    surface: p.surface,
+    path_type: p.path_type,
+    vibe: p.vibe,
+  };
+}
+
 /** A bike path page to be generated — merged YML + markdown data. */
 export interface BikePathPage {
   slug: string;
@@ -442,7 +469,9 @@ export function loadBikePathEntries(): {
       const entry = ymlBySlug.get(inc);
       if (entry) {
         matchedEntries.push(entry);
-        claimedSlugs.add(inc);
+        // Multi-entry includes create network-like grouping pages — don't claim
+        // the entries so they still get their own pages (needed for memberRefs).
+        if (includes.length <= 1) claimedSlugs.add(inc);
       }
     }
 
@@ -649,20 +678,7 @@ export function loadBikePathEntries(): {
       continue;
     }
 
-    const memberRefs: MemberRef[] = memberPages.map(p => ({
-      slug: p.slug,
-      name: p.name,
-      length_km: p.length_km,
-      thumbnail_key: p.thumbnail_key,
-      standalone: p.standalone,
-      memberOf: p.memberOf,
-      hasMarkdown: p.hasMarkdown,
-      entryType: p.ymlEntries[0]?.type,
-      overlappingRelations: p.overlapping_relations?.map(r => ({ id: r.id, name: r.name, route: r.route })),
-      surface: p.surface,
-      path_type: p.path_type,
-      vibe: p.vibe,
-    }));
+    const memberRefs: MemberRef[] = memberPages.map(toMemberRef);
 
     // Aggregate geometry from all members
     const allMemberEntries = memberPages.flatMap(p => p.ymlEntries);
@@ -730,6 +746,21 @@ export function loadBikePathEntries(): {
       entryType: entry.type,
       translations: readBikePathTranslations(entry.slug, entry, mdOverlay?.rawFrontmatter),
     });
+  }
+
+  // 8. Resolve memberRefs for multi-entry includes: pages.
+  // These are markdown grouping pages that claimed multiple YML entries in step 5
+  // but didn't get memberRefs (that's step 7's job for YML networks). Now that all
+  // individual member pages exist, build memberRefs so they display as networks.
+  for (const p of pages) {
+    if (p.memberRefs || p.ymlEntries.length < 2) continue;
+    // Only includes: pages have multiple ymlEntries from step 5
+    if (!p.hasMarkdown) continue;
+    const memberPages = p.ymlEntries
+      .map((e: SluggedBikePathYml) => pageBySlug.get(e.slug))
+      .filter((mp: BikePathPage | undefined): mp is BikePathPage => !!mp && mp.slug !== p.slug);
+    if (memberPages.length < 2) continue;
+    p.memberRefs = memberPages.map(toMemberRef);
   }
 
   // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)

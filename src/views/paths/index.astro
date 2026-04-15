@@ -7,203 +7,15 @@ import { paths } from '@/lib/paths';
 import { imageUrl } from '@/lib/media/image-service';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import { t, localePath } from '@/i18n';
-import { localizeSurface, localizePathType } from '@/lib/bike-paths/bike-path-facts';
+import { buildPathsIndexData } from '@/lib/bike-paths/paths-index-data.server';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
 const { pages: allPages } = await loadBikePathData();
-// Directory listing: only listed paths (destination + infrastructure types), excluding very short ones
-const pages = allPages.filter(p => p.listed && (!p.length_km || p.length_km >= 1));
-
-// Locale-aware accessors
-function pathName(p: typeof pages[0]): string {
-  return (locale && p.translations[locale]?.name) || p.name;
-}
-function pathVibe(p: typeof pages[0]): string | undefined {
-  return (locale && p.translations[locale]?.vibe) || p.vibe;
-}
-
-// Popup info for each path — keyed by slug, serialized to JSON for client
-const slugInfo: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }> = {};
-// slug → network slug for fly-to framing
-const slugToNetwork: Record<string, string> = {};
-for (const p of allPages) {
-  // Skip connectors — not listed, not standalone, don't appear on the map
-  if (!p.listed && !p.standalone) continue;
-  // Skip network pages' aggregated geometry — member pages already registered
-  // their own geoIds. Network overwrites would route member clicks to the network page.
-  if (p.memberRefs && p.memberRefs.length > 0) {
-    if (p.standalone) {
-      const url = paths.bikePath(p.slug, p.memberOf, locale);
-      slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type, t, locale), vibe: pathVibe(p), network: undefined };
-    }
-    continue;
-  }
-  if (p.standalone) {
-    const url = paths.bikePath(p.slug, p.memberOf, locale);
-    // Find network name if member
-    const netPage = p.memberOf ? allPages.find(n => n.slug === p.memberOf) : undefined;
-    const netName = netPage ? pathName(netPage) : undefined;
-    const netUrl = p.memberOf ? paths.bikePath(p.memberOf, undefined, locale) : undefined;
-    slugInfo[p.slug] = { name: pathName(p), url, length_km: p.length_km, surface: localizeSurface(p.surface, t, locale) || p.surface, path_type: localizePathType(p.path_type, t, locale), vibe: pathVibe(p), network: netName, networkUrl: netUrl };
-    if (p.memberOf) slugToNetwork[p.slug] = p.memberOf;
-  }
-}
-
-// Separate network pages, member paths, and standalone paths
-const networkPages = pages.filter(p => p.memberRefs && p.memberRefs.length > 0);
-const memberSlugs = new Set(networkPages.flatMap(n => (n.memberRefs ?? []).map(m => m.slug)));
-
-// Independent paths: standalone destination paths not in any network
-const allIndependent = pages.filter(p =>
-  p.standalone && !p.memberRefs && !memberSlugs.has(p.slug)
-).sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
-
-// Standalone long-distance trails (not members of any network)
-const longDistancePaths = allIndependent.filter(p => p.entryType === 'long-distance');
-const longDistanceSlugs = new Set(longDistancePaths.map(p => p.slug));
-const independentPaths = allIndependent.filter(p => !longDistanceSlugs.has(p.slug));
-
-// --- Classify networks into riding categories ---
-const TIER1_MIN_KM = 3;
-
-interface NetworkInfo {
-  slug: string;
-  name: string;
-  length_km?: number;
-  operator?: string;
-  tier1: typeof networkPages[0]['memberRefs'] extends (infer T)[] | undefined ? NonNullable<T>[] : never[];
-  tier2: typeof networkPages[0]['memberRefs'] extends (infer T)[] | undefined ? NonNullable<T>[] : never[];
-}
-
-// Long-distance members extracted from all networks — shown in the Long-distance tab, not in their network
-const longDistanceMemberRefs: Array<{ slug: string; name: string; length_km?: number; standalone: boolean; memberOf?: string }> = [];
-
-function buildNetworkInfo(net: typeof networkPages[0]): NetworkInfo {
-  const refs = (net.memberRefs ?? []).filter(m => m.length_km == null || m.length_km >= 0.5);
-  // Separate long-distance members — they go to the Long-distance category tab
-  const localRefs = refs.filter(m => {
-    if (m.entryType === 'long-distance') {
-      longDistanceMemberRefs.push({ slug: m.slug, name: m.name, length_km: m.length_km, standalone: m.standalone, memberOf: m.memberOf });
-      return false;
-    }
-    return true;
-  });
-  const tier1 = localRefs.filter(m => m.hasMarkdown || (m.length_km != null && m.length_km >= TIER1_MIN_KM));
-  const tier2 = localRefs.filter(m => !m.hasMarkdown && (m.length_km == null || m.length_km < TIER1_MIN_KM));
-  tier1.sort((a, b) => a.name.localeCompare(b.name));
-  return { slug: net.slug, name: pathName(net), length_km: net.length_km, operator: net.operator, tier1, tier2 };
-}
-
-// Classify each network by its members' dominant path_type
-function classifyNetwork(net: typeof networkPages[0]): 'mtb' | 'long-distance' | 'bikeways' | 'pathways' {
-  const members = net.memberRefs ?? [];
-  if (members.length === 0) return 'pathways';
-
-  // MTB: >=50% of members are mtb-trail
-  const mtbCount = members.filter(m => {
-    const page = pageBySlug.get(m.slug);
-    return page?.path_type === 'mtb-trail';
-  }).length;
-  if (mtbCount / members.length >= 0.5) return 'mtb';
-
-  // Long-distance: use the pipeline's classification, not OSM tags
-  if (net.entryType === 'long-distance') return 'long-distance';
-
-  // Bikeways: lcn network tag and mostly mup/separated-lane/bike-lane
-  if (net.network === 'lcn') return 'bikeways';
-
-  return 'pathways';
-}
-
-const pageBySlug = new Map(allPages.map(p => [p.slug, p]));
-
-const categoryMap: Record<string, NetworkInfo[]> = {
-  pathways: [],
-  mtb: [],
-  'long-distance': [],
-  bikeways: [],
-};
-
-for (const net of networkPages) {
-  const cat = classifyNetwork(net);
-  categoryMap[cat].push(buildNetworkInfo(net));
-}
-
-// Sort networks within each category by total length (largest first)
-for (const nets of Object.values(categoryMap)) {
-  nets.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
-}
-
-// Build category tabs — only include categories that have content
-interface Category {
-  key: string;
-  label: string;
-  networks: NetworkInfo[];
-  standalonePaths?: typeof longDistancePaths;
-}
-
-const categories: Category[] = [];
-if (categoryMap.pathways.length > 0) {
-  categories.push({ key: 'pathways', label: t('paths.cat_pathways', locale), networks: categoryMap.pathways });
-}
-if (categoryMap.mtb.length > 0) {
-  categories.push({ key: 'mtb', label: t('paths.cat_mtb', locale), networks: categoryMap.mtb });
-}
-// Combine standalone long-distance paths + long-distance members extracted from networks
-const allLongDistanceStandalone = [...longDistancePaths];
-const ldSlugs = new Set(allLongDistanceStandalone.map(p => p.slug));
-// Add member refs as lightweight entries (they have enough data to render links)
-for (const m of longDistanceMemberRefs) {
-  if (ldSlugs.has(m.slug)) continue;
-  ldSlugs.add(m.slug);
-  const page = pageBySlug.get(m.slug);
-  if (page) allLongDistanceStandalone.push(page);
-}
-allLongDistanceStandalone.sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
-
-if (categoryMap['long-distance'].length > 0 || allLongDistanceStandalone.length > 0) {
-  categories.push({
-    key: 'long-distance',
-    label: t('paths.cat_long_distance', locale),
-    networks: categoryMap['long-distance'],
-    standalonePaths: allLongDistanceStandalone,
-  });
-}
-if (categoryMap.bikeways.length > 0) {
-  categories.push({ key: 'bikeways', label: t('paths.cat_bikeways', locale), networks: categoryMap.bikeways });
-}
-
-// Compat: networkData is still used for map highlighting
-const networkData = networkPages.map(buildNetworkInfo);
-
-// Build network → geoId mapping for map highlighting
-const networkGeoIds: Record<string, string[]> = {};
-for (const net of networkPages) {
-  const geoIds: string[] = [];
-  for (const gf of net.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
-  for (const m of net.memberRefs ?? []) {
-    const memberPage = pageBySlug.get(m.slug);
-    if (memberPage) {
-      for (const gf of memberPage.geoFiles) geoIds.push(gf.replace(/\.geojson$/, ''));
-    }
-  }
-  networkGeoIds[net.slug] = geoIds;
-}
-
-// Build category → geoIds mapping (union of all networks in each category)
-const categoryGeoIds: Record<string, string[]> = {};
-for (const cat of categories) {
-  const allIds: string[] = [];
-  for (const net of cat.networks) {
-    const ids = networkGeoIds[net.slug] ?? [];
-    allIds.push(...ids);
-  }
-  categoryGeoIds[cat.key] = allIds;
-}
+const { categories, uncategorized, map: mapData, pathCount } = buildPathsIndexData({ allPages, locale, t });
 
 const mapCenter: [number, number] = [config.center.lat, config.center.lng];
-const seoDescription = t('paths.seo_description', locale, { count: String(pages.length), city: config.name });
+const seoDescription = t('paths.seo_description', locale, { count: String(pathCount), city: config.name });
 const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 ---
 
@@ -215,7 +27,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
   <div class="paths-index">
     <h1>{t('paths.heading', locale, { city: config.name })}</h1>
 
-    {allPages.length > 0 && categories.length > 0 && (
+    {categories.length > 0 && (
       <div class="paths-browse">
         {/* Sticky header: map + tabs stick as you scroll through panels */}
         <div class="paths-browse-header">
@@ -224,11 +36,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               class="paths-map-hero"
               id="paths-network-map"
               data-center={JSON.stringify(mapCenter)}
-              data-network-geo-ids={JSON.stringify(networkGeoIds)}
-              data-category-geo-ids={JSON.stringify(categoryGeoIds)}
-          data-slug-info={JSON.stringify(slugInfo)}
-          data-slug-to-network={JSON.stringify(slugToNetwork)}
-          data-label-view-details={t('paths.view_details', locale)}
+              data-network-geo-ids={JSON.stringify(mapData.networkGeoIds)}
+              data-category-geo-ids={JSON.stringify(mapData.categoryGeoIds)}
+              data-slug-info={JSON.stringify(mapData.slugInfo)}
+              data-slug-to-network={JSON.stringify(mapData.slugToNetwork)}
+              data-network-bounds={JSON.stringify(mapData.networkBounds)}
+              data-category-bounds={JSON.stringify(mapData.categoryBounds)}
+              data-label-view-details={t('paths.view_details', locale)}
               style="height: 400px; background: var(--color-surface-alt, #f0f0f0); transition: height 0.35s ease-out;"
             ></div>
             <div class="map-touch-lock" id="paths-map-touch-lock">
@@ -252,11 +66,11 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               <div class="category-network-group">
                 <div class="network-panel-header" data-slug={net.slug}>
                   <div class="network-panel-info">
-                    <a href={paths.bikePath(net.slug, undefined, locale)} class="network-panel-name">{net.name}</a>
+                    <a href={net.url} class="network-panel-name">{net.name}</a>
                     {net.length_km && <span class="path-meta">{net.length_km} km</span>}
                     {net.operator && <span class="path-meta path-meta--operator">{net.operator}</span>}
                   </div>
-                  <a href={paths.bikePath(net.slug, undefined, locale)} class="network-panel-link">
+                  <a href={net.url} class="network-panel-link">
                     {t('paths.view_network', locale)} &rarr;
                   </a>
                 </div>
@@ -265,8 +79,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                   <ul class="paths-list">
                     {net.tier1.map(m => (
                       <li data-slug={m.slug}>
-                        {m.standalone ? (
-                          <a href={paths.bikePath(m.slug, m.memberOf ?? net.slug, locale)} class="path-link">
+                        {m.url ? (
+                          <a href={m.url} class="path-link">
                             <span class="path-link-name">{m.name}</span>
                             {m.length_km && <span class="path-meta">{m.length_km} km</span>}
                           </a>
@@ -295,8 +109,8 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
                     <ul class="network-members-list">
                       {net.tier2.map(m => (
                         <li data-slug={m.slug}>
-                          {m.standalone ? (
-                            <a href={paths.bikePath(m.slug, m.memberOf ?? net.slug, locale)} class="network-member-link">
+                          {m.url ? (
+                            <a href={m.url} class="network-member-link">
                               <span class="network-member-name">{m.name}</span>
                               {m.length_km && <span class="network-member-meta">{m.length_km} km</span>}
                             </a>
@@ -314,34 +128,37 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
               </div>
             ))}
 
-            {/* Standalone long-distance paths (not in any network) */}
-            {cat.standalonePaths && cat.standalonePaths.length > 0 && (
-              <ul class="paths-list">
-                {cat.standalonePaths.map(p => (
-                  <li data-slug={p.slug}>
-                    <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
-                      <span class="path-link-name">{pathName(p)}</span>
-                      <span class="path-link-meta">
-                        {p.length_km && <span class="path-meta">{p.length_km} km</span>}
-                        {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
+            {/* Standalone paths (not in any network) */}
+            {cat.standalonePaths.length > 0 && (
+              <div class="category-standalone-group">
+                <h3 class="category-standalone-heading">{t('paths.standalone_heading', locale)}</h3>
+                <ul class="paths-list">
+                  {cat.standalonePaths.map(sp => (
+                    <li data-slug={sp.slug}>
+                      <a href={sp.url} class="path-link">
+                        <span class="path-link-name">{sp.name}</span>
+                        <span class="path-link-meta">
+                          {sp.length_km && <span class="path-meta">{sp.length_km} km</span>}
+                          {sp.surface && <span class="path-meta">{sp.surface}</span>}
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         ))}
 
         <div class="network-panel" data-panel="all">
           <ul class="paths-list">
-            {independentPaths.map(p => (
-              <li data-slug={p.slug}>
-                <a href={paths.bikePath(p.slug, p.memberOf, locale)} class="path-link">
-                  <span class="path-link-name">{pathName(p)}</span>
+            {uncategorized.map(sp => (
+              <li data-slug={sp.slug}>
+                <a href={sp.url} class="path-link">
+                  <span class="path-link-name">{sp.name}</span>
                   <span class="path-link-meta">
-                    {p.length_km && <span class="path-meta">{p.length_km} km</span>}
-                    {localizeSurface(p.surface, t, locale) && <span class="path-meta">{localizeSurface(p.surface, t, locale)}</span>}
+                    {sp.length_km && <span class="path-meta">{sp.length_km} km</span>}
+                    {sp.surface && <span class="path-meta">{sp.surface}</span>}
                   </span>
                 </a>
               </li>
@@ -359,19 +176,24 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
 <script>
   import { createPathsBrowseMap } from '../../lib/maps/paths-browse-map';
+  import { closePopup } from '../../lib/maps/map-init';
 
   const container = document.getElementById('paths-network-map');
   if (container) {
     const center: [number, number] = JSON.parse(container.dataset.center || '[0,0]');
+    const mapCenter: [number, number] = [center[1], center[0]]; // [lng, lat] for MapLibre
     const slugInfo = JSON.parse(container.dataset.slugInfo || '{}');
     const networkGeoIds: Record<string, string[]> = JSON.parse(container.dataset.networkGeoIds || '{}');
     const categoryGeoIds: Record<string, string[]> = JSON.parse(container.dataset.categoryGeoIds || '{}');
     const slugToNetworkMap: Record<string, string> = JSON.parse(container.dataset.slugToNetwork || '{}');
+    const networkBounds: Record<string, [number, number, number, number]> = JSON.parse(container.dataset.networkBounds || '{}');
+    const categoryBounds: Record<string, [number, number, number, number]> = JSON.parse(container.dataset.categoryBounds || '{}');
 
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     let flyBackFn: (() => void) | undefined;
 
-    const { map, highlightGeoIds, fitToGeoIds } = createPathsBrowseMap({
+
+    const { map, highlightGeoIds, unlockHighlight, isHighlightLocked } = createPathsBrowseMap({
       container,
       touchLockEl: document.getElementById('paths-map-touch-lock'),
       center,
@@ -390,10 +212,21 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         const activeSlug = activeTab?.dataset.network;
         if (activeSlug && activeSlug !== 'all') {
           const geoIds = categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug];
-          highlightGeoIds(geoIds ?? null, true);
+          highlightGeoIds(geoIds ?? null, false);
+          fitToBounds(activeSlug);
         }
       },
     });
+
+    /** Fit map to precomputed bounds for a network or category slug. */
+    function fitToBounds(slug: string) {
+      const bounds = categoryBounds[slug] ?? networkBounds[slug];
+      if (!bounds) { map.flyTo({ center: mapCenter, zoom: 11, duration: 500 }); return; }
+      const [minLng, minLat, maxLng, maxLat] = bounds;
+      const opts: { padding: number; animate: boolean; duration: number; maxZoom?: number } = { padding: 60, animate: true, duration: 500 };
+      if (slug === 'trails') opts.maxZoom = 10;
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], opts);
+    }
 
     // --- Tab interaction (index-specific) ---
     const tabBar = document.getElementById('network-tabs');
@@ -402,13 +235,17 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       const panels = document.querySelectorAll<HTMLElement>('.network-panel');
 
       function activateTab(networkSlug: string) {
+        unlockHighlight();
         tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.network === networkSlug));
         panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === networkSlug));
+        closePopup(map);
         if (networkSlug === 'all') {
-          highlightGeoIds(null, true);
+          highlightGeoIds(null);
+          map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
         } else {
           const geoIds = categoryGeoIds[networkSlug] ?? networkGeoIds[networkSlug];
-          highlightGeoIds(geoIds ?? null, true);
+          highlightGeoIds(geoIds ?? null, false);
+          fitToBounds(networkSlug);
         }
       }
 
@@ -419,13 +256,16 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
         });
         if (!isMobile) {
           tab.addEventListener('mouseenter', () => {
+            if (isHighlightLocked()) return;
             const slug = tab.dataset.network;
             if (slug && slug !== 'all') {
               const geoIds = categoryGeoIds[slug] ?? networkGeoIds[slug];
-              highlightGeoIds(geoIds ?? null, true);
+              highlightGeoIds(geoIds ?? null, false);
+              fitToBounds(slug);
             }
           });
           tab.addEventListener('mouseleave', () => {
+            if (isHighlightLocked()) return;
             const activeTab = tabBar.querySelector<HTMLButtonElement>('.network-tab.active');
             const activeSlug = activeTab?.dataset.network;
             if (activeSlug && activeSlug !== 'all') {
@@ -441,15 +281,13 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
 
     // --- Fly back to category extent when leaving a group (not between items) ---
     function flyBackToCategory() {
+      if (isHighlightLocked()) return;
       const activeTab = document.querySelector<HTMLButtonElement>('#network-tabs .network-tab.active');
       const activeSlug = activeTab?.dataset.network;
-      const geoIds = activeSlug && activeSlug !== 'all'
-        ? (categoryGeoIds[activeSlug] ?? networkGeoIds[activeSlug])
-        : undefined;
-      if (geoIds && geoIds.length > 0) {
-        fitToGeoIds(geoIds);
+      if (activeSlug && activeSlug !== 'all') {
+        fitToBounds(activeSlug);
       } else {
-        map.flyTo({ center, zoom: 11, duration: 500 });
+        map.flyTo({ center: mapCenter, zoom: 11, duration: 500 });
       }
     }
     flyBackFn = flyBackToCategory;

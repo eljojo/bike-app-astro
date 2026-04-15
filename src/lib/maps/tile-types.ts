@@ -13,6 +13,8 @@ export interface TileFeatureMeta {
   name: string;
   memberOf: string;
   surface: string;
+  /** Surface category for rendering: road (solid), gravel (long dash), mtb (short dash). */
+  surface_category: 'road' | 'gravel' | 'mtb';
   hasPage: boolean;
   path_type: string;
   length_km: number;

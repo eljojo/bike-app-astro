@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { granularityForRange, getStartDate, parseTimeRange, formatDuration, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, parseTimeRange, buildPageviewsSeries, buildTotalDurationSeries, buildPagesPerVisitSeries, toViewsLeaderboardEntry, toEngagementLeaderboardEntry, type SummaryCard } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
@@ -175,46 +175,16 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       { label: 'Content tracked', value: contentCount, description: 'Routes, events, and communities with analytics' },
     ];
 
-    const timeSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: d.pageviews, secondaryValue: d.visitors,
-    }));
+    const timeSeries = buildPageviewsSeries(dailyData);
 
     // For the site-wide daily aggregate, Plausible's visit_duration IS the average per visit (in seconds)
-    const durationSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: Math.round(d.totalDurationS),
-    }));
+    const durationSeries = buildTotalDurationSeries(dailyData);
 
-    const pagesPerVisitSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: d.visitors > 0 ? Math.round((d.pageviews / d.visitors) * 10) / 10 : 0,
-    }));
+    const pagesPerVisitSeries = buildPagesPerVisitSeries(dailyData);
 
-    const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
-      contentType: r.contentType as 'route' | 'event' | 'organizer' | 'bike-path',
-      contentSlug: r.contentSlug,
-      name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
-      thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
-      primaryValue: r.totalPageviews,
-      primaryLabel: 'views',
-      secondaryValue: formatDuration(r.wallTimeHours * 3600),
-      secondaryLabel: 'time',
-    }));
-
-    const engagementLeaderboard = topByEngagement.map(r => ({
-      contentType: r.contentType as 'route' | 'event' | 'organizer' | 'bike-path',
-      contentSlug: r.contentSlug,
-      name: contentNames[`${r.contentType}:${r.contentSlug}`] || r.contentSlug,
-      thumbKey: contentThumbs[`${r.contentType}:${r.contentSlug}`],
-      primaryValue: Math.round(r.engagementScore * 100),
-      primaryLabel: 'score',
-      secondaryValue: r.totalPageviews,
-      secondaryLabel: 'views',
-      breakdown: {
-        wallTime: formatDuration(r.wallTimeHours * 3600),
-        mapConversion: `${Math.round(r.mapConversionRate * 100)}%`,
-        stars: r.stars,
-        videoPlayRate: `${Math.round(r.videoPlayRate * 100)}%`,
-      },
-    }));
+    const lookups = { names: contentNames, thumbs: contentThumbs };
+    const viewsLeaderboard = topByViews.map(r => toViewsLeaderboardEntry(r, lookups));
+    const engagementLeaderboard = topByEngagement.map(r => toEngagementLeaderboardEntry(r, lookups));
 
     const insightInput: EngagementRow[] = engagementRows.map(r => {
       const key = `${r.contentType}:${r.contentSlug}`;

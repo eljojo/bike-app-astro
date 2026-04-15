@@ -25,14 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
-import { queryOverpass as _queryOverpass, createRecorder } from './lib/overpass.mjs';
-
-// Record all Overpass calls to a cassette in .cache/ (gitignored) for test replay.
-// Usage: RECORD_OVERPASS=ottawa node scripts/build-bikepaths.ts --city ottawa
-// Replay: createPlayer('ottawa') in tests
-const queryOverpass = process.env.RECORD_OVERPASS
-  ? createRecorder(process.env.RECORD_OVERPASS)
-  : _queryOverpass;
+import { queryOverpass } from './lib/overpass.ts';
 import { slugifyBikePathName as slugify } from '../../src/lib/bike-paths/bikepaths-yml.server.ts';
 import { loadCityAdapter } from './lib/city-adapter.mjs';
 import { WayRegistry } from './lib/way-registry.mjs';

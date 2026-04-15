@@ -129,7 +129,9 @@ export function deriveEntryType(entry, thresholds = {}) {
   if (pt === 'mtb-trail') {
     if (entry.member_of) return 'destination';
     if (entry._discovery_source === 'unnamed-chain') return 'infrastructure';
-    if (lengthM >= destinationLengthM) return 'destination';
+    // Restricted-access trails need to be substantially longer to warrant a page
+    const mtbMinM = entry.access === 'no' ? 5000 : destinationLengthM;
+    if (lengthM >= mtbMinM) return 'destination';
     return 'connector';
   }
 

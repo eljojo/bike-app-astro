@@ -13,6 +13,9 @@ npx eslint src/
 echo "Running typecheck..."
 npx tsc --noEmit
 
+echo "Validating _ctx/..."
+npx tsx scripts/validate-ctx.ts
+
 echo "Pre-commit checks passed."
 HOOK
 

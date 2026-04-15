@@ -80,6 +80,7 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
   import { html, raw } from '../lib/maps/map-helpers';
   import { buildImageUrl } from '../lib/media/image-service';
   import { muteBaseCyclingLayers, restoreBaseCyclingLayers } from '../lib/maps/base-layer-control';
+  import { createMtbFilter } from '../lib/maps/map-mtb-toggle';
   import { render, h } from 'preact';
   import MapControls, { loadToggleState, saveToggleState } from './admin/MapControls';
 
@@ -149,6 +150,7 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
 
     const { map } = session;
     let pathsVisible = initialShowPaths;
+    const mtbFilter = hasPaths ? createMtbFilter(map) : null;
 
     session.start(() => {
       // Photos off by default on big map (unless user previously enabled)
@@ -167,29 +169,32 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
 
     // Controls — render on map.on('load'), not session.start().
     // session.start() waits for tile loading (slow); controls don't need tiles.
-    map.on('load', () => {
-      if (controlsEl) {
-        render(h(MapControls, {
-          hasPhotos: true,
-          hasPlaces: true,
-          defaultPhotos: false,
-          onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
-          onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
-          onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v),
-          onToggleStyle: (key) => session.switchStyle(key, () => {
-            photoLayer.setVisible!(map, loadToggleState('map-photos', false));
-            placeLayer.setVisible!(map, loadToggleState('map-places', false));
-            // Preserve current view mode after style switch
-            if (pathsVisible) {
-              polylineLayer.setVisible!(map, false);
-              muteBaseCyclingLayers(map);
-            } else if (hasPaths) {
-              tilePathLayer.setVisible!(map, false);
-            }
-          }),
-        }), controlsEl);
-      }
-    });
+    function renderControls() {
+      if (!controlsEl) return;
+      render(h(MapControls, {
+        hasPhotos: true,
+        hasPlaces: true,
+        hasMtbToggle: pathsVisible,
+        defaultPhotos: false,
+        onTogglePhotos: (v: boolean) => photoLayer.setVisible!(map, v),
+        onTogglePlaces: (v: boolean) => placeLayer.setVisible!(map, v),
+        onToggleGps: (v: boolean) => gpsLayer.setVisible!(map, v),
+        onToggleMtb: mtbFilter ? (v: boolean) => mtbFilter.setVisible(v) : undefined,
+        onToggleStyle: (key) => session.switchStyle(key, () => {
+          photoLayer.setVisible!(map, loadToggleState('map-photos', false));
+          placeLayer.setVisible!(map, loadToggleState('map-places', false));
+          // Preserve current view mode after style switch
+          if (pathsVisible) {
+            polylineLayer.setVisible!(map, false);
+            muteBaseCyclingLayers(map);
+          } else if (hasPaths) {
+            tilePathLayer.setVisible!(map, false);
+          }
+        }),
+      }), controlsEl);
+    }
+
+    map.on('load', renderControls);
 
     // Dev tuning panel — dynamic import, tree-shaken in production
     let showTuning = (_show: boolean) => {};
@@ -224,6 +229,7 @@ const { routes, center, hasPaths = false, routesLabel, pathsLabel } = Astro.prop
         restoreBaseCyclingLayers(map);
         showTuning(false);
       }
+      renderControls();
     }
 
     if (toggleEl) {

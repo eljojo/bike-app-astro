@@ -39,20 +39,35 @@ interface EventLike {
   series?: SeriesData;
 }
 
+/**
+ * Pure projection: (date, optional override, event) → SeriesOccurrence.
+ * Applies the `override.X ?? event.X` fallback rule. Internal helper — keep
+ * in sync with the SeriesOccurrence interface above.
+ */
+function toSeriesOccurrence(
+  date: string,
+  override: SeriesOverride | undefined,
+  event: EventLike,
+): SeriesOccurrence {
+  return {
+    date,
+    location: override?.location ?? event.location,
+    start_time: override?.start_time ?? event.start_time,
+    meet_time: override?.meet_time ?? event.meet_time,
+    note: override?.note,
+    cancelled: override?.cancelled,
+    rescheduled_from: override?.rescheduled_from,
+  };
+}
+
 export function expandSeriesOccurrences(event: EventLike): SeriesOccurrence[] {
   if (!event.series) return [];
   const series = event.series;
 
   if (series.schedule?.length) {
-    return series.schedule.map(s => ({
-      date: s.date,
-      location: s.location ?? event.location,
-      start_time: s.start_time ?? event.start_time,
-      meet_time: s.meet_time ?? event.meet_time,
-      note: s.note,
-      cancelled: s.cancelled,
-      rescheduled_from: s.rescheduled_from,
-    })).sort((a, b) => a.date.localeCompare(b.date));
+    return series.schedule
+      .map(s => toSeriesOccurrence(s.date, s, event))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   if (series.recurrence && series.recurrence_day && series.season_start && series.season_end) {
@@ -73,16 +88,7 @@ export function expandSeriesOccurrences(event: EventLike): SeriesOccurrence[] {
     while (cursor <= end) {
       const dateStr = formatDateStr(cursor);
       if (!skipSet.has(dateStr)) {
-        const override = overrideMap.get(dateStr);
-        dates.push({
-          date: dateStr,
-          location: override?.location ?? event.location,
-          start_time: override?.start_time ?? event.start_time,
-          meet_time: override?.meet_time ?? event.meet_time,
-          note: override?.note,
-          cancelled: override?.cancelled,
-          rescheduled_from: override?.rescheduled_from,
-        });
+        dates.push(toSeriesOccurrence(dateStr, overrideMap.get(dateStr), event));
       }
       cursor.setDate(cursor.getDate() + step);
     }
@@ -90,15 +96,7 @@ export function expandSeriesOccurrences(event: EventLike): SeriesOccurrence[] {
     // Add rescheduled dates not on the regular cadence
     for (const override of series.overrides ?? []) {
       if (!dates.some(d => d.date === override.date)) {
-        dates.push({
-          date: override.date,
-          location: override.location ?? event.location,
-          start_time: override.start_time ?? event.start_time,
-          meet_time: override.meet_time ?? event.meet_time,
-          note: override.note,
-          cancelled: override.cancelled,
-          rescheduled_from: override.rescheduled_from,
-        });
+        dates.push(toSeriesOccurrence(override.date, override, event));
       }
     }
 

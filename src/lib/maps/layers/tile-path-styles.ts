@@ -1,26 +1,23 @@
 // src/lib/maps/layers/tile-path-styles.ts
 //
 // MapLibre layer definitions for the bike path tile overlay.
-// Data-driven: three modes (detail, foreground, background) share the same
-// layer structure — bg/line × solid/dashed + labels + optional highlight.
+// Three surface categories: road (solid), gravel (long dash), mtb (short dash).
 
 import type maplibregl from 'maplibre-gl';
-import { pathForeground, pathBackground, pathDetail, TRAIL_DASH, IS_TRAIL_EXPR } from '../map-swatch';
+import { pathForeground, pathBackground, pathDetail, GRAVEL_DASH, MTB_DASH, IS_GRAVEL_EXPR, IS_MTB_EXPR } from '../map-swatch';
 
 // ── Source and layer IDs ────────────────────────────────────────
 
 export const SOURCE_ID = 'paths-network';
 
-export const LINE_LAYERS = ['paths-network-line', 'paths-network-line-dashed'];
-export const BG_LAYERS = ['paths-network-bg', 'paths-network-bg-dashed'];
+export const LINE_LAYERS = ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb'];
+export const BG_LAYERS = ['paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb'];
 export const CLICKABLE_LAYERS = [
-  'paths-network-line', 'paths-network-line-dashed',
-  'paths-network-bg', 'paths-network-bg-dashed',
+  ...LINE_LAYERS, ...BG_LAYERS,
   'paths-network-highlight',
 ];
 export const ALL_LAYER_IDS = [
-  'paths-network-bg', 'paths-network-bg-dashed',
-  'paths-network-line', 'paths-network-line-dashed',
+  ...BG_LAYERS, ...LINE_LAYERS,
   'paths-network-labels', 'paths-network-highlight',
 ];
 
@@ -82,18 +79,20 @@ function configForMode(isDetailMode: boolean, foreground: boolean): PathLayersCo
 
 // ── Filter helpers ──────────────────────────────────────────────
 
-// TypeScript widens tuple types when a dynamic string variable is used inside
-// an array literal, losing the shape MapLibre's FilterSpecification requires.
-// This helper constructs the composite filter with a contained cast.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Filter = any;
 
-function lineFilter(filterProp: string, match: boolean, trail: boolean): Filter {
-  return [
-    'all',
-    match ? ['==', ['get', filterProp], 'true'] : ['!=', ['get', filterProp], 'true'],
-    trail ? ['==', IS_TRAIL_EXPR, true] : ['!=', IS_TRAIL_EXPR, true],
-  ];
+/** Filter for a specific surface category (road, gravel, or mtb) × primary/secondary. */
+function lineFilter(filterProp: string, match: boolean, surface: 'road' | 'gravel' | 'mtb'): Filter {
+  const propFilter = match
+    ? ['==', ['get', filterProp], 'true']
+    : ['!=', ['get', filterProp], 'true'];
+
+  const surfaceFilter = surface === 'gravel' ? IS_GRAVEL_EXPR
+    : surface === 'mtb' ? IS_MTB_EXPR
+    : ['all', ['!', IS_GRAVEL_EXPR], ['!', IS_MTB_EXPR]]; // road = neither gravel nor mtb
+
+  return ['all', propFilter, surfaceFilter];
 }
 
 function propMatch(filterProp: string): Filter {
@@ -110,36 +109,52 @@ export function addPathLayers(map: maplibregl.Map, isDetailMode: boolean, foregr
   const cfg = configForMode(isDetailMode, foreground);
   const { color, filterProp } = cfg;
 
-  // Background solid (secondary, non-trail)
+  // Background: road (solid)
   map.addLayer({
     id: 'paths-network-bg', type: 'line', source: SOURCE_ID,
-    filter: lineFilter(filterProp, false, false),
+    filter: lineFilter(filterProp, false, 'road'),
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': color, 'line-width': resolvePaint(cfg.secondary.width), 'line-opacity': resolvePaint(cfg.secondary.opacity) },
   });
 
-  // Background dashed (secondary, trail)
+  // Background: gravel (long dash)
   map.addLayer({
-    id: 'paths-network-bg-dashed', type: 'line', source: SOURCE_ID,
-    filter: lineFilter(filterProp, false, true),
+    id: 'paths-network-bg-gravel', type: 'line', source: SOURCE_ID,
+    filter: lineFilter(filterProp, false, 'gravel'),
     layout: { 'line-cap': 'butt', 'line-join': 'round' },
-    paint: { 'line-color': color, 'line-width': resolvePaint(cfg.secondary.width), 'line-opacity': resolvePaint(cfg.secondary.opacity), 'line-dasharray': TRAIL_DASH },
+    paint: { 'line-color': color, 'line-width': resolvePaint(cfg.secondary.width), 'line-opacity': resolvePaint(cfg.secondary.opacity), 'line-dasharray': GRAVEL_DASH },
   });
 
-  // Foreground solid (primary, non-trail)
+  // Background: mtb (short dash)
+  map.addLayer({
+    id: 'paths-network-bg-mtb', type: 'line', source: SOURCE_ID,
+    filter: lineFilter(filterProp, false, 'mtb'),
+    layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    paint: { 'line-color': color, 'line-width': resolvePaint(cfg.secondary.width), 'line-opacity': resolvePaint(cfg.secondary.opacity), 'line-dasharray': MTB_DASH },
+  });
+
+  // Foreground: road (solid)
   map.addLayer({
     id: 'paths-network-line', type: 'line', source: SOURCE_ID,
-    filter: lineFilter(filterProp, true, false),
+    filter: lineFilter(filterProp, true, 'road'),
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': color, 'line-width': resolvePaint(cfg.primary.width), 'line-opacity': resolvePaint(cfg.primary.opacity) },
   });
 
-  // Foreground dashed (primary, trail)
+  // Foreground: gravel (long dash)
   map.addLayer({
-    id: 'paths-network-line-dashed', type: 'line', source: SOURCE_ID,
-    filter: lineFilter(filterProp, true, true),
+    id: 'paths-network-line-gravel', type: 'line', source: SOURCE_ID,
+    filter: lineFilter(filterProp, true, 'gravel'),
     layout: { 'line-cap': 'butt', 'line-join': 'round' },
-    paint: { 'line-color': color, 'line-width': resolvePaint(cfg.primary.width), 'line-opacity': resolvePaint(cfg.primary.opacity), 'line-dasharray': TRAIL_DASH },
+    paint: { 'line-color': color, 'line-width': resolvePaint(cfg.primary.width), 'line-opacity': resolvePaint(cfg.primary.opacity), 'line-dasharray': GRAVEL_DASH },
+  });
+
+  // Foreground: mtb (short dash)
+  map.addLayer({
+    id: 'paths-network-line-mtb', type: 'line', source: SOURCE_ID,
+    filter: lineFilter(filterProp, true, 'mtb'),
+    layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    paint: { 'line-color': color, 'line-width': resolvePaint(cfg.primary.width), 'line-opacity': resolvePaint(cfg.primary.opacity), 'line-dasharray': MTB_DASH },
   });
 
   // Labels on primary features

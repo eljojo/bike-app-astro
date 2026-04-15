@@ -2,6 +2,26 @@ import { buildImageUrl } from '../media/image-service';
 import polylineCodec from '@mapbox/polyline';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
 
+/**
+ * Yield every [lng, lat] coordinate from a collection of GeoJSON features.
+ * Handles LineString and MultiLineString geometries; other types are skipped.
+ * Shared by bounds/midpoint computations across multiple map modules.
+ */
+export function* iterLineCoords(
+  features: Iterable<GeoJSON.Feature>,
+): Generator<[number, number]> {
+  for (const f of features) {
+    const geom = f.geometry;
+    if (geom.type === 'LineString') {
+      yield* (geom as GeoJSON.LineString).coordinates as [number, number][];
+    } else if (geom.type === 'MultiLineString') {
+      for (const line of (geom as GeoJSON.MultiLineString).coordinates) {
+        yield* line as [number, number][];
+      }
+    }
+  }
+}
+
 // --- Category filtering for ?category= query param on /map ---
 
 interface FilterablePlace {
@@ -145,6 +165,47 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
   }
   popup += '</div>';
   return popup;
+}
+
+/**
+ * Build the inner content markup for the paths-browse map path card.
+ * Takes the same data shape as buildPathPopup. The surrounding card
+ * container + close button are created by paths-browse-map.ts.
+ *
+ * Compact two-row layout: primary row is name + meta on a single line,
+ * optional secondary row carries network + vibe. Clicking the name
+ * navigates to the detail page — no separate "view details" link so
+ * the card stays short enough to see the map behind.
+ */
+export function buildPathCardContent(data: PathPopupData): string {
+  const meta: string[] = [];
+  if (data.length_km) meta.push(`${data.length_km} km`);
+  if (data.surface) meta.push(escapeHtml(data.surface));
+  if (data.path_type) meta.push(escapeHtml(data.path_type));
+
+  const nameEl = data.url
+    ? html`<a class="map-path-card-name" href="${data.url}">${data.name}</a>`
+    : html`<span class="map-path-card-name">${data.name}</span>`;
+
+  const metaEl = meta.length > 0
+    ? `<span class="map-path-card-meta">${meta.join(' \u00b7 ')}</span>`
+    : '';
+
+  const secondary: string[] = [];
+  if (data.network) {
+    secondary.push(data.networkUrl
+      ? html`<a href="${data.networkUrl}">${data.network}</a>`
+      : html`<span>${data.network}</span>`);
+  }
+  if (data.vibe) {
+    secondary.push(html`<span>${data.vibe}</span>`);
+  }
+
+  let body = `<div class="map-path-card-primary">${nameEl}${metaEl}</div>`;
+  if (secondary.length > 0) {
+    body += `<div class="map-path-card-secondary">${secondary.join('<span class="map-path-card-sep">·</span>')}</div>`;
+  }
+  return body;
 }
 
 export interface WaypointPopupData {

@@ -126,11 +126,17 @@ export interface SuperNetworkMeta {
  *
  * Priority: relations → way IDs → names → segments → parallel.
  * An entry matches exactly one category.
+ *
+ * Network entries only honor osm_relations (their own superroute). They never
+ * generate a parallel name/way/parallel file from their own discovery hints —
+ * those would overlap with member geometry, producing duplicate tile features
+ * that fight for the click target on the map.
  */
 export function geoFilesForEntry(entry: SluggedBikePathYml): string[] {
   if (entry.osm_relations?.length) {
     return entry.osm_relations.map(id => `${id}.geojson`);
   }
+  if (entry.type === 'network') return [];
   if (entry.osm_way_ids?.length) {
     return [`ways-${entry.slug}.geojson`];
   }

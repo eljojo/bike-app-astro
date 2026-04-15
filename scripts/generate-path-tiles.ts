@@ -88,66 +88,105 @@ function countCoordsInBox(features: Feature[], box: SplitBox): number {
   return total;
 }
 
-/**
- * Merge all features for a single geoId into one geometry.
- *
- * - Multiple LineStrings become a MultiLineString
- * - A single LineString stays as-is
- * - MultiLineStrings are flattened and merged
- * - Coordinates are truncated to 5dp
- */
-function mergeFeatures(
-  geoId: string,
-  fc: FeatureCollection,
-  metadata?: Map<string, GeoMetaEntry>,
-): Feature<LineString | MultiLineString> | null {
-  const allLineArrays: Position[][] = [];
+// ── Surface classification ──────────────────────────────────────
 
-  for (const feature of fc.features) {
-    const geom = feature.geometry;
-    if (!geom) continue;
+/** OSM surface values considered "paved" — solid line on map. */
+const ROAD_SURFACES = new Set([
+  'asphalt', 'concrete', 'paving_stones', 'paved',
+  'sett', 'cobblestone', 'concrete:plates', 'concrete:lanes',
+  'bricks', 'metal', 'wood',
+]);
 
-    if (geom.type === 'LineString') {
-      const truncated = truncateCoords(geom.coordinates);
-      if (truncated.length > 0) allLineArrays.push(truncated);
-    } else if (geom.type === 'MultiLineString') {
-      for (const line of geom.coordinates) {
-        const truncated = truncateCoords(line);
-        if (truncated.length > 0) allLineArrays.push(truncated);
-      }
+/** OSM surface values considered "gravel" — long dash on map. */
+const GRAVEL_SURFACES = new Set([
+  'fine_gravel', 'gravel', 'compacted', 'pebblestone',
+]);
+
+export type SurfaceCategory = 'road' | 'gravel' | 'mtb';
+
+export function classifySurface(surface: string | undefined): SurfaceCategory {
+  if (!surface) return 'mtb'; // unknown = assume rough
+  const s = surface.toLowerCase();
+  if (ROAD_SURFACES.has(s)) return 'road';
+  if (GRAVEL_SURFACES.has(s)) return 'gravel';
+  return 'mtb';
+}
+
+/** Collect and truncate line coordinates from a geometry. */
+function collectLines(geom: Feature['geometry']): Position[][] {
+  if (!geom) return [];
+  const lines: Position[][] = [];
+  if (geom.type === 'LineString') {
+    const truncated = truncateCoords((geom as LineString).coordinates);
+    if (truncated.length > 0) lines.push(truncated);
+  } else if (geom.type === 'MultiLineString') {
+    for (const line of (geom as MultiLineString).coordinates) {
+      const truncated = truncateCoords(line);
+      if (truncated.length > 0) lines.push(truncated);
     }
   }
+  return lines;
+}
 
-  if (allLineArrays.length === 0) return null;
-
-  // Build properties
-  const meta = metadata?.get(geoId);
-  const properties: TileFeatureMeta = {
+function buildProps(geoId: string, meta: GeoMetaEntry | undefined, surfaceCategory?: SurfaceCategory): TileFeatureMeta {
+  return {
     _geoId: geoId,
     _fid: geoId,
     slug: meta?.slug ?? '',
     name: meta?.name ?? '',
     memberOf: meta?.memberOf ?? '',
     surface: meta?.surface ?? '',
+    surface_category: surfaceCategory ?? classifySurface(meta?.surface),
     hasPage: meta?.hasPage ?? false,
     path_type: meta?.path_type ?? '',
     length_km: meta?.length_km ?? 0,
   };
+}
 
-  // Single LineString stays as LineString
-  if (allLineArrays.length === 1) {
-    return {
-      type: 'Feature',
-      properties,
-      geometry: { type: 'LineString', coordinates: allLineArrays[0] },
-    };
+function buildFeature(
+  lineArrays: Position[][],
+  props: TileFeatureMeta,
+): Feature<LineString | MultiLineString> {
+  if (lineArrays.length === 1) {
+    return { type: 'Feature', properties: props, geometry: { type: 'LineString', coordinates: lineArrays[0] } };
+  }
+  return { type: 'Feature', properties: props, geometry: { type: 'MultiLineString', coordinates: lineArrays } };
+}
+
+// ── Feature merging ─────────────────────────────────────────────
+
+/**
+ * Merge all features for a single geoId into tile features.
+ *
+ * Splits ways by surface category (road/gravel/mtb) before merging.
+ * Uses per-way surface tags when available, falling back to metadata surface.
+ * Produces up to 3 features per path for mixed-surface paths.
+ */
+function mergeFeatures(
+  geoId: string,
+  fc: FeatureCollection,
+  metadata?: Map<string, GeoMetaEntry>,
+): Feature<LineString | MultiLineString>[] {
+  const meta = metadata?.get(geoId);
+  const groups: Record<SurfaceCategory, Position[][]> = { road: [], gravel: [], mtb: [] };
+
+  for (const feature of fc.features) {
+    const waySurface = (feature.properties?.surface as string) || undefined;
+    const cat = classifySurface(waySurface ?? meta?.surface);
+    groups[cat].push(...collectLines(feature.geometry));
   }
 
-  return {
-    type: 'Feature',
-    properties,
-    geometry: { type: 'MultiLineString', coordinates: allLineArrays },
-  };
+  const activeCategories = (['road', 'gravel', 'mtb'] as const).filter(c => groups[c].length > 0);
+  if (activeCategories.length === 0) return [];
+  const needsSplit = activeCategories.length > 1;
+
+  const results: Feature<LineString | MultiLineString>[] = [];
+  for (const cat of activeCategories) {
+    const props = buildProps(geoId, meta, cat);
+    if (needsSplit) props._fid = `${geoId}:${cat}`;
+    results.push(buildFeature(groups[cat], props));
+  }
+  return results;
 }
 
 // ── Adaptive quadtree splitting ──────────────────────────────────
@@ -259,8 +298,7 @@ export function buildTiles(
   const merged: Feature[] = [];
   for (const [geoId, fc] of input) {
     if (metadata && !metadata.has(geoId)) continue;
-    const feature = mergeFeatures(geoId, fc, metadata);
-    if (feature) merged.push(feature);
+    merged.push(...mergeFeatures(geoId, fc, metadata));
   }
 
   if (merged.length === 0) {
@@ -301,6 +339,55 @@ export function buildTiles(
     }));
 
   return { tiles, manifest };
+}
+
+// ── Canonical-target invariant ───────────────────────────────────
+
+/** One OSM way that resolves to more than one page slug. */
+export interface CanonicalTargetConflict {
+  wayId: number;
+  slugs: string[];
+}
+
+/**
+ * Detect violations of the canonical-target invariant: "one physical
+ * clickable path segment -> one canonical page target". A wayId may live
+ * in multiple cache files (a page can aggregate geometry from several
+ * relations), but they must all resolve to the SAME slug. When two
+ * distinct slugs claim the same OSM way the user's click is ambiguous
+ * and the map opens whichever popup MapLibre happens to return first —
+ * that is the bug class behind Parc de la Gatineau and Scott Street.
+ *
+ * Stale cache files with no metadata entry are skipped: they are already
+ * dropped by buildTiles, so they shouldn't influence the check.
+ */
+export function findCanonicalTargetConflicts(
+  input: Map<string, FeatureCollection>,
+  metadata: Map<string, GeoMetaEntry>,
+): CanonicalTargetConflict[] {
+  const wayToSlugs = new Map<number, Set<string>>();
+  for (const [geoId, fc] of input) {
+    const meta = metadata.get(geoId);
+    if (!meta) continue;
+    for (const feature of fc.features) {
+      const wayId = (feature.properties as { wayId?: unknown } | null)?.wayId;
+      if (typeof wayId !== 'number') continue;
+      let slugs = wayToSlugs.get(wayId);
+      if (!slugs) {
+        slugs = new Set();
+        wayToSlugs.set(wayId, slugs);
+      }
+      slugs.add(meta.slug);
+    }
+  }
+
+  const conflicts: CanonicalTargetConflict[] = [];
+  for (const [wayId, slugs] of wayToSlugs) {
+    if (slugs.size > 1) {
+      conflicts.push({ wayId, slugs: [...slugs].sort() });
+    }
+  }
+  return conflicts.sort((a, b) => a.wayId - b.wayId);
 }
 
 // ── Slug index ───────────────────────────────────────────────────
@@ -441,6 +528,19 @@ if (isMainModule) {
     geoCopied++;
   }
   console.log(`[path-geo] Copied ${geoCopied} geometry files to ${geoOutDir}/ (${input.size - geoCopied} stale skipped)`);
+
+  // Canonical-target invariant: one physical clickable segment -> one page.
+  // If any OSM way ends up under two different slugs the map click target is
+  // ambiguous (Parc de la Gatineau / Scott Street bug class). Warn loudly so
+  // the regression is visible in every rebuild.
+  if (metadata) {
+    const conflicts = findCanonicalTargetConflicts(input, metadata);
+    if (conflicts.length > 0) {
+      const sample = conflicts.slice(0, 5)
+        .map(c => `    way ${c.wayId}: ${c.slugs.join(' vs ')}`).join('\n');
+      console.warn(`[path-tiles] ⚠ ${conflicts.length} OSM way(s) claimed by multiple slugs — map popups will be ambiguous:\n${sample}${conflicts.length > 5 ? `\n    ... and ${conflicts.length - 5} more` : ''}`);
+    }
+  }
 
   const { tiles, manifest } = buildTiles(input, metadata);
 

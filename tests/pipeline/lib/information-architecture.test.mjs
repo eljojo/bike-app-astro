@@ -5,14 +5,10 @@
 // sense as a network, what should be standalone, and what should NOT be
 // a network. Tests that fail represent work still to do.
 //
-// Record cassette: RECORD_OVERPASS=ottawa node scripts/build-bikepaths.mjs --city ottawa
-
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createPlayer } from '../../../scripts/pipeline/lib/overpass.mjs';
+import { queryOverpass } from '../../../scripts/pipeline/lib/overpass.ts';
 import { buildBikepathsPipeline, parseMarkdownOverrides } from '../../../scripts/pipeline/build-bikepaths.ts';
 import { loadCityAdapter } from '../../../scripts/pipeline/lib/city-adapter.mjs';
-
-const player = createPlayer('ottawa');
 
 describe('information architecture — Ottawa bike path index', () => {
   let entries;
@@ -24,7 +20,7 @@ describe('information architecture — Ottawa bike path index', () => {
     const bikePathsDir = new URL('../../ottawa/bike-paths', import.meta.url).pathname;
     const markdownOverrides = parseMarkdownOverrides(bikePathsDir);
     const result = await buildBikepathsPipeline({
-      queryOverpass: player,
+      queryOverpass,
       bbox: '45.15,-76.35,45.65,-75.35',
       adapter,
       markdownOverrides,
@@ -36,7 +32,7 @@ describe('information architecture — Ottawa bike path index', () => {
       if (!byName.has(e.name)) byName.set(e.name, []);
       byName.get(e.name).push(e);
     }
-  }, 120000);
+  }, 300_000);
 
   // Helper: find member_of for an entry by name
   function memberOf(name) {

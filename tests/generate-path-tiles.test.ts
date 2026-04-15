@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTiles, type GeoMetaEntry } from '../scripts/generate-path-tiles';
+import { buildTiles, findCanonicalTargetConflicts, type GeoMetaEntry } from '../scripts/generate-path-tiles';
 import type { FeatureCollection, Feature, LineString, MultiLineString } from 'geojson';
 
 // ── Test helpers ──────────────────────────────────────────────────
@@ -183,6 +183,7 @@ describe('metadata injection', () => {
     expect(props.name).toBe('My Path');
     expect(props.memberOf).toBe('some-network');
     expect(props.surface).toBe('gravel');
+    expect(props.surface_category).toBe('gravel');
     expect(props.hasPage).toBe(true);
     expect(props.path_type).toBe('trail');
     expect(props.length_km).toBe(12.5);
@@ -202,6 +203,7 @@ describe('metadata injection', () => {
     expect(props.name).toBe('');
     expect(props.memberOf).toBe('');
     expect(props.surface).toBe('');
+    expect(props.surface_category).toBe('mtb'); // unknown surface defaults to mtb
     expect(props.hasPage).toBe(false);
     expect(props.path_type).toBe('');
     expect(props.length_km).toBe(0);
@@ -218,8 +220,89 @@ describe('metadata injection', () => {
     expect(features).toHaveLength(0);
   });
 
-  // dashed field was removed — trail vs solid is now derived at render time
-  // from path_type via IS_TRAIL_EXPR in map-swatch.ts
+  it('splits features by surface category (road/gravel/mtb)', () => {
+    const input = new Map([
+      [
+        'mixed-path',
+        fc(
+          line([[-75.6, 45.4], [-75.5, 45.3]], { surface: 'asphalt' }),
+          line([[-75.4, 45.2], [-75.3, 45.1]], { surface: 'gravel' }),
+          line([[-75.2, 45.0], [-75.1, 44.9]], { surface: 'ground' }),
+        ),
+      ],
+    ]);
+    const metadata = new Map([
+      ['mixed-path', meta({ slug: 'mixed-path', path_type: 'trail', surface: 'gravel' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(3);
+
+    const road = features.find(f => f.properties!.surface_category === 'road');
+    const gravel = features.find(f => f.properties!.surface_category === 'gravel');
+    const mtb = features.find(f => f.properties!.surface_category === 'mtb');
+    expect(road).toBeDefined();
+    expect(gravel).toBeDefined();
+    expect(mtb).toBeDefined();
+    expect(road!.properties!._fid).toBe('mixed-path:road');
+    expect(gravel!.properties!._fid).toBe('mixed-path:gravel');
+    expect(mtb!.properties!._fid).toBe('mixed-path:mtb');
+  });
+
+  it('splits non-trail paths by surface too', () => {
+    const input = new Map([
+      [
+        'mup-mixed',
+        fc(
+          line([[-75.6, 45.4], [-75.5, 45.3]], { surface: 'asphalt' }),
+          line([[-75.4, 45.2], [-75.3, 45.1]], { surface: 'gravel' }),
+        ),
+      ],
+    ]);
+    const metadata = new Map([
+      ['mup-mixed', meta({ slug: 'mup-mixed', path_type: 'mup', surface: 'asphalt' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(2);
+    expect(features.map(f => f.properties!.surface_category).sort()).toEqual(['gravel', 'road']);
+  });
+
+  it('falls back to metadata surface when ways have no surface tag', () => {
+    const input = new Map([
+      [
+        'path-nosurface',
+        fc(
+          line([[-75.6, 45.4], [-75.5, 45.3]]),
+          line([[-75.4, 45.2], [-75.3, 45.1]]),
+        ),
+      ],
+    ]);
+    const metadata = new Map([
+      ['path-nosurface', meta({ slug: 'path-nosurface', path_type: 'trail', surface: 'gravel' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+    expect(features[0].properties!.surface_category).toBe('gravel');
+  });
+
+  it('sets surface_category on single-surface paths', () => {
+    const input = new Map([
+      ['paved-path', fc(line([[-75.6, 45.4], [-75.5, 45.3]]))],
+    ]);
+    const metadata = new Map([
+      ['paved-path', meta({ slug: 'paved-path', surface: 'asphalt' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+    expect(features[0].properties!.surface_category).toBe('road');
+  });
 
   it('sets _geoId and _fid both to the geoId', () => {
     const input = new Map([
@@ -608,5 +691,107 @@ describe('ghost feature exclusion', () => {
         expect(f.properties!.slug, `feature ${f.properties!._geoId} has empty slug`).not.toBe('');
       }
     }
+  });
+});
+
+// ── Canonical-target invariant ────────────────────────────────────
+//
+// The invariant we care about on the tile side is: *one physical clickable
+// path segment → one canonical page target*. At the OSM layer that means
+// no OSM way ID should appear in the cache of two entries that resolve to
+// different slugs. Same slug + multiple geo sources is fine (a single page
+// can aggregate ways from several relations); different slugs means the
+// user's click is ambiguous and the map will open whichever popup MapLibre
+// happens to return first. That's the bug class behind Parc de la Gatineau
+// and Scott Street.
+//
+// This helper is the ground-truth check. It should find zero conflicts on
+// clean input and should flag the overlap on dirty input. Regressions that
+// reintroduce parallel discovery for network entries, or order-dependent
+// ghost removal, will surface here first.
+
+describe('findCanonicalTargetConflicts', () => {
+  function featWithWay(wayId: number): Feature {
+    return {
+      type: 'Feature',
+      properties: { wayId, sourceId: 'test' },
+      geometry: { type: 'LineString', coordinates: [[-75, 45], [-74.99, 45.01]] },
+    };
+  }
+
+  it('returns no conflicts when every wayId lives under a single slug', () => {
+    const input = new Map<string, FeatureCollection>([
+      ['ways-a', fc(featWithWay(1), featWithWay(2))],
+      ['ways-b', fc(featWithWay(3), featWithWay(4))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['ways-a', meta({ slug: 'a' })],
+      ['ways-b', meta({ slug: 'b' })],
+    ]);
+    expect(findCanonicalTargetConflicts(input, metadata)).toEqual([]);
+  });
+
+  it('allows the same wayId to live in multiple cache files of the SAME slug', () => {
+    // A single page can aggregate geometry from several osm_relations or
+    // from a relation plus a named-way fallback. That produces multiple
+    // geoIds sharing ways, but the canonical target is still one page.
+    const input = new Map<string, FeatureCollection>([
+      ['7234399', fc(featWithWay(100), featWithWay(101))],
+      ['ways-crosstown-extras', fc(featWithWay(100))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['7234399', meta({ slug: 'eastwest-crosstown-bikeway' })],
+      ['ways-crosstown-extras', meta({ slug: 'eastwest-crosstown-bikeway' })],
+    ]);
+    expect(findCanonicalTargetConflicts(input, metadata)).toEqual([]);
+  });
+
+  it('flags a wayId claimed under two different slugs (Parc de la Gatineau shape)', () => {
+    // Network entry's auto-discovered name file contains member ways.
+    // Member entry's own ways file contains the same way. Both land under
+    // different slugs: the click target is ambiguous.
+    const input = new Map<string, FeatureCollection>([
+      ['name-parc-de-la-gatineau', fc(featWithWay(437171896), featWithWay(111), featWithWay(222))],
+      ['ways-77-happy-valley', fc(featWithWay(437171896))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['name-parc-de-la-gatineau', meta({ slug: 'parc-de-la-gatineau' })],
+      ['ways-77-happy-valley', meta({ slug: '77-happy-valley', memberOf: 'parc-de-la-gatineau' })],
+    ]);
+    const conflicts = findCanonicalTargetConflicts(input, metadata);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].wayId).toBe(437171896);
+    expect(new Set(conflicts[0].slugs)).toEqual(new Set(['parc-de-la-gatineau', '77-happy-valley']));
+  });
+
+  it('flags the Scott Street / Crosstown Bikeway shape (parallel ghost)', () => {
+    // A relation-derived bikeway and a parallel-lane discovery overlap on
+    // many ways. Ghost removal should catch this upstream; if it doesn't,
+    // the overlap surfaces here.
+    const input = new Map<string, FeatureCollection>([
+      ['7234399', fc(featWithWay(1), featWithWay(2), featWithWay(3), featWithWay(4))],
+      ['parallel-scott-street', fc(featWithWay(1), featWithWay(2), featWithWay(99))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['7234399', meta({ slug: 'eastwest-crosstown-bikeway' })],
+      ['parallel-scott-street', meta({ slug: 'scott-street' })],
+    ]);
+    const conflicts = findCanonicalTargetConflicts(input, metadata);
+    const conflictedWays = new Set(conflicts.map(c => c.wayId));
+    expect(conflictedWays).toEqual(new Set([1, 2]));
+  });
+
+  it('ignores geoIds that have no metadata entry (stale cache files)', () => {
+    // Stale cache files without a page claiming them are already excluded
+    // by buildTiles. Don't let them influence the invariant check either.
+    const input = new Map<string, FeatureCollection>([
+      ['ways-a', fc(featWithWay(1))],
+      ['name-orphan', fc(featWithWay(1))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['ways-a', meta({ slug: 'a' })],
+      // name-orphan is intentionally missing
+    ]);
+    expect(findCanonicalTargetConflicts(input, metadata)).toEqual([]);
   });
 });

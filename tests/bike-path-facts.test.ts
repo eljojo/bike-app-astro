@@ -373,9 +373,10 @@ describe('buildPathFacts', () => {
     });
     const mixed = facts.find(f => f.key === 'surface_mixed');
     expect(mixed).toBeDefined();
+    // Raws collapsed to display categories: asphalt → paved, fine_gravel → gravel.
     expect(mixed!.breakdown).toEqual([
-      { value: 'asphalt', km: 3 },
-      { value: 'fine_gravel', km: 1 },
+      { value: 'paved', km: 3 },
+      { value: 'gravel', km: 1 },
     ]);
   });
 
@@ -396,6 +397,52 @@ describe('buildPathFacts', () => {
   it('does NOT emit surface_mixed when no surface_mix field', () => {
     const facts = buildPathFacts({ surface: 'asphalt', path_type: 'mup' });
     expect(facts.find(f => f.key === 'surface_mixed')).toBeUndefined();
+  });
+
+  it('collapses raw OSM surface values into display categories in surface_mixed breakdown', () => {
+    // Regression: trans-canada-gatineau-montreal sidebar rendered
+    //   Paved (301), Gravel (43), Paved (39), Gravel (33), Unpaved (26),
+    //   Unpaved (26), Gravel (19), Boardwalk (2)
+    // because raw OSM values (asphalt, paved, fine_gravel, compacted,
+    // ground, unpaved, wood) were passed through untouched. Multiple raws
+    // mapping to the same display category must be summed into one row.
+    const facts = buildPathFacts({
+      surface: 'asphalt',
+      surface_mix: [
+        { value: 'asphalt', km: 301 },
+        { value: 'gravel', km: 43 },
+        { value: 'paved', km: 39 },
+        { value: 'fine_gravel', km: 33 },
+        { value: 'ground', km: 26 },
+        { value: 'unpaved', km: 26 },
+        { value: 'compacted', km: 19 },
+        { value: 'wood', km: 2 },
+      ],
+    });
+    const mixed = facts.find(f => f.key === 'surface_mixed');
+    expect(mixed).toBeDefined();
+    expect(mixed!.breakdown).toEqual([
+      { value: 'paved', km: 340 },     // asphalt + paved
+      { value: 'gravel', km: 95 },     // gravel + fine_gravel + compacted
+      { value: 'dirt', km: 52 },       // ground + unpaved
+      { value: 'boardwalk', km: 2 },   // wood
+    ]);
+  });
+
+  it('falls back to single surface fact when all raw surface_mix values collapse to one category', () => {
+    // asphalt + concrete + paving_stones all map to "paved". A "mixed" row
+    // listing "Paved, Paved, Paved" would be absurd — render a single
+    // surface fact instead.
+    const facts = buildPathFacts({
+      surface: 'asphalt',
+      surface_mix: [
+        { value: 'asphalt', km: 10 },
+        { value: 'concrete', km: 2 },
+        { value: 'paving_stones', km: 1 },
+      ],
+    });
+    expect(facts.find(f => f.key === 'surface_mixed')).toBeUndefined();
+    expect(facts.find(f => f.key === 'surface')).toBeDefined();
   });
 
   // --- lit_mix: mixed lighting distributions ---

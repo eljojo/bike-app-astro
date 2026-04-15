@@ -34,6 +34,56 @@ export interface TimeSeriesPoint {
   secondaryValue?: number;
 }
 
+/**
+ * Time-series builders — centralized projections from daily aggregate rows
+ * into TimeSeriesPoint[]. Each builder encapsulates the metric math and the
+ * output shape. Generic input types keep these decoupled from any specific
+ * row schema — callers just supply the fields each builder reads.
+ */
+
+/** Pageviews as primary value, visitors as secondary. Coalesces missing
+ *  visitors to 0 so charts render a bar rather than a gap. */
+export function buildPageviewsSeries<
+  D extends { date: string; pageviews: number; visitors?: number | null },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: d.pageviews,
+    secondaryValue: d.visitors ?? 0,
+  }));
+}
+
+/** Average visit duration (seconds), rounded. Reads from an `avgDuration` field. */
+export function buildAvgDurationSeries<
+  D extends { date: string; avgDuration?: number | null },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: Math.round(d.avgDuration ?? 0),
+  }));
+}
+
+/** Total visit duration (seconds), rounded. Reads from a `totalDurationS` field. */
+export function buildTotalDurationSeries<
+  D extends { date: string; totalDurationS: number },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: Math.round(d.totalDurationS),
+  }));
+}
+
+/** Pages-per-visit ratio (pageviews / visitors), rounded to 1dp. Returns 0 when
+ *  visitors is 0 to avoid division-by-zero NaN in charts. */
+export function buildPagesPerVisitSeries<
+  D extends { date: string; pageviews: number; visitors: number },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: d.visitors > 0 ? Math.round((d.pageviews / d.visitors) * 10) / 10 : 0,
+  }));
+}
+
 /** Summary card data for the dashboard. */
 export interface SummaryCard {
   label: string;
@@ -53,6 +103,85 @@ export interface LeaderboardEntry {
   primaryLabel: string;
   secondaryValue?: number | string;
   secondaryLabel?: string;
+}
+
+/** Engagement leaderboard entry — adds per-row breakdown of the engagement score. */
+export interface EngagementLeaderboardEntry extends LeaderboardEntry {
+  breakdown: {
+    wallTime: string;
+    mapConversion: string;
+    stars: number;
+    videoPlayRate: string;
+  };
+}
+
+/** Minimal row contract for the views leaderboard. */
+export interface ViewsLeaderboardRow {
+  contentType: string;
+  contentSlug: string;
+  totalPageviews: number;
+  wallTimeHours: number;
+}
+
+/** Engagement-specific row with the extra metrics the breakdown reads.
+ *  Named to avoid collision with insights.ts EngagementRow (different shape). */
+export interface EngagementLeaderboardRow extends ViewsLeaderboardRow {
+  engagementScore: number;
+  mapConversionRate: number;
+  stars: number;
+  videoPlayRate: number;
+}
+
+/** Name + thumbnail lookups passed into the leaderboard builders. */
+export interface LeaderboardLookups {
+  names: Record<string, string>;
+  thumbs: Record<string, string>;
+}
+
+function lookupKey(row: { contentType: string; contentSlug: string }): string {
+  return `${row.contentType}:${row.contentSlug}`;
+}
+
+/** Views leaderboard builder: page views + wall time per row. */
+export function toViewsLeaderboardEntry(
+  row: ViewsLeaderboardRow,
+  lookups: LeaderboardLookups,
+): LeaderboardEntry {
+  const key = lookupKey(row);
+  return {
+    contentType: row.contentType as LeaderboardEntry['contentType'],
+    contentSlug: row.contentSlug,
+    name: lookups.names[key] || row.contentSlug,
+    thumbKey: lookups.thumbs[key],
+    primaryValue: row.totalPageviews,
+    primaryLabel: 'views',
+    secondaryValue: formatDuration(row.wallTimeHours * 3600),
+    secondaryLabel: 'time',
+  };
+}
+
+/** Engagement leaderboard builder: engagement score + breakdown. */
+export function toEngagementLeaderboardEntry(
+  row: EngagementLeaderboardRow,
+  lookups: LeaderboardLookups,
+): EngagementLeaderboardEntry {
+  const key = lookupKey(row);
+  return {
+    contentType: row.contentType as LeaderboardEntry['contentType'],
+    contentSlug: row.contentSlug,
+    name: lookups.names[key] || row.contentSlug,
+    thumbKey: lookups.thumbs[key],
+    primaryValue: Math.round(row.engagementScore * 100),
+    primaryLabel: 'score',
+    secondaryValue: row.totalPageviews,
+    secondaryLabel: 'views',
+    breakdown: {
+      wallTime: formatDuration(row.wallTimeHours * 3600),
+      mapConversion: `${Math.round(row.mapConversionRate * 100)}%`,
+      stars: row.stars,
+      videoPlayRate: `${Math.round(row.videoPlayRate * 100)}%`,
+    },
+  };
 }
 
 /** Auto-generated insight card. */

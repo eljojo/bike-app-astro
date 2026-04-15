@@ -578,7 +578,10 @@
   }
 }
 
-// Network detail — full-width map above the two-column layout
+// Network detail — full-width map above the two-column layout.
+// On wide viewports the map is sticky so it stays pinned while the user
+// scrolls through the members list and other sections — text scrolls under
+// it. Mobile keeps normal flow to avoid eating half the screen.
 .network-map-full {
   margin: 0 -1rem 1.5rem;
 
@@ -587,7 +590,12 @@
   }
 
   @media (min-width: $breakpoint-tablet) {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     margin: 0 0 2rem;
+    background: $color-bg;
+    @include dark-mode { background: $color-bg-dark; }
 
     .paths-map-hero {
       border-radius: $border-radius;
@@ -618,7 +626,7 @@
 
 .network-member-link {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   padding: 0.6em 0.5em;
   text-decoration: none;
@@ -636,14 +644,33 @@
 
 .network-member-no-page {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   padding: 0.6em 0.5em;
   @include muted-text;
 }
 
+.network-member-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
 .network-member-name {
   font-weight: 500;
+}
+
+.network-member-overlap-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.25;
+  margin-top: 0.15em;
+  @include muted-text;
+}
+
+.network-member-overlap-route {
+  opacity: 0.75;
 }
 
 .network-member-meta {
@@ -769,10 +796,6 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.5rem;
 
-  .bike-path-photo-hidden {
-    display: none;
-  }
-
   .bike-path-photo {
     display: block;
     border-radius: $border-radius;
@@ -784,6 +807,12 @@
     padding: 0;
     text-align: inherit;
     font: inherit;
+
+    // Compound selector (0,3,0) beats `.bike-path-photo-grid .bike-path-photo`
+    // (0,2,0) so the hidden modifier wins regardless of source order.
+    &.bike-path-photo-hidden {
+      display: none;
+    }
 
     img {
       width: 100%;

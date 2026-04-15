@@ -7,6 +7,8 @@
 // A sync loop reads `wantSlug` and applies it to the map. This decoupling
 // eliminates race conditions from mouseenter/mouseleave event ordering.
 import type maplibregl from 'maplibre-gl';
+import { boundsFromCoords, toFitBoundsArg } from '../geo/bounds';
+import { iterLineCoords } from './map-helpers';
 
 export interface PathHighlightOptions {
   /** CSS selector for list items with data-slug attributes */
@@ -35,13 +37,26 @@ export interface PathHighlightOptions {
   networkGeoIds?: Record<string, string[]>;
   /** Called when highlight changes — slug is the hovered slug or null on leave */
   onHighlight?: (slug: string | null) => void;
+  /** Called when a list item is clicked (both mobile and desktop). Receives the slug. */
+  onListClick?: (slug: string) => void;
+  /** Called whenever the lock state changes. Fired on every lock()/unlock()
+   *  (including switching from one locked slug to another). */
+  onLockChange?: (locked: boolean) => void;
   /** Use click (tap) events instead of mouseenter/mouseleave */
   mobile?: boolean;
 }
 
 export interface PathHighlightHandle {
-  /** Clear the current highlight (set wantSlug to null, sync). */
+  /** Clear the current highlight (no-op when locked). */
   clear: () => void;
+  /** Lock highlight on a slug — hover events are suppressed until unlock(). */
+  lock: (slug: string) => void;
+  /** Unlock: clear highlight and resume hover. */
+  unlock: () => void;
+  /** Whether the highlight is currently locked. */
+  isLocked: () => boolean;
+  /** Slug the highlight is currently locked on, or null when unlocked. */
+  lockedSlug: () => string | null;
 }
 
 const DEFAULTS = {
@@ -71,6 +86,7 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   let flyTimeout: ReturnType<typeof setTimeout> | null = null;
   let settleTimeout: ReturnType<typeof setTimeout> | null = null;
   let syncScheduled = false;
+  let locked = false; // when true, hover events are suppressed
 
   // --- Sync: read wantSlug, apply to map if changed ---
 
@@ -91,7 +107,8 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
     appliedSlug = wantSlug;
     applyHighlight(appliedSlug);
 
-    if (appliedSlug && o.sourceId) {
+    // Skip fly-to when locked — the click handler manages its own fly-to
+    if (!locked && appliedSlug && o.sourceId) {
       const slug = appliedSlug;
       flyTimeout = setTimeout(() => flyToSlug(slug), FLY_DELAY_MS);
       settleTimeout = setTimeout(() => {
@@ -147,23 +164,10 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
 
     if (features.length === 0) return;
 
-    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-    for (const f of features) {
-      const geom = f.geometry;
-      const coords = geom.type === 'LineString' ? (geom as GeoJSON.LineString).coordinates
-        : geom.type === 'MultiLineString' ? (geom as GeoJSON.MultiLineString).coordinates.flat()
-        : [];
-      for (const [lng, lat] of coords as [number, number][]) {
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
-        if (lat < minLat) minLat = lat;
-        if (lat > maxLat) maxLat = lat;
-      }
-    }
+    const bounds = boundsFromCoords(iterLineCoords(features));
+    if (!bounds) return;
 
-    if (minLng === Infinity) return;
-
-    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+    map.fitBounds(toFitBoundsArg(bounds), {
       padding: 60,
       maxZoom: 14,
       animate: !instant,
@@ -172,28 +176,50 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   }
 
   function clear() {
+    if (locked) return; // respect lock — only unlock() can clear when locked
     wantSlug = null;
     scheduleSync();
+  }
+
+  function lock(slug: string) {
+    const wasLocked = locked;
+    locked = true;
+    wantSlug = slug;
+    scheduleSync();
+    if (!wasLocked) o.onLockChange?.(true);
+  }
+
+  function unlock() {
+    if (!locked) return;
+    locked = false;
+    wantSlug = null;
+    scheduleSync();
+    o.onLockChange?.(false);
   }
 
   // --- DOM events: just write wantSlug, schedule sync ---
   document.querySelectorAll<HTMLElement>(o.listSelector).forEach(el => {
     const slug = el.dataset.slug || null;
 
-    if (o.mobile) {
-      el.addEventListener('click', (e) => {
-        // Prevent link navigation — tap highlights, popup link navigates
-        e.preventDefault();
-        wantSlug = slug;
-        scheduleSync();
-      });
-    } else {
-      // Enter always wins. Leave only clears if this element still owns the slug
-      // (prevents a stale leave from clobbering a newer enter on an adjacent item).
-      el.addEventListener('mouseenter', () => { wantSlug = slug; scheduleSync(); });
-      el.addEventListener('mouseleave', () => { if (wantSlug === slug) { wantSlug = null; scheduleSync(); } });
+    // Click: prevent navigation, notify via callback (both mobile and desktop)
+    el.addEventListener('click', (e) => {
+      if (!slug) return;
+      e.preventDefault();
+      o.onListClick?.(slug);
+    });
+
+    if (!o.mobile) {
+      // Desktop hover: enter always wins, leave only clears if this element still owns the slug
+      el.addEventListener('mouseenter', () => { if (!locked) { wantSlug = slug; scheduleSync(); } });
+      el.addEventListener('mouseleave', () => { if (!locked && wantSlug === slug) { wantSlug = null; scheduleSync(); } });
     }
   });
 
-  return { clear };
+  return {
+    clear,
+    lock,
+    unlock,
+    isLocked: () => locked,
+    lockedSlug: () => (locked ? wantSlug : null),
+  };
 }
