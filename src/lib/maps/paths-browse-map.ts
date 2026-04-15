@@ -235,6 +235,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: PATH_OPACITY,
         lineOpacityDim: pathForeground.hover.dimOpacity,
+        onListClick: (slug) => showPopupForSlugImpl(slug),
         sourceId: SOURCE_ID,
         queryFeatures: (slug) => tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds),
         slugToNetwork,

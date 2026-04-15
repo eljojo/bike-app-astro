@@ -35,6 +35,8 @@ export interface PathHighlightOptions {
   networkGeoIds?: Record<string, string[]>;
   /** Called when highlight changes — slug is the hovered slug or null on leave */
   onHighlight?: (slug: string | null) => void;
+  /** Called when a list item is clicked (both mobile and desktop). Receives the slug. */
+  onListClick?: (slug: string) => void;
   /** Use click (tap) events instead of mouseenter/mouseleave */
   mobile?: boolean;
 }
@@ -202,16 +204,15 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
   document.querySelectorAll<HTMLElement>(o.listSelector).forEach(el => {
     const slug = el.dataset.slug || null;
 
-    if (o.mobile) {
-      el.addEventListener('click', (e) => {
-        // Prevent link navigation — tap highlights, popup link navigates
-        e.preventDefault();
-        wantSlug = slug;
-        scheduleSync();
-      });
-    } else {
-      // Enter always wins. Leave only clears if this element still owns the slug
-      // (prevents a stale leave from clobbering a newer enter on an adjacent item).
+    // Click: prevent navigation, notify via callback (both mobile and desktop)
+    el.addEventListener('click', (e) => {
+      if (!slug) return;
+      e.preventDefault();
+      o.onListClick?.(slug);
+    });
+
+    if (!o.mobile) {
+      // Desktop hover: enter always wins, leave only clears if this element still owns the slug
       el.addEventListener('mouseenter', () => { if (!locked) { wantSlug = slug; scheduleSync(); } });
       el.addEventListener('mouseleave', () => { if (!locked && wantSlug === slug) { wantSlug = null; scheduleSync(); } });
     }
