@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../api-response';
 import { getInstanceFeatures } from '../config/instance-features';
 import { db } from '../get-db';
 import { CITY } from '../config/config';
-import { granularityForRange, getStartDate, formatDuration, parseTimeRange, type TimeSeriesPoint, type FunnelStep } from './types';
+import { granularityForRange, getStartDate, formatDuration, parseTimeRange, buildPageviewsSeries, buildAvgDurationSeries, type FunnelStep } from './types';
 import { ensurePageDailyData, ensureEntryPageData, ensureGpxDownloadData, syncPageMetrics } from './sync.server';
 import { buildSyncContext } from './sync-context.server';
 import { buildNarrative } from './narrative';
@@ -122,12 +122,8 @@ export async function handleContentDetailRequest(
       );
     }
 
-    const timeSeries: TimeSeriesPoint[] = daily.map(d => ({
-      date: d.date, value: d.pageviews, secondaryValue: d.visitors ?? 0,
-    }));
-    const durationSeries: TimeSeriesPoint[] = daily.map(d => ({
-      date: d.date, value: Math.round(d.avgDuration ?? 0),
-    }));
+    const timeSeries = buildPageviewsSeries(daily);
+    const durationSeries = buildAvgDurationSeries(daily);
 
     const reactionBreakdown = reactionsByTypeMap;
     const totalReactions = Object.values(reactionsByTypeMap).reduce((sum, c) => sum + c, 0);

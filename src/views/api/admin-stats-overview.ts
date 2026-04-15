@@ -4,7 +4,7 @@ import { jsonResponse, jsonError } from '../../lib/api-response';
 import { getInstanceFeatures } from '../../lib/config/instance-features';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { granularityForRange, getStartDate, parseTimeRange, formatDuration, type SummaryCard, type TimeSeriesPoint, type LeaderboardEntry } from '../../lib/stats/types';
+import { granularityForRange, getStartDate, parseTimeRange, formatDuration, buildPageviewsSeries, buildTotalDurationSeries, buildPagesPerVisitSeries, type SummaryCard, type LeaderboardEntry } from '../../lib/stats/types';
 import { computeInsights, computeMedians, type EngagementRow } from '../../lib/stats/insights';
 import { fetchJson } from '../../lib/content/load-admin-content.server';
 import { buildSyncContext } from '../../lib/stats/sync-context.server';
@@ -175,18 +175,12 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       { label: 'Content tracked', value: contentCount, description: 'Routes, events, and communities with analytics' },
     ];
 
-    const timeSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: d.pageviews, secondaryValue: d.visitors,
-    }));
+    const timeSeries = buildPageviewsSeries(dailyData);
 
     // For the site-wide daily aggregate, Plausible's visit_duration IS the average per visit (in seconds)
-    const durationSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: Math.round(d.totalDurationS),
-    }));
+    const durationSeries = buildTotalDurationSeries(dailyData);
 
-    const pagesPerVisitSeries: TimeSeriesPoint[] = dailyData.map(d => ({
-      date: d.date, value: d.visitors > 0 ? Math.round((d.pageviews / d.visitors) * 10) / 10 : 0,
-    }));
+    const pagesPerVisitSeries = buildPagesPerVisitSeries(dailyData);
 
     const viewsLeaderboard: LeaderboardEntry[] = topByViews.map(r => ({
       contentType: r.contentType as 'route' | 'event' | 'organizer' | 'bike-path',

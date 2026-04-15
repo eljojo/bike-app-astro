@@ -34,6 +34,56 @@ export interface TimeSeriesPoint {
   secondaryValue?: number;
 }
 
+/**
+ * Time-series builders — centralized projections from daily aggregate rows
+ * into TimeSeriesPoint[]. Each builder encapsulates the metric math and the
+ * output shape. Generic input types keep these decoupled from any specific
+ * row schema — callers just supply the fields each builder reads.
+ */
+
+/** Pageviews as primary value, visitors as secondary. Coalesces missing
+ *  visitors to 0 so charts render a bar rather than a gap. */
+export function buildPageviewsSeries<
+  D extends { date: string; pageviews: number; visitors?: number | null },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: d.pageviews,
+    secondaryValue: d.visitors ?? 0,
+  }));
+}
+
+/** Average visit duration (seconds), rounded. Reads from an `avgDuration` field. */
+export function buildAvgDurationSeries<
+  D extends { date: string; avgDuration?: number | null },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: Math.round(d.avgDuration ?? 0),
+  }));
+}
+
+/** Total visit duration (seconds), rounded. Reads from a `totalDurationS` field. */
+export function buildTotalDurationSeries<
+  D extends { date: string; totalDurationS: number },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: Math.round(d.totalDurationS),
+  }));
+}
+
+/** Pages-per-visit ratio (pageviews / visitors), rounded to 1dp. Returns 0 when
+ *  visitors is 0 to avoid division-by-zero NaN in charts. */
+export function buildPagesPerVisitSeries<
+  D extends { date: string; pageviews: number; visitors: number },
+>(daily: D[]): TimeSeriesPoint[] {
+  return daily.map(d => ({
+    date: d.date,
+    value: d.visitors > 0 ? Math.round((d.pageviews / d.visitors) * 10) / 10 : 0,
+  }));
+}
+
 /** Summary card data for the dashboard. */
 export interface SummaryCard {
   label: string;
