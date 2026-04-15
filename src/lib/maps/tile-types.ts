@@ -13,10 +13,8 @@ export interface TileManifestEntry {
  * geometry.
  *
  * See `scripts/generate-path-tiles.ts::mergeFeatures` for how segments are
- * built. The grouping rule will be extracted into `groupWaysIntoSegments`
- * in `src/lib/bike-paths/segments.ts` (forward reference: lands in Task 3
- * of the pageless-path-segments plan). See `_ctx/bike-path-tiles.md` for
- * the full invariant.
+ * built and `src/lib/bike-paths/segments.ts::groupWaysIntoSegments` for
+ * the grouping rule. See `_ctx/bike-path-tiles.md` for the full invariant.
  */
 export interface Segment {
   /**
@@ -76,8 +74,10 @@ export interface TileFeatureMeta {
   /**
    * Logical sub-units of this tile feature, grouped by OSM name tag.
    * One entry per distinct name; unnamed sub-lines collapse to a single
-   * `{name: undefined}` entry per feature. Absent when the entry has no
-   * per-way name data (e.g. tiles built from a pre-Task-1 cache).
+   * `{name: undefined}` entry per feature. Absent on tiles built before
+   * per-way name preservation was added to `cache-path-geometry.ts` —
+   * consumers should treat the whole feature as unresolvable to a
+   * segment and fall back to entry-level rendering.
    */
   _segments?: Segment[];
 }

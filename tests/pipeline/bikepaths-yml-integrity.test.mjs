@@ -1,12 +1,18 @@
 /**
  * Integrity tests for Ottawa bike path pipeline output.
  *
- * Runs the pipeline with cached Overpass data — no file dependencies,
- * no skipIf guards. Asserts real-world geographic and classification facts
- * about Ottawa's cycling infrastructure.
+ * Runs the pipeline with cached Overpass data and asserts real-world
+ * geographic and classification facts about Ottawa's cycling infrastructure.
  *
  * Pipeline setup is shared via tests/pipeline/ottawa-pipeline.ts so the
  * same in-memory run can be reused by other Ottawa regression tests.
+ *
+ * Most describe blocks in this file run unconditionally against the
+ * live bikepaths.yml integrity checks. The 'pageless segment
+ * invariants' block (added for Phase 1 pageless path segments) uses
+ * describe.skipIf to skip when the geometry cache at
+ * .cache/bikepath-geometry/ottawa/ is absent, since its assertions
+ * require real Ottawa tile data.
  */
 import fs from 'node:fs';
 import path from 'node:path';
