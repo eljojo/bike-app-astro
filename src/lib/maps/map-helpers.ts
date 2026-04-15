@@ -158,6 +158,9 @@ export interface PathPopupData {
  */
 function formatSurfaceMix(mix: Array<{ value: string; km: number }>): string {
   if (mix.length === 0) return '';
+  // Single-element mix: drop the km prefix because there's no
+  // contrast to illustrate. "asphalt" reads cleaner than
+  // "3.2 km asphalt" when that's the whole segment.
   if (mix.length === 1) return mix[0].value;
   return mix.map(m => `${formatKm(m.km)} km ${m.value}`).join(' \u00b7 ');
 }
@@ -187,8 +190,19 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
   // Deliberately does NOT include the entry's aggregate `surface` —
   // aggregate surface is misleading for heterogeneous long trails,
   // which is the whole reason Mode B exists.
+  //
+  // Mode B: segment-first rendering. Intentionally shows only
+  // segment name, segment-level surface_mix, parent entry name,
+  // parent path_type, and the details link — NOT the entry's
+  // aggregate `surface`, `length_km`, `vibe`, `network`, or
+  // `networkUrl`. Those fields belong to the entry as a whole and
+  // would be misleading when the user clicked on a specific
+  // sub-section (the whole point of segment popups is to avoid
+  // the aggregate-label category error). Phase 2 may reconsider
+  // whether to surface a segment-scoped length if the popup UX
+  // needs it.
   const seg = data.segment;
-  if (seg !== undefined && seg.name !== undefined && seg.name !== data.name) {
+  if (seg !== undefined && seg.name && data.name && seg.name !== data.name) {
     const surfaceLine = formatSurfaceMix(seg.surface_mix);
     const typeLabel = formatPathType(data.path_type);
     const viewDetailsLabel = labels?.viewDetails ?? 'View details';

@@ -218,6 +218,22 @@ describe('buildPathPopup with segment', () => {
     expect(html).toContain('Sentier Trans-Canada Gatineau');
   });
 
+  it('Mode A: renders the entry as today when segment name is an empty string', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      segment: {
+        name: '',
+        surface_mix: [{ value: 'asphalt', km: 0.4 }],
+        lineCount: 3,
+      },
+    });
+    // Should fall through to Mode A — no headless segment name,
+    // no "part of" framing.
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).not.toContain('part of');
+    expect(html).not.toContain('path-popup-segment-name');
+  });
+
   it('Mode B: renders segment name and surface_mix when segment name differs from entry name', () => {
     const html = buildPathPopup({
       ...baseInput,
@@ -235,6 +251,13 @@ describe('buildPathPopup with segment', () => {
     expect(html).toContain('asphalt');
     expect(html).toContain('gravel');
     expect(html).toContain('mtb-trail');
+    // Structural ordering: segment name appears before "part of"
+    // parent framing. A copy-paste bug that swapped the two blocks
+    // would still pass the toContain() checks above.
+    const segIdx = html.indexOf('Path #15');
+    const parentIdx = html.indexOf('part of');
+    expect(segIdx).toBeGreaterThanOrEqual(0);
+    expect(parentIdx).toBeGreaterThan(segIdx);
   });
 });
 
