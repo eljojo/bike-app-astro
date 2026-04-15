@@ -453,20 +453,23 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
           }
         }
 
-        // Desktop: click list item → lock highlight + show popup (instead of navigating)
-        if (!isMobile) {
-          const listSelector = '.paths-list li[data-slug], .network-members-list li[data-slug], .network-panel-header[data-slug]';
-          document.querySelectorAll<HTMLElement>(listSelector).forEach(el => {
-            el.addEventListener('click', (e) => {
-              const slug = el.dataset.slug;
-              if (!slug) return;
-              e.preventDefault();
-              showPopupForSlug(slug);
-            });
-          });
-        }
+        // Desktop click handlers were attached earlier (before map ready)
+        // — now that the map is ready, they can show popups
       },
     });
+
+    // --- Desktop click-to-lock: prevent navigation immediately, show popup when map ready ---
+    if (!isMobile) {
+      const listSelector = '.paths-list li[data-slug], .network-members-list li[data-slug], .network-panel-header[data-slug]';
+      document.querySelectorAll<HTMLElement>(listSelector).forEach(el => {
+        el.addEventListener('click', (e) => {
+          const slug = el.dataset.slug;
+          if (!slug) return;
+          e.preventDefault();
+          showPopupForSlug(slug);
+        });
+      });
+    }
 
     // --- Tab interaction (index-specific) ---
     const tabBar = document.getElementById('network-tabs');
