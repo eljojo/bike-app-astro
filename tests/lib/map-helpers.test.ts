@@ -227,10 +227,9 @@ describe('buildPathPopup with segment', () => {
         lineCount: 3,
       },
     });
-    // Should fall through to Mode A — no headless segment name,
-    // no segment-first structure.
+    // Should fall through to Mode A — no breadcrumb (the only
+    // Mode-B-specific class), no segment structure.
     expect(html).toContain('Sentier Trans-Canada Gatineau');
-    expect(html).not.toContain('path-popup-segment-name');
     expect(html).not.toContain('path-popup-parent-link');
   });
 
@@ -252,7 +251,6 @@ describe('buildPathPopup with segment', () => {
       },
     });
     expect(html).toContain('Sentier du Parc de la Gatineau');
-    expect(html).not.toContain('path-popup-segment-name');
     expect(html).not.toContain('path-popup-parent-link');
   });
 
@@ -272,21 +270,16 @@ describe('buildPathPopup with segment', () => {
     expect(html).toContain('Sentier Trans-Canada Gatineau');
     expect(html).toContain('asphalt');
     expect(html).toContain('gravel');
-    // path_type is preserved as a data-attribute on the segment-type
-    // element, so the raw slug remains grep-findable even though the
-    // visible label is the humanized form.
-    expect(html).toContain('mtb-trail');
     expect(html).toContain('mountain bike trail');
-    // Structural ordering: the parent breadcrumb now appears ABOVE
-    // the segment name in Mode B. A copy-paste bug that moved the
-    // breadcrumb below the segment would still pass the toContain
-    // checks above.
+    // Structural ordering: the parent breadcrumb appears ABOVE the
+    // segment name in Mode B. A bug that moved the breadcrumb below
+    // the segment would still pass the toContain checks above.
     const breadcrumbIdx = html.indexOf('path-popup-parent-link');
-    const segIdx = html.indexOf('path-popup-segment-name');
+    const segmentNameIdx = html.indexOf('Path #15');
     expect(breadcrumbIdx).toBeGreaterThanOrEqual(0);
-    expect(segIdx).toBeGreaterThan(breadcrumbIdx);
-    // CTA button is present.
-    expect(html).toContain('path-popup-cta');
+    expect(segmentNameIdx).toBeGreaterThan(breadcrumbIdx);
+    // View details uses the same inline link class as Mode A.
+    expect(html).toContain('path-popup-link');
   });
 });
 

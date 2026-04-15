@@ -203,9 +203,15 @@ function normalizeNameForComparison(s: string): string {
 
 export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: string }): string {
   // Mode B: the resolved segment has a distinct name from the entry.
-  // Rendered as: parent breadcrumb (small, quiet, clickable) → segment
-  // name (single primary heading) → segment surface_mix → parent
-  // path_type (small, muted) → View details button (visible CTA).
+  // Rendered as: parent breadcrumb (small, muted, clickable) above the
+  // segment name, then segment surface_mix + parent path_type as meta
+  // lines, and finally the shared `path-popup-link` "View details →"
+  // text link at the bottom — same inline link style Mode A uses.
+  //
+  // The structure deliberately reuses Mode A's class vocabulary
+  // (`path-popup-name`, `path-popup-meta`, `path-popup-link`) so both
+  // modes share one visual language. The only Mode-B-specific class
+  // is `path-popup-parent-link` for the breadcrumb above the name.
   //
   // Intentionally shows only segment name, segment-level surface_mix,
   // parent entry name, and parent path_type — NOT the entry's
@@ -213,9 +219,7 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
   // `networkUrl`. Those fields belong to the entry as a whole and
   // would be misleading when the user clicked on a specific
   // sub-section (the whole point of segment popups is to avoid
-  // the aggregate-label category error). Phase 2 may reconsider
-  // whether to surface a segment-scoped length if the popup UX
-  // needs it.
+  // the aggregate-label category error).
   //
   // The guard uses `normalizeNameForComparison` so that near-duplicate
   // names differing only in punctuation (e.g. `Sentier du Parc-de-la-
@@ -231,22 +235,24 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
     const typeLabel = formatPathType(data.path_type);
     const viewDetailsLabel = labels?.viewDetails ?? 'View details';
 
-    let popup = '<div class="path-popup path-popup-segment">';
-    // Parent as small clickable breadcrumb above. Clicking it goes to
-    // the same URL as the CTA below — two affordances, one destination.
+    let popup = '<div class="path-popup">';
+    // Parent breadcrumb above. Clicking it goes to the same URL as the
+    // "View details" link below — two affordances, one destination.
     popup += data.url
       ? html`<a href="${data.url}" class="path-popup-parent-link">${data.name}</a>`
       : html`<div class="path-popup-parent-link">${data.name}</div>`;
-    // Segment name is the only bold element in the popup.
-    popup += html`<strong class="path-popup-segment-name">${seg.name}</strong>`;
+    // Segment name is the only bold element in Mode B. In Mode A the
+    // name wraps a link to the entry page; here the segment has no
+    // page of its own, so the `<strong>` stays unwrapped.
+    popup += html`<strong class="path-popup-name">${seg.name}</strong>`;
     if (surfaceLine) {
-      popup += html`<div class="path-popup-segment-surface">${surfaceLine}</div>`;
+      popup += html`<div class="path-popup-meta">${surfaceLine}</div>`;
     }
     if (typeLabel) {
-      popup += html`<div class="path-popup-segment-type" data-path-type="${data.path_type ?? ''}">${typeLabel}</div>`;
+      popup += html`<div class="path-popup-meta">${typeLabel}</div>`;
     }
     if (data.url) {
-      popup += html`<a href="${data.url}" class="path-popup-cta">${viewDetailsLabel} \u2192</a>`;
+      popup += html`<a href="${data.url}" class="path-popup-link">${viewDetailsLabel} \u2192</a>`;
     }
     popup += '</div>';
     return popup;
