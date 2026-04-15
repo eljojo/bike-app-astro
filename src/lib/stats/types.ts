@@ -105,6 +105,85 @@ export interface LeaderboardEntry {
   secondaryLabel?: string;
 }
 
+/** Engagement leaderboard entry — adds per-row breakdown of the engagement score. */
+export interface EngagementLeaderboardEntry extends LeaderboardEntry {
+  breakdown: {
+    wallTime: string;
+    mapConversion: string;
+    stars: number;
+    videoPlayRate: string;
+  };
+}
+
+/** Minimal row contract for the views leaderboard. */
+export interface ViewsLeaderboardRow {
+  contentType: string;
+  contentSlug: string;
+  totalPageviews: number;
+  wallTimeHours: number;
+}
+
+/** Engagement-specific row with the extra metrics the breakdown reads.
+ *  Named to avoid collision with insights.ts EngagementRow (different shape). */
+export interface EngagementLeaderboardRow extends ViewsLeaderboardRow {
+  engagementScore: number;
+  mapConversionRate: number;
+  stars: number;
+  videoPlayRate: number;
+}
+
+/** Name + thumbnail lookups passed into the leaderboard builders. */
+export interface LeaderboardLookups {
+  names: Record<string, string>;
+  thumbs: Record<string, string>;
+}
+
+function lookupKey(row: { contentType: string; contentSlug: string }): string {
+  return `${row.contentType}:${row.contentSlug}`;
+}
+
+/** Views leaderboard builder: page views + wall time per row. */
+export function toViewsLeaderboardEntry(
+  row: ViewsLeaderboardRow,
+  lookups: LeaderboardLookups,
+): LeaderboardEntry {
+  const key = lookupKey(row);
+  return {
+    contentType: row.contentType as LeaderboardEntry['contentType'],
+    contentSlug: row.contentSlug,
+    name: lookups.names[key] || row.contentSlug,
+    thumbKey: lookups.thumbs[key],
+    primaryValue: row.totalPageviews,
+    primaryLabel: 'views',
+    secondaryValue: formatDuration(row.wallTimeHours * 3600),
+    secondaryLabel: 'time',
+  };
+}
+
+/** Engagement leaderboard builder: engagement score + breakdown. */
+export function toEngagementLeaderboardEntry(
+  row: EngagementLeaderboardRow,
+  lookups: LeaderboardLookups,
+): EngagementLeaderboardEntry {
+  const key = lookupKey(row);
+  return {
+    contentType: row.contentType as LeaderboardEntry['contentType'],
+    contentSlug: row.contentSlug,
+    name: lookups.names[key] || row.contentSlug,
+    thumbKey: lookups.thumbs[key],
+    primaryValue: Math.round(row.engagementScore * 100),
+    primaryLabel: 'score',
+    secondaryValue: row.totalPageviews,
+    secondaryLabel: 'views',
+    breakdown: {
+      wallTime: formatDuration(row.wallTimeHours * 3600),
+      mapConversion: `${Math.round(row.mapConversionRate * 100)}%`,
+      stars: row.stars,
+      videoPlayRate: `${Math.round(row.videoPlayRate * 100)}%`,
+    },
+  };
+}
+
 /** Auto-generated insight card. */
 export interface InsightCard {
   type: 'hidden-gem' | 'needs-work' | 'trending' | 'declining' | 'strong-performer' | 'seasonal' | 'videos-working' | 'underused-variant' | 'low-bounce';
