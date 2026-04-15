@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseBikePathsYml, geoFilesForEntry, type SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 import { queryOverpass } from './pipeline/lib/overpass.ts';
+import { haversineKm } from '../src/lib/geo/proximity';
 
 const CITY = process.env.CITY || 'ottawa';
 const CONTENT_DIR = process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes');
@@ -57,6 +58,68 @@ export function anchorBbox(anchors: Array<[number, number]>): string {
   const lats = anchors.map(a => a[1]);
   const pad = 0.005; // ~500m padding
   return `${Math.min(...lats) - pad},${Math.min(...lngs) - pad},${Math.max(...lats) + pad},${Math.max(...lngs) + pad}`;
+}
+
+/**
+ * Verify that the fetched geometry for an entry actually lives near its
+ * YML anchors. Defense-in-depth against cache poisoning: if a geojson file
+ * somehow contains ways from a different region (stale write, mismatched
+ * filename, hash check escape), this is how we notice.
+ *
+ * The check: compute the centroid of all feature coordinates, clamp it to
+ * the anchor bbox (point-to-rectangle distance), and haversine-measure.
+ * If the centroid is inside the bbox the distance is 0 — this keeps the
+ * check honest for long-distance trails where anchors span the route.
+ * Threshold defaults to 10km, which is loose enough to absorb normal
+ * bbox-crossing ways and strict enough to catch "wrong city" poisoning.
+ *
+ * Returns {ok: true} when there are no anchors or no features to compare
+ * — a pure data-state check, it cannot fail on absence.
+ */
+export type AnchorLike = [number, number] | { lat: number; lng: number };
+
+export function verifyGeometryMatchesAnchors(
+  entry: { slug: string; name?: string; anchors?: AnchorLike[] },
+  features: Array<{ geometry?: { coordinates?: unknown } }>,
+  thresholdKm = 10,
+): { ok: true } | { ok: false; distanceKm: number; centroid: [number, number] } {
+  const anchors = entry.anchors ?? [];
+  if (anchors.length === 0) return { ok: true };
+
+  const anchorCoords: Array<[number, number]> = anchors.map(a =>
+    Array.isArray(a) ? [a[0], a[1]] : [a.lng, a.lat],
+  );
+  const minLng = Math.min(...anchorCoords.map(c => c[0]));
+  const maxLng = Math.max(...anchorCoords.map(c => c[0]));
+  const minLat = Math.min(...anchorCoords.map(c => c[1]));
+  const maxLat = Math.max(...anchorCoords.map(c => c[1]));
+
+  let sumLng = 0, sumLat = 0, n = 0;
+  for (const feature of features) {
+    const coords = feature.geometry?.coordinates;
+    if (!Array.isArray(coords)) continue;
+    for (const pt of coords) {
+      if (!Array.isArray(pt) || pt.length < 2) continue;
+      const [lng, lat] = pt as [number, number];
+      if (typeof lng !== 'number' || typeof lat !== 'number') continue;
+      sumLng += lng;
+      sumLat += lat;
+      n++;
+    }
+  }
+  if (n === 0) return { ok: true };
+
+  const centroid: [number, number] = [sumLng / n, sumLat / n];
+
+  // Clamp the centroid to the anchor bbox — distance from a point inside is 0.
+  const clampedLng = Math.min(Math.max(centroid[0], minLng), maxLng);
+  const clampedLat = Math.min(Math.max(centroid[1], minLat), maxLat);
+  const distanceKm = haversineKm(centroid[1], centroid[0], clampedLat, clampedLng);
+
+  if (distanceKm > thresholdKm) {
+    return { ok: false, distanceKm, centroid };
+  }
+  return { ok: true };
 }
 
 /**
@@ -258,6 +321,53 @@ out geom;`;
 }
 
 console.log(`[path-geo] Done. Processed: ${processed}, Fixtured: ${fixturedFiles.size}`);
+
+// --- Verification pass: for entries whose Overpass query was bbox-filtered
+//     (name- and parallel- passes), the fetched geometry's centroid must
+//     live near the entry's anchor bbox. Defense-in-depth against cache
+//     poisoning: a hash match doesn't prove the cached ways are the RIGHT
+//     ways, and a stale file from a prior YML revision can otherwise leak
+//     through. Runs on every active file — fresh writes and cache hits
+//     alike — so any regression fails the build loud and immediate.
+//
+//     Relation- and way-ID-based queries are NOT bbox-filtered: relation
+//     members can legitimately span a whole province (Route Verte, Sentier
+//     Trans-Canada), and explicitly-listed way_ids can live anywhere. The
+//     anchor check would produce false positives on those.
+if (!dryRun) {
+  type Violation = { slug: string; name?: string; file: string; distanceKm: number; centroid: [number, number] };
+  const violations: Violation[] = [];
+
+  for (const entry of cacheEntries) {
+    if (!entry.anchors || entry.anchors.length === 0) continue;
+    for (const file of geoFilesForEntry(entry)) {
+      const isBboxFiltered = file.startsWith('name-') || file.startsWith('parallel-');
+      if (!isBboxFiltered) continue;
+      const filePath = path.join(CACHE_DIR, file);
+      if (!fs.existsSync(filePath)) continue;
+      let geojson: { features?: Array<{ geometry?: { coordinates?: unknown } }> };
+      try {
+        geojson = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      } catch {
+        continue;
+      }
+      const result = verifyGeometryMatchesAnchors(entry, geojson.features ?? []);
+      if (!result.ok) {
+        violations.push({ slug: entry.slug, name: entry.name, file, distanceKm: result.distanceKm, centroid: result.centroid });
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    console.error(`[path-geo] ✗ ${violations.length} cached file(s) have geometry far from their YML anchors:`);
+    for (const v of violations.slice(0, 20)) {
+      console.error(`    ${v.file} (${v.slug} — ${v.name ?? ''}): centroid ${v.centroid[1].toFixed(4)},${v.centroid[0].toFixed(4)} is ${v.distanceKm.toFixed(1)}km from the anchor bbox`);
+    }
+    if (violations.length > 20) console.error(`    ... and ${violations.length - 20} more`);
+    console.error(`[path-geo] Fix the data (re-run to refetch from Overpass, or correct the entry's anchors) and try again.`);
+    process.exit(1);
+  }
+}
 
 // --- Write manifest: the authoritative list of geo files for this build ---
 // generate-path-tiles reads this instead of globbing the cache directory,

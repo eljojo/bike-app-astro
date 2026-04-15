@@ -7,7 +7,9 @@ import {
   anchorBbox,
   buildNameQuery,
   cleanupOrphanedCacheFiles,
+  verifyGeometryMatchesAnchors,
 } from '../scripts/cache-path-geometry';
+import type { Feature, LineString } from 'geojson';
 
 describe('overpassToGeoJSON', () => {
   it('converts Overpass way elements to GeoJSON FeatureCollection with [lon, lat] coordinates', () => {
@@ -300,5 +302,90 @@ describe('cleanupOrphanedCacheFiles', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('verifyGeometryMatchesAnchors', () => {
+  function line(coords: [number, number][]): Feature<LineString> {
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: coords },
+    };
+  }
+
+  it('passes when the entry has no anchors (nothing to compare against)', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X' },
+      [line([[-75.7, 45.4], [-75.6, 45.5]])],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when there are no features (empty fetch result)', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4], [-75.6, 45.5]] as Array<[number, number]> },
+      [],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when the geometry centroid lies inside the anchor bbox', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4], [-75.6, 45.5]] as Array<[number, number]> },
+      [line([[-75.65, 45.44], [-75.64, 45.46]])],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes for long-distance trails whose bbox spans the whole route', () => {
+    // 200km trail from Ottawa to Kingston — anchors at the endpoints, centroid in the middle.
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'long-trail', name: 'Long Trail', anchors: [[-75.7, 45.4], [-76.5, 44.2]] as Array<[number, number]> },
+      [line([[-76.1, 44.8], [-76.0, 44.85]])],
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes when the centroid is within the threshold distance of the bbox', () => {
+    // bbox is a tight square at [-75.7, 45.4] -> [-75.6, 45.5]; centroid just outside by ~2km.
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4], [-75.6, 45.5]] as Array<[number, number]> },
+      [line([[-75.55, 45.52]])],
+      10,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('fails when the centroid is far outside the anchor bbox (trail-1-1 poisoned shape)', () => {
+    // Actual trail-1-1 numbers: anchors around [45.49, -76.08], poisoned centroid around [45.33, -75.87] (~18km away).
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'trail-1-1', name: 'Trail 1', anchors: [[-76.0868, 45.4918], [-76.0788, 45.4924]] as Array<[number, number]> },
+      [line([[-75.87, 45.33], [-75.86, 45.34]])],
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.distanceKm).toBeGreaterThan(10);
+    }
+  });
+
+  it('reports the centroid and distance when it fails', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [[-75.7, 45.4]] as Array<[number, number]> },
+      [line([[-70, 50]])],
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.centroid).toBeDefined();
+      expect(result.distanceKm).toBeGreaterThan(100);
+    }
+  });
+
+  it('handles the {lat, lng} object form of anchors (not just tuples)', () => {
+    const result = verifyGeometryMatchesAnchors(
+      { slug: 'x', name: 'X', anchors: [{ lat: 45.4, lng: -75.7 }, { lat: 45.5, lng: -75.6 }] },
+      [line([[-75.65, 45.44]])],
+    );
+    expect(result.ok).toBe(true);
   });
 });

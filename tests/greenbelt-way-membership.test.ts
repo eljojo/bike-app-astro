@@ -14,12 +14,23 @@ import { parseBikePathsYml, geoFilesForEntry } from '../src/lib/bike-paths/bikep
 
 const GATINEAU_PARK_WAY_IDS = [218548947, 311604378];
 const CACHE_DIR = path.resolve('.cache', 'bikepath-geometry', 'ottawa');
+const YML_PATH = path.resolve(
+  process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes'),
+  'ottawa', 'bikepaths.yml'
+);
 
-describe('Trail #1 near Penguin Picnic Area belongs to Gatineau Park, not Greenbelt', () => {
-  const ymlPath = path.resolve(
-    process.env.CONTENT_DIR || path.join(process.env.HOME!, 'code', 'bike-routes'),
-    'ottawa', 'bikepaths.yml'
-  );
+// This is a data-state regression test: it only runs when the Ottawa
+// content repo and the geometry cache are both present (developer machine
+// after `make prebuild`). CI runs that don't populate the cache skip the
+// block entirely — the alternative is a silent early-return that passes
+// without checking anything, which is how the original trail-1-1 bug went
+// undetected for so long.
+const HAS_CACHE =
+  fs.existsSync(YML_PATH) &&
+  fs.existsSync(path.join(CACHE_DIR, 'manifest.json'));
+
+describe.skipIf(!HAS_CACHE)('Trail #1 near Penguin Picnic Area belongs to Gatineau Park, not Greenbelt', () => {
+  const ymlPath = YML_PATH;
 
   function loadTrail11() {
     const content = fs.readFileSync(ymlPath, 'utf-8');
