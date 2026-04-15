@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { slugifyBikePathName, parseBikePathsYml } from '../src/lib/bike-paths/bikepaths-yml.server';
+import { slugifyBikePathName, parseBikePathsYml, geoFilesForEntry } from '../src/lib/bike-paths/bikepaths-yml.server';
+import type { SluggedBikePathYml } from '../src/lib/bike-paths/bikepaths-yml.server';
 
 describe('slugifyBikePathName', () => {
   it('converts path name to kebab-case slug', () => {
@@ -75,5 +76,50 @@ describe('parseBikePathsYml', () => {
 
   it('throws on invalid YAML structure', () => {
     expect(() => parseBikePathsYml('not_bike_paths: []')).toThrow('bike_paths array');
+  });
+});
+
+describe('geoFilesForEntry', () => {
+  it('returns relation files for entries with osm_relations', () => {
+    const entry = { name: 'X', osm_relations: [7234399], slug: 'x' } as unknown as SluggedBikePathYml;
+    expect(geoFilesForEntry(entry)).toEqual(['7234399.geojson']);
+  });
+
+  it('returns ways- file for entries with osm_way_ids', () => {
+    const entry = { name: 'PdG', osm_way_ids: [53309796, 136996020], slug: 'parc-de-la-gatineau-1' } as unknown as SluggedBikePathYml;
+    expect(geoFilesForEntry(entry)).toEqual(['ways-parc-de-la-gatineau-1.geojson']);
+  });
+
+  it('returns name- file for entries with osm_names', () => {
+    const entry = { name: 'X', osm_names: ['Foo'], slug: 'x' } as unknown as SluggedBikePathYml;
+    expect(geoFilesForEntry(entry)).toEqual(['name-x.geojson']);
+  });
+
+  // Regression for the Parc de la Gatineau bug. Networks aggregate geometry
+  // from members; they must not generate a parallel name- file from their own
+  // osm_names list, because those names are the names of member trails and
+  // the resulting geometry overlaps with the members' own geo files.
+  it('skips name-based discovery for network entries (members provide geometry)', () => {
+    const network = {
+      name: 'Parc de la Gatineau',
+      type: 'network',
+      osm_names: ['Trail #52', '# 77 (Happy Valley)'],
+      members: ['77-happy-valley'],
+      slug: 'parc-de-la-gatineau',
+    } as unknown as SluggedBikePathYml;
+    expect(geoFilesForEntry(network)).toEqual([]);
+  });
+
+  // Networks ARE allowed to have their own superroute relation. When they do,
+  // it should still be honored — the relation defines the network as a whole.
+  it('honors osm_relations on network entries (superroute)', () => {
+    const network = {
+      name: 'Some Network',
+      type: 'network',
+      osm_relations: [12345],
+      members: ['member-a'],
+      slug: 'some-network',
+    } as unknown as SluggedBikePathYml;
+    expect(geoFilesForEntry(network)).toEqual(['12345.geojson']);
   });
 });

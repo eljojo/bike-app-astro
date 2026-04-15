@@ -105,11 +105,25 @@ export const finalizeResolvePhase: Phase<Inputs, Output> = async ({
 
   // Step 9b: Remove ghost entries — non-relation entries whose ways are
   // mostly owned by relation entries. Two strategies:
-  //   1. Structural (preferred): if >=50% of an entry's ways are owned by
-  //      other entries that have osm_relations, it's a ghost.
+  //   1. Structural (preferred): if >=50% of an entry's ways are also
+  //      claimed by another entry that has osm_relations, it's a ghost.
   //   2. Name-based fallback: for entries with no way IDs (parallel lanes,
   //      manual entries), fall back to the relationBaseNames check.
+  //
+  // Build a reverse index of every way to all of its claimers. WayRegistry's
+  // `ownerOf()` only returns the FIRST claimer, so it can't see relation
+  // entries that claimed a way after a parallel-lane entry did.
   {
+    const claimersOfWay = new Map<number, any[]>();
+    for (const ent of grouped) {
+      const ws = wayRegistry.wayIdsFor(ent);
+      for (const w of ws) {
+        let arr = claimersOfWay.get(w);
+        if (!arr) { arr = []; claimersOfWay.set(w, arr); }
+        arr.push(ent);
+      }
+    }
+
     const before = grouped.length;
     let structuralCount = 0;
     let nameCount = 0;
@@ -124,8 +138,9 @@ export const finalizeResolvePhase: Phase<Inputs, Output> = async ({
         // Strategy 1: structural — check way overlap with relation entries.
         let ownedByOthers = 0;
         for (const wid of wayIds) {
-          const owner = wayRegistry.ownerOf(wid) as any;
-          if (owner && owner !== e && owner.osm_relations?.length > 0) {
+          const claimers = claimersOfWay.get(wid);
+          if (!claimers) continue;
+          if (claimers.some(c => c !== e && c.osm_relations?.length > 0)) {
             ownedByOthers++;
           }
         }
