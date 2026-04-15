@@ -6,8 +6,18 @@
  * segment, regardless of surface or physical connectivity. Unnamed ways
  * collapse into a single `{name: undefined}` segment. For each segment,
  * the segment-wide `surface_mix` is computed by summing km per surface
- * value across every way in the segment — mirroring the entry-level
- * `surface_mix` field on `BikePathPage`.
+ * value across every way in the segment.
+ *
+ * `surface_mix` has the same structural shape as the entry-level
+ * `surface_mix` field on `BikePathPage` (see
+ * `src/lib/bike-paths/bike-path-entries.server.ts`) but uses
+ * **one-decimal-place** km rounding, while the entry-level field in
+ * `scripts/pipeline/lib/osm-tags.ts::mergeWayTags` rounds to integer
+ * km. The divergence is deliberate: heterogeneous long-distance trails
+ * may contain short surface transitions (e.g. a 0.1 km gravel bridge on
+ * a mostly-asphalt section) that are meaningful to a clicking cyclist
+ * but would vanish under integer rounding. A segment popup rendering
+ * "9 km asphalt · 0.1 km gravel" needs the 0.1 to stay visible.
  *
  * This is the single source of truth for the grouping rule. The tile
  * builder (`scripts/generate-path-tiles.ts::mergeFeatures`) is the only

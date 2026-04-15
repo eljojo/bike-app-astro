@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { groupWaysIntoSegments, type WayInput } from '../../../src/lib/bike-paths/segments';
 
-// Geometry helper — ~1km at ~45°N uses these rough coordinates.
+// Geometry helper — the default way() line is ~0.78km at ~45°N (a
+// 0.01° east-west step). Pinned assertions in the tests below use
+// the 1dp-rounded value derived from that default.
 function line(...pts: Array<[number, number]>): [number, number][] {
   return pts;
 }
@@ -26,7 +28,7 @@ describe('groupWaysIntoSegments', () => {
     expect(segments[0].name).toBeUndefined();
     expect(segments[0].surface_mix).toHaveLength(1);
     expect(segments[0].surface_mix[0].value).toBe('asphalt');
-    expect(segments[0].surface_mix[0].km).toBeGreaterThan(0);
+    expect(segments[0].surface_mix[0].km).toBe(0.8); // ~0.78km rounded to 1dp
   });
 
   it('returns one segment for one named way', () => {
@@ -47,8 +49,8 @@ describe('groupWaysIntoSegments', () => {
     expect(segments[0].name).toBe('Path #15');
     expect(segments[0].surface_mix).toHaveLength(1);
     expect(segments[0].surface_mix[0].value).toBe('asphalt');
-    // 3 ways each ~0.78km → combined should be greater than any single way
-    expect(segments[0].surface_mix[0].km).toBeGreaterThan(2);
+    // 3 ways each ~0.78km, summed then rounded to 1dp
+    expect(segments[0].surface_mix[0].km).toBe(2.3);
   });
 
   it('produces one segment with multi-surface mix for a mixed-surface named path', () => {
@@ -128,9 +130,12 @@ describe('groupWaysIntoSegments', () => {
   });
 
   it('rounds surface_mix km to one decimal place', () => {
+    // Default way() geometry is a 0.01° east-west step at 45.40°N.
+    // Raw haversine is ~0.78 km; rounded to one decimal place this is 0.8.
+    // If the rounding rule ever changes (integer km, 2dp, no rounding),
+    // this assertion will fail and the change will surface at review.
     const segments = groupWaysIntoSegments([way({ name: 'X', surface: 'asphalt' })]);
-    const km = segments[0].surface_mix[0].km;
-    expect(km).toBe(Math.round(km * 10) / 10);
+    expect(segments[0].surface_mix[0].km).toBe(0.8);
   });
 
   it('uses the literal string "unknown" for ways with no surface tag', () => {
