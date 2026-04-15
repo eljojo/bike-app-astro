@@ -118,6 +118,17 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   setupMapTouchLock(map, isMobile ? null : touchLockEl);
   if (isMobile && touchLockEl) touchLockEl.style.display = 'none';
   const expandButton = createMapExpandButton(map, container, { compactHeight, expandedHeight });
+
+  // Close the popup (but keep the lock) when the user clicks anywhere
+  // outside the entire browse widget — the map, its tabs, and the list
+  // panels all live under `.paths-browse`, so any click outside that
+  // container is "not interacting with the widget." Lock persistence is
+  // handled separately inside showPopupForSlugImpl.
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest('.paths-browse')) return;
+    closePopup(map);
+  });
   // ── Tile path layer ─────────────────────────────────────────────
 
   const manifestPromise = fetch('/bike-paths/geo/tiles/manifest.json')
@@ -137,10 +148,22 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
   let _highlightHandle: PathHighlightHandle | null = null;
 
   async function showPopupForSlugImpl(slug: string) {
+    // Toggle off: clicking the currently-locked path/network clears
+    // everything. Popup-close (X) alone doesn't unlock — the lock only
+    // clears when the user explicitly dismisses by re-clicking the same
+    // item, picks a different item, or switches tabs.
+    if (_highlightHandle?.lockedSlug() === slug) {
+      _highlightHandle.unlock();
+      closePopup(map);
+      return;
+    }
+
     const features = tilePathLayer.queryFeaturesBySlug(slug, networkGeoIds);
     if (features.length === 0) return;
 
-    // Lock now that we know features exist — suppresses hover until popup closes
+    // Lock now that we know features exist. Overrides any previous lock
+    // (switching paths). Hover suppression stays on until the user
+    // explicitly unlocks (toggle-off, tab switch).
     _highlightHandle?.lock(slug);
 
     // Collect coordinates once — needed for both bounds and the midpoint popup anchor.
@@ -155,7 +178,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
 
     // Wait for fly animation, then show popup
     await new Promise(r => setTimeout(r, 550));
-    if (!_highlightHandle?.isLocked()) return; // unlocked while flying
+    if (_highlightHandle?.lockedSlug() !== slug) return; // lock moved while flying
 
     // Position popup at path midpoint
     const lngLat = allCoords[Math.floor(allCoords.length / 2)];
@@ -181,7 +204,6 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
       .setLngLat(lngLat)
       .setHTML(content);
     showPopup(map, popup);
-    popup.on('close', () => _highlightHandle?.unlock());
   }
 
   // ── Result object (delegates to layer) ──────────────────────────

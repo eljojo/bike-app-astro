@@ -52,6 +52,8 @@ export interface PathHighlightHandle {
   unlock: () => void;
   /** Whether the highlight is currently locked. */
   isLocked: () => boolean;
+  /** Slug the highlight is currently locked on, or null when unlocked. */
+  lockedSlug: () => string | null;
 }
 
 const DEFAULTS = {
@@ -207,5 +209,11 @@ export function setupPathHighlight(map: maplibregl.Map, opts: PathHighlightOptio
     }
   });
 
-  return { clear, lock, unlock, isLocked: () => locked };
+  return {
+    clear,
+    lock,
+    unlock,
+    isLocked: () => locked,
+    lockedSlug: () => (locked ? wantSlug : null),
+  };
 }
