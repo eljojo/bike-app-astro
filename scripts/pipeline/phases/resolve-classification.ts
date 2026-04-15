@@ -109,15 +109,20 @@ export const resolveClassificationPhase: Phase<Inputs, any[]> = async ({
     }
 
     // Classify promoted entries -- they were added after steps 3b/7/7c.
-    // Derive path_type from the cycling entries that own their ways,
-    // then derive entry type normally.
+    // Derive path_type from the cycling entries that claim their ways
+    // (weighted by how many of those entries agree on a given path_type),
+    // then derive entry type normally. Every claimer counts — not just the
+    // first one the registry happened to remember — so the vote is stable
+    // across pipeline runs.
     for (const entry of grouped) {
       if (!entry.path_type && entry.route_type) {
         const ptCounts: Record<string, number> = {};
         for (const wid of (entry.osm_way_ids || [])) {
-          const owner = wayRegistry.ownerOf(wid) as any;
-          if (owner && owner !== entry && owner.path_type) {
-            ptCounts[owner.path_type] = (ptCounts[owner.path_type] || 0) + 1;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          for (const claimer of wayRegistry.claimersOf(wid) as any[]) {
+            if (claimer !== entry && claimer.path_type) {
+              ptCounts[claimer.path_type] = (ptCounts[claimer.path_type] || 0) + 1;
+            }
           }
         }
         const best = Object.entries(ptCounts).sort((a, b) => b[1] - a[1])[0];
@@ -133,8 +138,8 @@ export const resolveClassificationPhase: Phase<Inputs, any[]> = async ({
     for (const candidate of overlapOnly) {
       const entrySet = new Set();
       for (const wayId of candidate.bikeableWayIds) {
-        for (const [entry, ways] of (wayRegistry as any)._entryToWays) {
-          if (ways.has(wayId)) entrySet.add(entry);
+        for (const claimer of wayRegistry.claimersOf(wayId)) {
+          entrySet.add(claimer);
         }
       }
       for (const entry of entrySet as Set<any>) {

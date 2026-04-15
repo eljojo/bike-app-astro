@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTiles, type GeoMetaEntry } from '../scripts/generate-path-tiles';
+import { buildTiles, findCanonicalTargetConflicts, type GeoMetaEntry } from '../scripts/generate-path-tiles';
 import type { FeatureCollection, Feature, LineString, MultiLineString } from 'geojson';
 
 // ── Test helpers ──────────────────────────────────────────────────
@@ -691,5 +691,107 @@ describe('ghost feature exclusion', () => {
         expect(f.properties!.slug, `feature ${f.properties!._geoId} has empty slug`).not.toBe('');
       }
     }
+  });
+});
+
+// ── Canonical-target invariant ────────────────────────────────────
+//
+// The invariant we care about on the tile side is: *one physical clickable
+// path segment → one canonical page target*. At the OSM layer that means
+// no OSM way ID should appear in the cache of two entries that resolve to
+// different slugs. Same slug + multiple geo sources is fine (a single page
+// can aggregate ways from several relations); different slugs means the
+// user's click is ambiguous and the map will open whichever popup MapLibre
+// happens to return first. That's the bug class behind Parc de la Gatineau
+// and Scott Street.
+//
+// This helper is the ground-truth check. It should find zero conflicts on
+// clean input and should flag the overlap on dirty input. Regressions that
+// reintroduce parallel discovery for network entries, or order-dependent
+// ghost removal, will surface here first.
+
+describe('findCanonicalTargetConflicts', () => {
+  function featWithWay(wayId: number): Feature {
+    return {
+      type: 'Feature',
+      properties: { wayId, sourceId: 'test' },
+      geometry: { type: 'LineString', coordinates: [[-75, 45], [-74.99, 45.01]] },
+    };
+  }
+
+  it('returns no conflicts when every wayId lives under a single slug', () => {
+    const input = new Map<string, FeatureCollection>([
+      ['ways-a', fc(featWithWay(1), featWithWay(2))],
+      ['ways-b', fc(featWithWay(3), featWithWay(4))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['ways-a', meta({ slug: 'a' })],
+      ['ways-b', meta({ slug: 'b' })],
+    ]);
+    expect(findCanonicalTargetConflicts(input, metadata)).toEqual([]);
+  });
+
+  it('allows the same wayId to live in multiple cache files of the SAME slug', () => {
+    // A single page can aggregate geometry from several osm_relations or
+    // from a relation plus a named-way fallback. That produces multiple
+    // geoIds sharing ways, but the canonical target is still one page.
+    const input = new Map<string, FeatureCollection>([
+      ['7234399', fc(featWithWay(100), featWithWay(101))],
+      ['ways-crosstown-extras', fc(featWithWay(100))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['7234399', meta({ slug: 'eastwest-crosstown-bikeway' })],
+      ['ways-crosstown-extras', meta({ slug: 'eastwest-crosstown-bikeway' })],
+    ]);
+    expect(findCanonicalTargetConflicts(input, metadata)).toEqual([]);
+  });
+
+  it('flags a wayId claimed under two different slugs (Parc de la Gatineau shape)', () => {
+    // Network entry's auto-discovered name file contains member ways.
+    // Member entry's own ways file contains the same way. Both land under
+    // different slugs: the click target is ambiguous.
+    const input = new Map<string, FeatureCollection>([
+      ['name-parc-de-la-gatineau', fc(featWithWay(437171896), featWithWay(111), featWithWay(222))],
+      ['ways-77-happy-valley', fc(featWithWay(437171896))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['name-parc-de-la-gatineau', meta({ slug: 'parc-de-la-gatineau' })],
+      ['ways-77-happy-valley', meta({ slug: '77-happy-valley', memberOf: 'parc-de-la-gatineau' })],
+    ]);
+    const conflicts = findCanonicalTargetConflicts(input, metadata);
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0].wayId).toBe(437171896);
+    expect(new Set(conflicts[0].slugs)).toEqual(new Set(['parc-de-la-gatineau', '77-happy-valley']));
+  });
+
+  it('flags the Scott Street / Crosstown Bikeway shape (parallel ghost)', () => {
+    // A relation-derived bikeway and a parallel-lane discovery overlap on
+    // many ways. Ghost removal should catch this upstream; if it doesn't,
+    // the overlap surfaces here.
+    const input = new Map<string, FeatureCollection>([
+      ['7234399', fc(featWithWay(1), featWithWay(2), featWithWay(3), featWithWay(4))],
+      ['parallel-scott-street', fc(featWithWay(1), featWithWay(2), featWithWay(99))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['7234399', meta({ slug: 'eastwest-crosstown-bikeway' })],
+      ['parallel-scott-street', meta({ slug: 'scott-street' })],
+    ]);
+    const conflicts = findCanonicalTargetConflicts(input, metadata);
+    const conflictedWays = new Set(conflicts.map(c => c.wayId));
+    expect(conflictedWays).toEqual(new Set([1, 2]));
+  });
+
+  it('ignores geoIds that have no metadata entry (stale cache files)', () => {
+    // Stale cache files without a page claiming them are already excluded
+    // by buildTiles. Don't let them influence the invariant check either.
+    const input = new Map<string, FeatureCollection>([
+      ['ways-a', fc(featWithWay(1))],
+      ['name-orphan', fc(featWithWay(1))],
+    ]);
+    const metadata = new Map<string, GeoMetaEntry>([
+      ['ways-a', meta({ slug: 'a' })],
+      // name-orphan is intentionally missing
+    ]);
+    expect(findCanonicalTargetConflicts(input, metadata)).toEqual([]);
   });
 });

@@ -341,6 +341,55 @@ export function buildTiles(
   return { tiles, manifest };
 }
 
+// ── Canonical-target invariant ───────────────────────────────────
+
+/** One OSM way that resolves to more than one page slug. */
+export interface CanonicalTargetConflict {
+  wayId: number;
+  slugs: string[];
+}
+
+/**
+ * Detect violations of the canonical-target invariant: "one physical
+ * clickable path segment -> one canonical page target". A wayId may live
+ * in multiple cache files (a page can aggregate geometry from several
+ * relations), but they must all resolve to the SAME slug. When two
+ * distinct slugs claim the same OSM way the user's click is ambiguous
+ * and the map opens whichever popup MapLibre happens to return first —
+ * that is the bug class behind Parc de la Gatineau and Scott Street.
+ *
+ * Stale cache files with no metadata entry are skipped: they are already
+ * dropped by buildTiles, so they shouldn't influence the check.
+ */
+export function findCanonicalTargetConflicts(
+  input: Map<string, FeatureCollection>,
+  metadata: Map<string, GeoMetaEntry>,
+): CanonicalTargetConflict[] {
+  const wayToSlugs = new Map<number, Set<string>>();
+  for (const [geoId, fc] of input) {
+    const meta = metadata.get(geoId);
+    if (!meta) continue;
+    for (const feature of fc.features) {
+      const wayId = (feature.properties as { wayId?: unknown } | null)?.wayId;
+      if (typeof wayId !== 'number') continue;
+      let slugs = wayToSlugs.get(wayId);
+      if (!slugs) {
+        slugs = new Set();
+        wayToSlugs.set(wayId, slugs);
+      }
+      slugs.add(meta.slug);
+    }
+  }
+
+  const conflicts: CanonicalTargetConflict[] = [];
+  for (const [wayId, slugs] of wayToSlugs) {
+    if (slugs.size > 1) {
+      conflicts.push({ wayId, slugs: [...slugs].sort() });
+    }
+  }
+  return conflicts.sort((a, b) => a.wayId - b.wayId);
+}
+
 // ── Slug index ───────────────────────────────────────────────────
 
 export interface SlugIndexEntry {
@@ -479,6 +528,19 @@ if (isMainModule) {
     geoCopied++;
   }
   console.log(`[path-geo] Copied ${geoCopied} geometry files to ${geoOutDir}/ (${input.size - geoCopied} stale skipped)`);
+
+  // Canonical-target invariant: one physical clickable segment -> one page.
+  // If any OSM way ends up under two different slugs the map click target is
+  // ambiguous (Parc de la Gatineau / Scott Street bug class). Warn loudly so
+  // the regression is visible in every rebuild.
+  if (metadata) {
+    const conflicts = findCanonicalTargetConflicts(input, metadata);
+    if (conflicts.length > 0) {
+      const sample = conflicts.slice(0, 5)
+        .map(c => `    way ${c.wayId}: ${c.slugs.join(' vs ')}`).join('\n');
+      console.warn(`[path-tiles] ⚠ ${conflicts.length} OSM way(s) claimed by multiple slugs — map popups will be ambiguous:\n${sample}${conflicts.length > 5 ? `\n    ... and ${conflicts.length - 5} more` : ''}`);
+    }
+  }
 
   const { tiles, manifest } = buildTiles(input, metadata);
 

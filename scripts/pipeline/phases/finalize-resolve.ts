@@ -104,26 +104,12 @@ export const finalizeResolvePhase: Phase<Inputs, Output> = async ({
   }
 
   // Step 9b: Remove ghost entries — non-relation entries whose ways are
-  // mostly owned by relation entries. Two strategies:
+  // mostly claimed by a relation entry. Two strategies:
   //   1. Structural (preferred): if >=50% of an entry's ways are also
   //      claimed by another entry that has osm_relations, it's a ghost.
   //   2. Name-based fallback: for entries with no way IDs (parallel lanes,
   //      manual entries), fall back to the relationBaseNames check.
-  //
-  // Build a reverse index of every way to all of its claimers. WayRegistry's
-  // `ownerOf()` only returns the FIRST claimer, so it can't see relation
-  // entries that claimed a way after a parallel-lane entry did.
   {
-    const claimersOfWay = new Map<number, any[]>();
-    for (const ent of grouped) {
-      const ws = wayRegistry.wayIdsFor(ent);
-      for (const w of ws) {
-        let arr = claimersOfWay.get(w);
-        if (!arr) { arr = []; claimersOfWay.set(w, arr); }
-        arr.push(ent);
-      }
-    }
-
     const before = grouped.length;
     let structuralCount = 0;
     let nameCount = 0;
@@ -136,11 +122,14 @@ export const finalizeResolvePhase: Phase<Inputs, Output> = async ({
 
       if (wayIds.size > 0) {
         // Strategy 1: structural — check way overlap with relation entries.
+        // Use claimersOf so the check doesn't depend on which entry claimed
+        // the way first; we want every claimer of the way, not just the
+        // first one the registry remembered.
         let ownedByOthers = 0;
         for (const wid of wayIds) {
-          const claimers = claimersOfWay.get(wid);
-          if (!claimers) continue;
-          if (claimers.some(c => c !== e && c.osm_relations?.length > 0)) {
+          const claimers = wayRegistry.claimersOf(wid);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (claimers.some((c: any) => c !== e && c.osm_relations?.length > 0)) {
             ownedByOthers++;
           }
         }
