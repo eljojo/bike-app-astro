@@ -1,8 +1,8 @@
 import type { Map } from 'maplibre-gl';
 import { setBaseCyclingOpacity } from './base-layer-control';
 
-const FG_LINES = ['paths-network-line', 'paths-network-line-dashed'];
-const BG_LINES = ['paths-network-bg', 'paths-network-bg-dashed'];
+const FG_LINES = ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb'];
+const BG_LINES = ['paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb'];
 const ALL_PATH_LINES = [...FG_LINES, ...BG_LINES];
 
 function slider(id: string, valId: string, fmt: (v: number) => string, handler: (v: number) => void) {

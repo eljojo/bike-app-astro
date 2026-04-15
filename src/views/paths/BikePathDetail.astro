@@ -709,7 +709,7 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
       },
       onReady: (result) => {
         // Hide surrounding city paths — only show this network's members
-        for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+        for (const id of ['paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb']) {
           if (result.map.getLayer(id)) {
             result.map.setLayoutProperty(id, 'visibility', 'none');
           }

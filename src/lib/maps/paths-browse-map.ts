@@ -230,7 +230,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
 
       _highlightHandle = setupPathHighlight(map, {
         listSelector,
-        layerIds: ['paths-network-line', 'paths-network-line-dashed'],
+        layerIds: ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb'],
         lineWidth: PATH_WIDTH,
         lineWidthHover: PATH_WIDTH_HOVER,
         lineOpacity: PATH_OPACITY,
@@ -257,7 +257,7 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
           // For bg layers: instead of hiding entirely, apply the same highlight
           // filter so matching features stay visible. This is needed because some
           // network members have hasPage=false and only exist on bg layers.
-          for (const id of ['paths-network-bg', 'paths-network-bg-dashed']) {
+          for (const id of ['paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb']) {
             if (!map.getLayer(id)) continue;
             if (slug) {
               const isNetwork = networkGeoIds?.[slug];
@@ -287,8 +287,8 @@ export function createPathsBrowseMap(opts: PathsBrowseMapOptions): PathsBrowseMa
         map.on('click', (e) => {
           // Don't dismiss if the click was on a path feature (tile layer handles those)
           const features = map.queryRenderedFeatures(e.point, {
-            layers: ['paths-network-line', 'paths-network-line-dashed',
-                     'paths-network-bg', 'paths-network-bg-dashed'],
+            layers: ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb',
+                     'paths-network-bg', 'paths-network-bg-gravel', 'paths-network-bg-mtb'],
           });
           if (features.length > 0) return;
           _highlightHandle!.clear();

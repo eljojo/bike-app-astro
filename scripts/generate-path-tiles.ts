@@ -90,15 +90,26 @@ function countCoordsInBox(features: Feature[], box: SplitBox): number {
 
 // ── Surface classification ──────────────────────────────────────
 
-/** OSM surface values considered "paved" for rendering (solid line). */
-const PAVED_SURFACES = new Set([
+/** OSM surface values considered "paved" — solid line on map. */
+const ROAD_SURFACES = new Set([
   'asphalt', 'concrete', 'paving_stones', 'paved',
   'sett', 'cobblestone', 'concrete:plates', 'concrete:lanes',
   'bricks', 'metal', 'wood',
 ]);
 
-export function isPavedSurface(surface: string | undefined): boolean {
-  return !!surface && PAVED_SURFACES.has(surface.toLowerCase());
+/** OSM surface values considered "gravel" — long dash on map. */
+const GRAVEL_SURFACES = new Set([
+  'fine_gravel', 'gravel', 'compacted', 'pebblestone',
+]);
+
+export type SurfaceCategory = 'road' | 'gravel' | 'mtb';
+
+export function classifySurface(surface: string | undefined): SurfaceCategory {
+  if (!surface) return 'mtb'; // unknown = assume rough
+  const s = surface.toLowerCase();
+  if (ROAD_SURFACES.has(s)) return 'road';
+  if (GRAVEL_SURFACES.has(s)) return 'gravel';
+  return 'mtb';
 }
 
 /** Collect and truncate line coordinates from a geometry. */
@@ -117,7 +128,7 @@ function collectLines(geom: Feature['geometry']): Position[][] {
   return lines;
 }
 
-function buildProps(geoId: string, meta: GeoMetaEntry | undefined): TileFeatureMeta {
+function buildProps(geoId: string, meta: GeoMetaEntry | undefined, surfaceCategory?: SurfaceCategory): TileFeatureMeta {
   return {
     _geoId: geoId,
     _fid: geoId,
@@ -125,6 +136,7 @@ function buildProps(geoId: string, meta: GeoMetaEntry | undefined): TileFeatureM
     name: meta?.name ?? '',
     memberOf: meta?.memberOf ?? '',
     surface: meta?.surface ?? '',
+    surface_category: surfaceCategory ?? classifySurface(meta?.surface),
     hasPage: meta?.hasPage ?? false,
     path_type: meta?.path_type ?? '',
     length_km: meta?.length_km ?? 0,
@@ -146,11 +158,9 @@ function buildFeature(
 /**
  * Merge all features for a single geoId into tile features.
  *
- * For trails (path_type: trail | mtb-trail), splits ways into two surface
- * categories — paved (solid line) and unpaved (dashed line) — before merging.
+ * Splits ways by surface category (road/gravel/mtb) before merging.
  * Uses per-way surface tags when available, falling back to metadata surface.
- *
- * Non-trails merge into a single feature as before.
+ * Produces up to 3 features per path for mixed-surface paths.
  */
 function mergeFeatures(
   geoId: string,
@@ -158,42 +168,25 @@ function mergeFeatures(
   metadata?: Map<string, GeoMetaEntry>,
 ): Feature<LineString | MultiLineString>[] {
   const meta = metadata?.get(geoId);
-  const isTrail = meta?.path_type === 'trail' || meta?.path_type === 'mtb-trail';
+  const groups: Record<SurfaceCategory, Position[][]> = { road: [], gravel: [], mtb: [] };
 
-  if (isTrail) {
-    const pavedLines: Position[][] = [];
-    const unpavedLines: Position[][] = [];
-
-    for (const feature of fc.features) {
-      const waySurface = (feature.properties?.surface as string) || undefined;
-      const paved = isPavedSurface(waySurface ?? meta?.surface);
-      (paved ? pavedLines : unpavedLines).push(...collectLines(feature.geometry));
-    }
-
-    const results: Feature<LineString | MultiLineString>[] = [];
-    const hasBoth = pavedLines.length > 0 && unpavedLines.length > 0;
-
-    if (pavedLines.length > 0) {
-      const props = buildProps(geoId, meta);
-      props.surface = 'paved';
-      if (hasBoth) props._fid = `${geoId}:paved`;
-      results.push(buildFeature(pavedLines, props));
-    }
-    if (unpavedLines.length > 0) {
-      const props = buildProps(geoId, meta);
-      if (hasBoth) props._fid = `${geoId}:unpaved`;
-      results.push(buildFeature(unpavedLines, props));
-    }
-    return results;
-  }
-
-  // Non-trails: merge all into a single feature
-  const allLines: Position[][] = [];
   for (const feature of fc.features) {
-    allLines.push(...collectLines(feature.geometry));
+    const waySurface = (feature.properties?.surface as string) || undefined;
+    const cat = classifySurface(waySurface ?? meta?.surface);
+    groups[cat].push(...collectLines(feature.geometry));
   }
-  if (allLines.length === 0) return [];
-  return [buildFeature(allLines, buildProps(geoId, meta))];
+
+  const activeCategories = (['road', 'gravel', 'mtb'] as const).filter(c => groups[c].length > 0);
+  if (activeCategories.length === 0) return [];
+  const needsSplit = activeCategories.length > 1;
+
+  const results: Feature<LineString | MultiLineString>[] = [];
+  for (const cat of activeCategories) {
+    const props = buildProps(geoId, meta, cat);
+    if (needsSplit) props._fid = `${geoId}:${cat}`;
+    results.push(buildFeature(groups[cat], props));
+  }
+  return results;
 }
 
 // ── Adaptive quadtree splitting ──────────────────────────────────

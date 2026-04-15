@@ -183,6 +183,7 @@ describe('metadata injection', () => {
     expect(props.name).toBe('My Path');
     expect(props.memberOf).toBe('some-network');
     expect(props.surface).toBe('gravel');
+    expect(props.surface_category).toBe('gravel');
     expect(props.hasPage).toBe(true);
     expect(props.path_type).toBe('trail');
     expect(props.length_km).toBe(12.5);
@@ -202,6 +203,7 @@ describe('metadata injection', () => {
     expect(props.name).toBe('');
     expect(props.memberOf).toBe('');
     expect(props.surface).toBe('');
+    expect(props.surface_category).toBe('mtb'); // unknown surface defaults to mtb
     expect(props.hasPage).toBe(false);
     expect(props.path_type).toBe('');
     expect(props.length_km).toBe(0);
@@ -218,35 +220,37 @@ describe('metadata injection', () => {
     expect(features).toHaveLength(0);
   });
 
-  it('splits trail features by paved/unpaved surface', () => {
+  it('splits features by surface category (road/gravel/mtb)', () => {
     const input = new Map([
       [
-        'trail-mixed',
+        'mixed-path',
         fc(
           line([[-75.6, 45.4], [-75.5, 45.3]], { surface: 'asphalt' }),
           line([[-75.4, 45.2], [-75.3, 45.1]], { surface: 'gravel' }),
+          line([[-75.2, 45.0], [-75.1, 44.9]], { surface: 'ground' }),
         ),
       ],
     ]);
     const metadata = new Map([
-      ['trail-mixed', meta({ slug: 'trail-mixed', path_type: 'trail', surface: 'gravel' })],
+      ['mixed-path', meta({ slug: 'mixed-path', path_type: 'trail', surface: 'gravel' })],
     ]);
     const { tiles } = buildTiles(input, metadata);
 
     const features = allFeatures(tiles);
-    expect(features).toHaveLength(2);
+    expect(features).toHaveLength(3);
 
-    const paved = features.find(f => f.properties!.surface === 'paved');
-    const unpaved = features.find(f => f.properties!.surface !== 'paved');
-    expect(paved).toBeDefined();
-    expect(unpaved).toBeDefined();
-    expect(paved!.properties!.path_type).toBe('trail');
-    expect(unpaved!.properties!.path_type).toBe('trail');
-    expect(paved!.properties!._fid).toBe('trail-mixed:paved');
-    expect(unpaved!.properties!._fid).toBe('trail-mixed:unpaved');
+    const road = features.find(f => f.properties!.surface_category === 'road');
+    const gravel = features.find(f => f.properties!.surface_category === 'gravel');
+    const mtb = features.find(f => f.properties!.surface_category === 'mtb');
+    expect(road).toBeDefined();
+    expect(gravel).toBeDefined();
+    expect(mtb).toBeDefined();
+    expect(road!.properties!._fid).toBe('mixed-path:road');
+    expect(gravel!.properties!._fid).toBe('mixed-path:gravel');
+    expect(mtb!.properties!._fid).toBe('mixed-path:mtb');
   });
 
-  it('does not split non-trail paths by surface', () => {
+  it('splits non-trail paths by surface too', () => {
     const input = new Map([
       [
         'mup-mixed',
@@ -262,13 +266,14 @@ describe('metadata injection', () => {
     const { tiles } = buildTiles(input, metadata);
 
     const features = allFeatures(tiles);
-    expect(features).toHaveLength(1);
+    expect(features).toHaveLength(2);
+    expect(features.map(f => f.properties!.surface_category).sort()).toEqual(['gravel', 'road']);
   });
 
   it('falls back to metadata surface when ways have no surface tag', () => {
     const input = new Map([
       [
-        'trail-nosurface',
+        'path-nosurface',
         fc(
           line([[-75.6, 45.4], [-75.5, 45.3]]),
           line([[-75.4, 45.2], [-75.3, 45.1]]),
@@ -276,14 +281,27 @@ describe('metadata injection', () => {
       ],
     ]);
     const metadata = new Map([
-      ['trail-nosurface', meta({ slug: 'trail-nosurface', path_type: 'trail', surface: 'gravel' })],
+      ['path-nosurface', meta({ slug: 'path-nosurface', path_type: 'trail', surface: 'gravel' })],
     ]);
     const { tiles } = buildTiles(input, metadata);
 
     const features = allFeatures(tiles);
-    // All ways fall back to metadata 'gravel' → all unpaved → single feature
     expect(features).toHaveLength(1);
-    expect(features[0].properties!.surface).toBe('gravel');
+    expect(features[0].properties!.surface_category).toBe('gravel');
+  });
+
+  it('sets surface_category on single-surface paths', () => {
+    const input = new Map([
+      ['paved-path', fc(line([[-75.6, 45.4], [-75.5, 45.3]]))],
+    ]);
+    const metadata = new Map([
+      ['paved-path', meta({ slug: 'paved-path', surface: 'asphalt' })],
+    ]);
+    const { tiles } = buildTiles(input, metadata);
+
+    const features = allFeatures(tiles);
+    expect(features).toHaveLength(1);
+    expect(features[0].properties!.surface_category).toBe('road');
   });
 
   it('sets _geoId and _fid both to the geoId', () => {

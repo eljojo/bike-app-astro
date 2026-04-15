@@ -1,14 +1,13 @@
 /**
- * MTB trail visibility toggle for tile path layers.
+ * MTB surface visibility toggle for tile path layers.
  *
- * Returns a toggle function that hides/shows MTB trail features
- * (path_type=mtb-trail) by filtering all path tile layers.
- * Captures original filters lazily — layers may not exist at creation time.
+ * Hides/shows features with surface_category='mtb' (rough off-road
+ * surfaces like ground, dirt, earth). Gravel and road paths stay visible.
  */
 
 import type maplibregl from 'maplibre-gl';
 import { ALL_LAYER_IDS } from './layers/tile-path-styles';
-import { IS_TRAIL_EXPR } from './map-swatch';
+import { IS_MTB_EXPR } from './map-swatch';
 
 export function createMtbFilter(map: maplibregl.Map) {
   let mtbVisible = true;
@@ -27,7 +26,7 @@ export function createMtbFilter(map: maplibregl.Map) {
         map.setFilter(id, (original ?? null) as maplibregl.FilterSpecification | null);
       } else {
         const original = originalFilters.get(id);
-        const exclude = ['!', IS_TRAIL_EXPR];
+        const exclude = ['!', IS_MTB_EXPR];
         if (original) {
           map.setFilter(id, ['all', original, exclude] as unknown as maplibregl.FilterSpecification);
         } else {

@@ -110,17 +110,19 @@ export const pathDetail = {
 // Shared constants
 // ---------------------------------------------------------------------------
 
-/** Dash pattern for trails (path_type: trail | mtb-trail) */
-export const TRAIL_DASH: [number, number] = [3, 1];
+/** Dash pattern for gravel surfaces (fine_gravel, compacted, etc.) */
+export const GRAVEL_DASH: [number, number] = [4, 2];
 
-/** MapLibre expression: true when path_type is trail AND surface is not paved.
- *  Paved trail segments render as solid lines, unpaved as dashed. */
+/** Dash pattern for MTB / rough surfaces (ground, dirt, etc.) */
+export const MTB_DASH: [number, number] = [2, 2];
+
+/** MapLibre filter: surface_category == 'gravel' */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const IS_TRAIL_EXPR: any =
-  ['all',
-    ['in', ['get', 'path_type'], ['literal', ['trail', 'mtb-trail']]],
-    ['!=', ['get', 'surface'], 'paved'],
-  ];
+export const IS_GRAVEL_EXPR: any = ['==', ['get', 'surface_category'], 'gravel'];
+
+/** MapLibre filter: surface_category == 'mtb' */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const IS_MTB_EXPR: any = ['==', ['get', 'surface_category'], 'mtb'];
 
 /** Tour palette — 8 accessible colors for multi-ride maps */
 export const TOUR_PALETTE = [

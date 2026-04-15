@@ -65,7 +65,7 @@ const { highlightGeoIds, center, fallbackCenter, hintText, closeLabel, cdnUrl = 
       onReady: () => {
         muteBaseCyclingLayers(map);
         if (highlightSelector && highlightGeoIds) {
-          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['paths-network-line', 'paths-network-line-dashed'] });
+          setupPathHighlight(map, { listSelector: highlightSelector, layerIds: ['paths-network-line', 'paths-network-line-gravel', 'paths-network-line-mtb'] });
         }
       },
     });
