@@ -12,6 +12,13 @@ export const TIER1_MIN_KM = 3;
 /** MTB-member share at which a network is classified as MTB. */
 export const MTB_NETWORK_THRESHOLD = 0.7;
 
+const BIKEWAY_PATH_TYPES = new Set(['bike-lane', 'separated-lane', 'paved-shoulder']);
+/** Minimum mup-member count at which a network is anchored in Pathways,
+ *  regardless of bike-lane member share. MUP presence dominates — a network
+ *  with ≥3 paved shared-use paths is a "pathway network" in user terms even
+ *  if it also contains bike-lane members on adjacent roads. */
+const PATHWAYS_ANCHOR_MUP_COUNT = 3;
+
 /**
  * Classify a network page into a browse tab category.
  *
@@ -30,6 +37,16 @@ export function classifyNetwork(
 
   const mtbCount = memberPathTypes.filter(pt => pt === 'mtb-trail').length;
   if (mtbCount / memberPathTypes.length >= MTB_NETWORK_THRESHOLD) return 'mtb';
+
+  // Bikeways-first check: if no pathway members dominate, and bikeways
+  // or lcn are the signal, the network lives in the Bikeways tab. The
+  // MUP anchor below overrides this for pathway-dominated mixed networks
+  // like NCC Greenbelt where bike-lane road entries are incidental.
+  const mupCount = memberPathTypes.filter(pt => pt === 'mup').length;
+  if (mupCount >= PATHWAYS_ANCHOR_MUP_COUNT) return 'pathways';
+
+  const bikewayCount = memberPathTypes.filter(pt => BIKEWAY_PATH_TYPES.has(pt)).length;
+  if (bikewayCount / memberPathTypes.length >= 0.5) return 'bikeways';
 
   if (network === 'lcn') return 'bikeways';
   return 'pathways';

@@ -19,12 +19,14 @@
  */
 import yaml from 'js-yaml';
 import fs from 'node:fs';
+import { classifyNetwork, classifyIndependentPath, type BrowseCategory } from '../src/lib/bike-paths/index-categories.ts';
 
 interface BpEntry {
   slug: string;
   name: string;
   type?: string;
   path_type?: string;
+  network?: string;
   member_of?: string;
   listed?: boolean;
   standalone?: boolean;
@@ -33,39 +35,31 @@ interface BpEntry {
 }
 interface BikePathsYml { bike_paths?: BpEntry[] }
 
-type Tab = 'pathways' | 'bikeways' | 'local_trails' | 'long_distance_trails' | 'mtb' | 'uncategorized';
+type Tab = BrowseCategory | 'uncategorized';
 
 const DEFAULT_BIKEPATHS = '/home/dev/code/bike-routes/ottawa/bikepaths.yml';
 const BIKEPATHS = process.argv[2] ?? DEFAULT_BIKEPATHS;
 const bp = yaml.load(fs.readFileSync(BIKEPATHS, 'utf-8')) as BikePathsYml;
 const entries = bp.bike_paths ?? [];
 
-function classifyByPathType(e: BpEntry): Tab | null {
-  if (e.type === 'long-distance') return 'long_distance_trails';
-  if (e.path_type === 'mtb-trail') return 'mtb';
-  if (e.path_type === 'trail') return 'local_trails';
-  if (e.path_type === 'bike-lane' || e.path_type === 'separated-lane' || e.path_type === 'paved-shoulder') return 'bikeways';
-  if (e.path_type === 'mup') return 'pathways';
-  return null;
-}
-
+/** Tab for this entry — uses the app's real classifier so tree output
+ *  matches what the user sees in the UI. */
 function classifyTab(e: BpEntry, all: BpEntry[]): Tab {
-  const direct = classifyByPathType(e);
-  if (direct) return direct;
-  const members: BpEntry[] = [];
-  for (const s of e.members ?? []) {
-    const m = all.find((x) => x.slug === s);
-    if (m) members.push(m);
+  const isNetwork = e.type === 'network' || (e.members ?? []).length > 0;
+  if (isNetwork) {
+    // Dedup members: an entry may appear both in `members:` array and via
+    // `member_of:` back-ref (pipeline sets both). Count each once.
+    const seen = new Set<BpEntry>();
+    for (const s of e.members ?? []) {
+      const m = all.find((x) => x.slug === s);
+      if (m) seen.add(m);
+    }
+    for (const m of all.filter((x) => x.member_of === e.slug)) seen.add(m);
+    const memberPathTypes: string[] = [];
+    for (const m of seen) if (m.path_type) memberPathTypes.push(m.path_type);
+    return classifyNetwork(e.type ?? 'network', e.network, memberPathTypes);
   }
-  for (const m of all.filter((x) => x.member_of === e.slug)) if (!members.includes(m)) members.push(m);
-  const counts: Record<string, number> = {};
-  for (const m of members) {
-    const t = classifyByPathType(m);
-    if (t) counts[t] = (counts[t] ?? 0) + 1;
-  }
-  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  if (ranked.length > 0) return ranked[0][0] as Tab;
-  return 'uncategorized';
+  return classifyIndependentPath(e.type ?? 'unknown', e.path_type) ?? 'uncategorized';
 }
 
 const byTab = new Map<Tab, BpEntry[]>();
