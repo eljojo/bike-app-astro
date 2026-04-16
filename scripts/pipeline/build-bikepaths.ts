@@ -49,6 +49,7 @@ import { resolveClassificationPhase } from './phases/resolve-classification.ts';
 import { finalizeOverridesPhase } from './phases/finalize-overrides.ts';
 import { resolveMarkdownNetworksPhase } from './phases/resolve-markdown-networks.ts';
 import { clusterStandaloneBikewaysPhase } from './phases/cluster-standalone-bikeways.ts';
+import { decomposeLongDistancePhase } from './phases/decompose-long-distance.ts';
 import { finalizeResolvePhase } from './phases/finalize-resolve.ts';
 import { finalizeWritePhase } from './phases/finalize-write.ts';
 
@@ -109,7 +110,7 @@ if (isMain) {
  * `finalize.write` phase writes `${dataDir}/bikepaths.yml`. Tests omit
  * `dataDir` and receive the in-memory entries without touching disk.
  */
-export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set<string>(), markdownOverrides = new Map<string, Record<string, any>>(), markdownIncludes = [], dataDir, dryRun = false }: {
+export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapter: a, manualEntries = [], markdownSlugs = new Set<string>(), markdownOverrides = new Map<string, Record<string, any>>(), markdownIncludes = [], dataDir, dryRun = false, cacheDir }: {
   queryOverpass: (q: string) => Promise<{ elements: any[] }>;
   bbox: string;
   adapter: any;
@@ -119,6 +120,7 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
   markdownIncludes?: MarkdownIncludesDecl[];
   dataDir?: string;
   dryRun?: boolean;
+  cacheDir?: string;
 }): Promise<{ entries: any[]; superNetworks: any[]; slugMap: Map<any, string>; wayRegistry: WayRegistry; trace: Trace }> {
   // Steps 1-2d: Discover all OSM cycling infrastructure via TaskGraph
   const wayRegistry = new WayRegistry();
@@ -266,9 +268,19 @@ export async function buildBikepathsPipeline({ queryOverpass: qo, bbox: b, adapt
   });
 
   graph.define({
+    name: 'decompose.longDistance',
+    produces: '{entries, slugMap, superNetworks}',
+    deps: { resolved: 'finalize.resolve' },
+    run: withTrace('decompose.longDistance', async ({ resolved, ctx }: any) => {
+      const decomposed = await decomposeLongDistancePhase({ entries: resolved.entries, cacheDir, ctx });
+      return { entries: decomposed, slugMap: resolved.slugMap, superNetworks: resolved.superNetworks };
+    }),
+  });
+
+  graph.define({
     name: 'finalize.write',
     produces: '{entries, slugMap}',
-    deps: { resolved: 'finalize.resolve' },
+    deps: { resolved: 'decompose.longDistance' },
     run: withTrace('finalize.write', async ({ resolved, ctx }: any) =>
       finalizeWritePhase({
         entries: resolved.entries,
@@ -376,6 +388,7 @@ async function main(): Promise<void> {
   const bikePathsDir = path.join(dataDir, 'bike-paths');
   const markdownOverrides = parseMarkdownOverrides(bikePathsDir);
   const markdownIncludes = parseMarkdownIncludes(bikePathsDir);
+  const cacheDir = path.resolve(process.cwd(), '.cache', 'bikepath-geometry', args.city);
 
   const { entries, superNetworks, slugMap, trace } = await buildBikepathsPipeline({
     queryOverpass,
@@ -387,6 +400,7 @@ async function main(): Promise<void> {
     markdownIncludes,
     dataDir,
     dryRun: args.dryRun,
+    cacheDir,
   });
 
   // The finalize.write phase writes bikepaths.yml when !dryRun. In dry-run
