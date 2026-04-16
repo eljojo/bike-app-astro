@@ -49,7 +49,20 @@ describe('splitMixedCharacterNetwork', () => {
     expect(splitMixedCharacterNetwork(net)).toEqual([net]);
   });
 
-  it('splits a mixed network into two halves', () => {
+  it('returns input unchanged when minority side has only 1-2 members', () => {
+    // Single non-MTB connector inside an MTB-dominated park — split not
+    // justified. Network stays whole (South March Highlands pattern).
+    const net = mkNetwork('MTB Park with Connector', [
+      mkMember('Connector', 'mup'),
+      mkMember('Trail 1', 'mtb-trail'),
+      mkMember('Trail 2', 'mtb-trail'),
+      mkMember('Trail 3', 'mtb-trail'),
+      mkMember('Trail 4', 'mtb-trail'),
+    ]);
+    expect(splitMixedCharacterNetwork(net)).toEqual([net]);
+  });
+
+  it('splits a mixed network into two halves when both sides meet the threshold', () => {
     const net = mkNetwork('NCC Greenbelt', [
       mkMember('Greenbelt Pathway East', 'mup'),
       mkMember('Greenbelt Pathway West', 'mup'),
@@ -72,6 +85,8 @@ describe('splitMixedCharacterNetwork', () => {
   it('cross-references the halves via _mtb_split_sibling', () => {
     const net = mkNetwork('Parc de la Gatineau', [
       mkMember('Sentier du Parc', 'mup'),
+      mkMember('Chemin Kingsmere', 'bike-lane'),
+      mkMember('Chemin de Masham', 'bike-lane'),
       mkMember('Hermit', 'mtb-trail'),
       mkMember('Whale', 'mtb-trail'),
       mkMember('Salamander', 'mtb-trail'),
@@ -87,7 +102,10 @@ describe('splitMixedCharacterNetwork', () => {
       [
         mkMember('A', 'mup'),
         mkMember('B', 'mup'),
-        mkMember('C', 'mtb-trail'),
+        mkMember('C', 'mup'),
+        mkMember('D', 'mtb-trail'),
+        mkMember('E', 'mtb-trail'),
+        mkMember('F', 'mtb-trail'),
       ],
       { osm_relations: [12345, 67890] },
     );
@@ -100,7 +118,10 @@ describe('splitMixedCharacterNetwork', () => {
     const net = mkNetwork('Split', [
       mkMember('A', 'mup'),
       mkMember('B', 'mup'),
-      mkMember('C', 'mtb-trail'),
+      mkMember('C', 'mup'),
+      mkMember('D', 'mtb-trail'),
+      mkMember('E', 'mtb-trail'),
+      mkMember('F', 'mtb-trail'),
     ]);
     const [pathway, mtb] = splitMixedCharacterNetwork(net) as any[];
     expect(pathway._memberRefs[0]._networkRef).toBe(pathway);
@@ -115,7 +136,10 @@ describe('applyMtbSplits', () => {
     const splittable = mkNetwork('Split Me', [
       mkMember('A', 'mup'),
       mkMember('B', 'mup'),
-      mkMember('C', 'mtb-trail'),
+      mkMember('C', 'mup'),
+      mkMember('D', 'mtb-trail'),
+      mkMember('E', 'mtb-trail'),
+      mkMember('F', 'mtb-trail'),
     ]);
     const unsplittable = mkNetwork('Stay', [mkMember('D', 'mup'), mkMember('E', 'mup')]);
 

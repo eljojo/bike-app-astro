@@ -14,9 +14,15 @@
 // Callers in the pipeline pass all network entries through this split
 // before slug assignment. See scripts/pipeline/phases/resolve-networks.ts.
 
-/** Minimum total member count for a network to be eligible for splitting.
- *  Below this threshold, splitting adds complexity without IA benefit. */
+/** Minimum total member count for a network to be eligible for splitting. */
 export const MIN_MEMBERS_FOR_SPLIT = 3;
+
+/** Minimum member count on the minority side of a split. Below this, the
+ *  majority character wins and the network stays whole — a single
+ *  non-MTB connector inside an MTB park doesn't justify a separate
+ *  pathway-tab network for that park. Prevents 1-member pathway halves
+ *  for MTB-dominated parks (South March Highlands, Monk, St. James). */
+export const MIN_MINORITY_MEMBERS = 3;
 
 /** Minimal shape this function cares about. Full entries have many other
  *  fields; those pass through unchanged via spread. */
@@ -51,8 +57,12 @@ export function splitMixedCharacterNetwork<T extends NetworkEntryLike>(network: 
   const mtbMembers = members.filter((m) => m.path_type === 'mtb-trail');
   const nonMtbMembers = members.filter((m) => m.path_type !== 'mtb-trail');
 
-  // Need at least one on each side to warrant a split.
-  if (mtbMembers.length === 0 || nonMtbMembers.length === 0) return [network];
+  // Both sides must have at least MIN_MINORITY_MEMBERS members. A single
+  // paved connector inside an MTB park is still part of the MTB network —
+  // it's not worth a whole pathway-tab network for the one path.
+  if (mtbMembers.length < MIN_MINORITY_MEMBERS || nonMtbMembers.length < MIN_MINORITY_MEMBERS) {
+    return [network];
+  }
 
   // Build both halves. Preserve all pipeline-internal fields on the
   // pathway half; the MTB half gets a derived name and the MTB members.
