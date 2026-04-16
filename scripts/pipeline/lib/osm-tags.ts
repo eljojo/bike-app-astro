@@ -14,6 +14,22 @@ interface WayElement {
   geometry?: Array<[number, number] | { lon: number; lat: number }>;
 }
 
+/** Meaningful cycleway tag values — the ones that indicate cycling
+ *  infrastructure. Excludes `crossing`, `no`, `opposite`, etc. */
+const MEANINGFUL_CYCLEWAY_VALUES = new Set(['lane', 'track', 'separated', 'shoulder', 'shared_lane']);
+
+/** Pick the "best" cycleway value from a way's tag set, merging the
+ *  directional variants. Precedence: direct `cycleway` > `cycleway:both` >
+ *  `cycleway:right` > `cycleway:left`. Returns undefined if no meaningful
+ *  cycleway value is present on any of the four fields. */
+function pickMeaningfulCycleway(tags: Tags): string | undefined {
+  const candidates = [tags.cycleway, tags['cycleway:both'], tags['cycleway:right'], tags['cycleway:left']];
+  for (const v of candidates) {
+    if (typeof v === 'string' && MEANINGFUL_CYCLEWAY_VALUES.has(v)) return v;
+  }
+  return undefined;
+}
+
 /**
  * Extract useful OSM tags into structured metadata for bikepaths.yml.
  * Only includes fields that have values — no nulls or empty strings.
@@ -50,9 +66,16 @@ export function extractOsmMetadata(tags: Tags | null | undefined): Tags {
   if (tags.lit) meta.lit = tags.lit;
   if (tags.incline) meta.incline = tags.incline;
 
-  // Cycling infrastructure type
+  // Cycling infrastructure type. Collapse directional cycleway variants
+  // (cycleway:right, cycleway:left, cycleway:both) into a single effective
+  // cycleway value so downstream classification sees lane/track/shoulder on
+  // roads that declare bike infrastructure on only one side. Precedence:
+  // direct `cycleway` > `cycleway:both` > `cycleway:right` > `cycleway:left`.
+  // Meaningful values only (lane, track, separated, shoulder) — ignore
+  // `crossing`, `no`, or absent tags.
   if (tags.segregated) meta.segregated = tags.segregated;
-  if (tags.cycleway) meta.cycleway = tags.cycleway;
+  const effectiveCycleway = pickMeaningfulCycleway(tags);
+  if (effectiveCycleway) meta.cycleway = effectiveCycleway;
   if (tags.highway) meta.highway = tags.highway;
   if (tags.tracktype) meta.tracktype = tags.tracktype;
   if (tags['mtb:scale'] != null) meta['mtb:scale'] = tags['mtb:scale'];

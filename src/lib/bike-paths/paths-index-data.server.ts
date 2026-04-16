@@ -191,7 +191,7 @@ function classifyNetworkForIndex(
   pageBySlug: Map<string, BikePathPage>,
 ): BrowseCategory {
   const memberPathTypes = (net.memberRefs ?? []).map(m => pageBySlug.get(m.slug)?.path_type ?? '');
-  return classifyNetworkByMembers(net.entryType, net.network, memberPathTypes);
+  return classifyNetworkByMembers(net.entryType, net.network, memberPathTypes, net.cycle_network);
 }
 
 // ── Network info builder (pure: no hidden mutation) ──────────────────

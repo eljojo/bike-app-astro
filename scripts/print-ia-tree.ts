@@ -27,6 +27,7 @@ interface BpEntry {
   type?: string;
   path_type?: string;
   network?: string;
+  cycle_network?: string;
   member_of?: string;
   listed?: boolean;
   standalone?: boolean;
@@ -57,7 +58,7 @@ function classifyTab(e: BpEntry, all: BpEntry[]): Tab {
     for (const m of all.filter((x) => x.member_of === e.slug)) seen.add(m);
     const memberPathTypes: string[] = [];
     for (const m of seen) if (m.path_type) memberPathTypes.push(m.path_type);
-    return classifyNetwork(e.type ?? 'network', e.network, memberPathTypes);
+    return classifyNetwork(e.type ?? 'network', e.network, memberPathTypes, e.cycle_network);
   }
   return classifyIndependentPath(e.type ?? 'unknown', e.path_type) ?? 'uncategorized';
 }

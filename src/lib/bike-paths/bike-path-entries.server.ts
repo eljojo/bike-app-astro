@@ -183,6 +183,8 @@ export interface BikePathPage {
   smoothness?: string;
   operator?: string;
   network?: string;
+  /** OSM cycle_network tag (e.g. "CA:ON:Ottawa") — signals a cycleway network. */
+  cycle_network?: string;
   highway?: string;
   /** OSM cycleway tag: 'track', 'lane', 'shared_lane', 'crossing'. */
   cycleway?: string;
@@ -559,6 +561,7 @@ export function loadBikePathEntries(): {
       smoothness: primary?.smoothness,
       operator: normalizeOperator(md.data.operator ?? primary?.operator) ?? primary?.wikidata_meta?.operator,
       network: primary?.network,
+      cycle_network: primary?.cycle_network,
       highway: primary?.highway,
       cycleway: primary?.cycleway,
       bicycle: primary?.bicycle,
@@ -634,6 +637,7 @@ export function loadBikePathEntries(): {
       smoothness: entry.smoothness,
       operator: normalizeOperator(entry.operator) ?? entry.wikidata_meta?.operator,
       network: entry.network,
+      cycle_network: entry.cycle_network,
       highway: entry.highway,
       cycleway: entry.cycleway,
       bicycle: entry.bicycle,
