@@ -763,6 +763,23 @@ describe('information architecture — Ottawa bike path index', () => {
       expect(entry, 'Should have a Moffat Park path').toBeDefined();
     });
 
+    it('Moffatt Farm Veterans Park keeps its park name (Rule 4 — single-identity park)', () => {
+      // Moffatt Farm Veterans Park has only one cycling identity inside
+      // its polygon (below the PARK_GENERIC_MIN_PATHS=2 threshold), so
+      // Rule 4 allows the unnamed chain inside it to inherit the park
+      // name. If the genericity threshold is ever mis-tuned, this path
+      // would lose its park name and collapse to a road-fallback name
+      // (or be dropped entirely) — this test catches that regression.
+      // See: scripts/pipeline/lib/park-genericity.ts.
+      const entry = entries.find(e =>
+        e.name === 'Moffatt Farm Veterans Park' && e.type !== 'network'
+      );
+      expect(
+        entry,
+        'Moffatt Farm Veterans Park path should exist — Rule 4 should accept this park as identifier',
+      ).toBeDefined();
+    });
+
     it.skip('way/160958126 should not exist as standalone — it parallels Experimental Farm Pathway', () => {
       // way/160958126 (highway=path, no surface) is a road-side cycling
       // facility 9.4m from Experimental Farm Pathway (relation/7206821,

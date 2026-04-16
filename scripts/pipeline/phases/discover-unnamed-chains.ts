@@ -177,7 +177,22 @@ out geom tags;`;
       }
     }
 
-    if (!chainName) return null;
+    if (!chainName) {
+      // Chain dropped — step 1's is_in parks were all too generic (Rule 4)
+      // AND step 2's nearest-feature search found nothing usable within
+      // range. The underlying ways exist in OSM but the pipeline can't
+      // give them a usable identity. Record the loss so trace + console
+      // surface it (we care: Rule 4 can over-reject in edge cases, and
+      // some real bike infrastructure vanishes silently otherwise).
+      const wayIds = indices.map(i => unchainedWays[i].id).filter(Boolean);
+      ctx.trace(`way:${wayIds[0]}`, 'chain-dropped', {
+        reason: 'no-name-source',
+        lengthKm: Number((totalLen / 1000).toFixed(2)),
+        wayCount: indices.length,
+        wayIds,
+      });
+      return { _droppedChain: true, lengthM: totalLen, wayCount: indices.length, wayIds } as any;
+    }
 
     const _ways = indices.map(i => unchainedWays[i].geometry);
     const anchors: [number, number][] = [];
@@ -208,9 +223,27 @@ out geom tags;`;
     return chainEntry;
   }));
 
-  const unnamedChains = newChains.filter((c): c is NamedWayEntry => c !== null);
+  const unnamedChains = newChains.filter((c): c is NamedWayEntry => c !== null && !(c as any)._droppedChain);
+  const droppedChains = newChains.filter((c): c is any => c !== null && (c as any)._droppedChain);
   if (unnamedChains.length > 0) {
     console.log(`  Found ${unnamedChains.length} unnamed chains >= ${MIN_CHAIN_LENGTH_M / 1000}km`);
+  }
+  if (droppedChains.length > 0) {
+    const totalKm = droppedChains.reduce((s, c) => s + c.lengthM, 0) / 1000;
+    const totalWays = droppedChains.reduce((s, c) => s + c.wayCount, 0);
+    console.warn(
+      `  ⚠ Dropped ${droppedChains.length} unnamed chain(s) (~${totalKm.toFixed(1)}km, ${totalWays} OSM ways) — no usable name source.`
+    );
+    console.warn(
+      `    Cause: all containing parks too generic (Rule 4), no named road within 100m. These bike paths exist in OSM but aren't surfaced in the index.`
+    );
+    console.warn(
+      `    Debug individual chains: make bikepaths --trace way:<wayId>. Dropped way IDs above trace as 'chain-dropped'.`
+    );
+    for (const d of droppedChains.slice(0, 5)) {
+      console.warn(`    - ${(d.lengthM / 1000).toFixed(2)}km chain, ways: [${d.wayIds.slice(0, 3).join(', ')}${d.wayIds.length > 3 ? '...' : ''}]`);
+    }
+    if (droppedChains.length > 5) console.warn(`    ... (${droppedChains.length - 5} more)`);
   }
   return unnamedChains;
 };
