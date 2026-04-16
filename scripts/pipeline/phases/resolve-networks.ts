@@ -15,6 +15,7 @@ import type { Phase } from './_phase-types.ts';
 import type { WayRegistry } from '../lib/way-registry.mjs';
 import { discoverNetworks, discoverRouteSystemNetworks } from '../lib/discover-networks.mjs';
 import { isLongDistance } from '../lib/entry-type.mjs';
+import { applyMtbSplits } from '../lib/split-mtb-networks.ts';
 
 interface Inputs {
   entries: any[];
@@ -404,9 +405,15 @@ export const resolveNetworksPhase: Phase<Inputs, Output> = async ({ entries, way
     }
   }
 
+  // Rule 7 (Stage 1.5): split networks that mix MTB-trail and non-MTB
+  // members into <original> + <original> MTB. Fixes the category error
+  // where the NCC Greenbelt lands in the MTB tab because its MTB members
+  // outnumber pathway ones. See scripts/pipeline/lib/split-mtb-networks.ts.
+  const split = applyMtbSplits(grouped);
+
   // Trace events at the decision-point boundary: one per network that now
   // has _memberRefs (both promoted auto-group networks and superroute networks).
-  for (const e of grouped) {
+  for (const e of split) {
     if (e.type === 'network' && e._memberRefs) {
       ctx.trace(`entry:${e.name}`, 'created', {
         kind: 'superroute-network',
@@ -415,5 +422,5 @@ export const resolveNetworksPhase: Phase<Inputs, Output> = async ({ entries, way
     }
   }
 
-  return { entries: grouped, superNetworks };
+  return { entries: split, superNetworks };
 };

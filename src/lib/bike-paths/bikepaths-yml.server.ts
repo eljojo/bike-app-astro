@@ -53,6 +53,10 @@ export const bikePathYmlEntrySchema = z.looseObject({
   members: z.array(z.string()).optional(),
   /** Slug of the network this path belongs to. */
   member_of: z.string().optional(),
+  /** Sibling-network slugs — editorial or pipeline-emitted. Used to render
+   * "also see X" sidebar links. Populated from markdown `related:` frontmatter
+   * (editorial) and from Rule 7 MTB/non-MTB network splits (pipeline). */
+  related: z.array(z.string()).optional(),
   /** Mountain bike trail — set by detect-mtb.mjs in the data pipeline. */
   mtb: z.boolean().optional(),
   /** Infrastructure type — classifies the path by safety and bike requirements. */

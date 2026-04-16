@@ -18,6 +18,16 @@ import { getCityConfig } from '../config/city-config';
 import { loadSlugIndex } from './slug-index.server';
 import { normalizeNameForComparison } from './normalize-name';
 
+/** Merge `related:` values from markdown frontmatter and pipeline YAML.
+ *  Markdown authors don't know about pipeline-emitted siblings (e.g. Rule 7
+ *  MTB splits), and pipeline output doesn't know about editorial siblings.
+ *  Union-merge so both sources contribute. Returns undefined if neither has
+ *  values — keeps the field absent rather than writing `[]`. */
+function mergeRelated(a?: string[], b?: string[]): string[] | undefined {
+  const merged = [...new Set([...(a ?? []), ...(b ?? [])])];
+  return merged.length > 0 ? merged : undefined;
+}
+
 function resolveWikidataDescription(entry?: SluggedBikePathYml): string | undefined {
   if (!entry?.wikidata_meta) return undefined;
   const locale = defaultLocale().split('-')[0]; // 'en' from 'en-CA'
@@ -128,6 +138,9 @@ export interface BikePathPage {
   featured: boolean;
   /** Slug of the primary network this path belongs to, if any. */
   memberOf?: string;
+  /** Sibling-network slugs rendered as "also see X" links. Editorial (from
+   *  markdown `related:` frontmatter) or pipeline-emitted (Rule 7 MTB split). */
+  related?: string[];
   /** Named segments from tile-layer data — sub-stretches with distinct names. */
   segments?: Array<{ name: string; surface_mix: Array<{ value: string; km: number }> }>;
   /** For network pages: lightweight refs to member paths. */
@@ -310,6 +323,7 @@ interface MarkdownEntry {
     stub: boolean;
     featured: boolean;
     includes: string[];
+    related?: string[];
     photo_key?: string;
     tags: string[];
     wikipedia?: string;
@@ -345,6 +359,7 @@ function readMarkdownEntries(): MarkdownEntry[] {
         stub: (fm.stub as boolean) || false,
         featured: (fm.featured as boolean) || false,
         includes: (fm.includes as string[]) || [],
+        related: fm.related as string[] | undefined,
         photo_key: fm.photo_key as string | undefined,
         tags: (fm.tags as string[]) || [],
         wikipedia: fm.wikipedia as string | undefined,
@@ -522,6 +537,7 @@ export function loadBikePathEntries(): {
       stub: md.data.stub ?? false,
       featured: md.data.featured ?? false,
       memberOf: primary?.member_of,
+      related: mergeRelated(md.data.related, primary?.related),
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
@@ -596,6 +612,7 @@ export function loadBikePathEntries(): {
       stub: true, // all YML-only entries are stubs
       featured: false,
       memberOf: entry.member_of,
+      related: entry.related,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
