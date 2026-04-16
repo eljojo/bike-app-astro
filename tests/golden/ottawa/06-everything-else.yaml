@@ -1,0 +1,474 @@
+# Everything else — cross-cutting diagnostic and cleanup.
+#
+# filter_out, slug_deduplications, renames, reclassifications,
+# cross_memberships, related_networks_mutual, segments_expectations,
+# city_bounds_expectations, needs_review.
+#
+# This is where the data-cleanup decisions live. When this file is
+# resolved, the pipeline is classifying Ottawa entries into the golden
+# state described in files 01-05.
+#
+# See README.md for the broader structure.
+
+version: 1
+city: ottawa
+last_reviewed: 2026-04-15
+reviewed_by: [jose]
+
+# The "all"/uncategorized tab cap. If the pipeline produces more than
+# this, classifier rules need tweaking.
+all_tab_max_entries: 10
+
+# ============================================================================
+# FILTER_OUT — entries the pipeline produces but shouldn't render anywhere
+# ============================================================================
+
+filter_out:
+
+  # Short urban streets — not cycling destinations
+  - slug: may-street
+    reason: street, not a bike path
+  - slug: blanding-street
+    reason: street, not a bike path
+  - slug: conover-street
+    reason: street, not a bike path
+  - slug: holitzner-way
+    reason: street, not a bike path
+  - slug: montana-way
+    reason: street, not a bike path
+  - slug: montee-dalton
+    reason: street, not a bike path
+  - slug: rue-des-pins
+    reason: street, not a bike path
+  - slug: national-capital-commission-driveway
+    reason: road, not a path
+  - slug: montreal-road-bike-detour
+    reason: detour, not a path
+  - slug: cheminduquebec-5-st-jean-farnham
+    reason: outside Ottawa region
+
+  # Tiny park paths without cycling identity
+  - slug: trillium-park
+    reason: tiny park, no cycling destination
+  - slug: rockcliffe-park
+    reason: tiny park
+  - slug: lytle-park
+    reason: tiny park
+  - slug: strathcona-park
+    reason: tiny park
+  - slug: father-richard-ward-park
+    reason: tiny park
+  - slug: beauclaire-park
+    reason: tiny park
+  - slug: springhurst-park
+    reason: tiny park
+  - slug: west-houlahan-park
+    reason: tiny park
+  - slug: moffatt-farm-veterans-park
+    reason: tiny park
+  - slug: parc-de-la-blanche
+    reason: tiny park
+
+  # Out-of-region (dropped by city bounds in Stage 1)
+  - slug: fatbike-mont-tremblant
+    reason: Mont-Tremblant is far outside Ottawa region
+
+  # Hiking trails
+  - slug: jack-pine-trail
+    reason: hiking trail                    # TODO(review) — bikes allowed?
+  - slug: beaver-trail
+    reason: hiking trail                    # TODO(review)
+  - slug: chipmunk-trail
+    reason: hiking trail                    # TODO(review)
+  - slug: dewberry-trail
+    reason: hiking trail                    # TODO(review)
+  - slug: lime-kiln-trail
+    reason: hiking trail                    # TODO(review)
+  - slug: moe-anderson-trail
+    reason: hiking trail                    # TODO(review)
+  - slug: arboretum-loop
+    reason: hiking loop                     # TODO(review)
+  - slug: ncc-aubrey-moodie-park
+    reason: too small                       # TODO(review)
+
+  # Roads mistakenly promoted
+  - slug: greenbank-road-1
+    reason: road, not a path
+  - slug: mill-hill-road
+    reason: road, not a path
+
+  # Duplicates
+  - slug: beaverpond-park-1
+    reason: duplicate of beaverpond-park
+  - slug: parc-de-la-gatineau-1
+    reason: |
+      named-after-park-but-park-too-big — should auto-fall-back to road/trail
+      name. See needs_review for the classifier rule.
+
+# ============================================================================
+# SLUG_DEDUPLICATIONS — pipeline-produced `-N` suffixed duplicate slugs
+# ============================================================================
+
+slug_deduplications:
+
+  - duplicate_slug: beaverpond-park-1
+    canonical_slug: beaverpond-park
+    resolution: both tiny parks, filter both via filter_out above
+
+  - duplicate_slug: parc-de-la-gatineau-1
+    canonical_slug: parc-de-la-gatineau
+    resolution: merge into the Parc de la Gatineau network entry
+
+  # trail-1-1 is NOT a duplicate — it's a standalone trail with an
+  # auto-generated slug collision. User wants it kept under Trails with
+  # a better name; see needs_review for the lookup/rename task.
+
+  - duplicate_slug: trail-43-pine-grove-forestry-trail
+    canonical_slug: pine-grove-forestry-trail
+    resolution: merge into pine-grove-forestry-trail under ncc-greenbelt-mtb tier_2
+
+# ============================================================================
+# RENAMES — tautological / auto-generated names to clean up
+# ============================================================================
+
+renames:
+
+  - from_slug: the-beast-trail-trails
+    to_slug: the-beast-trail
+    from_name: The Beast Trail Trails
+    to_name: The Beast Trail
+    reason: tautological "Trails Trails"
+
+  - from_slug: st-james-woods-trails
+    to_slug: st-james-woods
+    from_name: St. James Woods Trails
+    to_name: St. James Woods
+    reason: tautological "Trails" suffix
+
+  - from_slug: la-boucle-trails
+    to_slug: la-boucle
+    from_name: La Boucle Trails
+    to_name: La Boucle
+    reason: tautological "Trails" suffix
+
+  - from_slug: kizell-pond-trail-north-trails
+    to_slug: kizell-pond-north
+    from_name: Kizell Pond Trail North Trails
+    to_name: Kizell Pond North
+    reason: double-tautological "Trail ... Trails"
+
+  - from_slug: mississippi-valley-trail-art-section-trails
+    to_slug: mississippi-valley-art-section
+    from_name: Mississippi Valley Trail - ART Section Trails
+    to_name: Mississippi Valley — ART Section
+    reason: 1-member network, tautological suffix
+
+  - from_slug: prescott-russell-trail-link
+    to_slug: prescott-russell-trail
+    from_name: Prescott-Russell Trail Link
+    to_name: Prescott-Russell Trail
+    reason: drop "Link" — it's the trail itself
+
+# ============================================================================
+# RECLASSIFICATIONS — entries currently in the wrong tab or network
+# ============================================================================
+
+reclassifications:
+
+  # Numbered trails in NCC Greenbelt are MTB, not Pathways
+  - slug: trail-1
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+    reason: numbered greenbelt trail, character is MTB not MUP
+  - slug: trail-8
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-10
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-11
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-12
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-12a
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-12b
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-20
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-21
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-23
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-24
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-25
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-26-1
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-27-1
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-44
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: trail-61
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  - slug: ncc29
+    from: pathways/ncc-greenbelt
+    to: mtb/ncc-greenbelt-mtb
+  # pine-grove-forestry-trail (canonical) ends up in ncc-greenbelt-mtb
+  # tier_2 directly. The trail-43-pine-grove-forestry-trail slug is
+  # filtered via slug_deduplications above, not here.
+
+  # TCT membership wins over Greenbelt membership
+  - slug: ottawa-carleton-trailway-east
+    from: pathways/ncc-greenbelt
+    to: long_distance_trails/trans-canada-trail-ontario
+    reason: TCT section first, Greenbelt section second
+
+  - slug: ottawa-river-pathway-trans-canada-trail
+    from: long_distance_trails/trans-canada-trail-ottawa-area
+    to: long_distance_trails/trans-canada-trail-ontario
+    reason: consolidate "TCT Ottawa area" into the broader TCT Ontario
+
+  # The paved Parkway is Gatineau Park cycling, not an admin-network
+  # segment. The OSM data routes it through Capital Pathway (and possibly
+  # TCT); editorially it's primarily "a ride in Gatineau Park."
+  - slug: sentier-du-parc-de-la-gatineau
+    from: pathways/capital-pathway
+    to: pathways/parc-de-la-gatineau
+    reason: Parc de la Gatineau cycling experience, not a TCT/Capital Pathway segment
+
+  # Per user editorial review (2026-04-15 session):
+  - slug: confederation-pathway
+    from: pathways/gatineau-cycling-network
+    to: bikeways/ottawa-bikeways
+    reason: it's an Ottawa bikeway, not a Gatineau path
+
+  - slug: byron-richmond-path
+    from: pathways/standalone
+    to: bikeways/standalone
+    reason: utility cycling character, belongs in Bikeways
+
+  - slug: nepean-trail
+    from: pathways/standalone
+    to: local_trails/standalone
+    reason: destination trail character, belongs in Local Trails
+
+  - slug: osgoode-link-pathway
+    from: pathways/standalone
+    to: local_trails/standalone
+    reason: destination trail character, belongs in Local Trails per user
+
+  - slug: monkey-trail
+    from: mtb/ncc-greenbelt-mtb
+    to: mtb/parc-de-la-gatineau-mtb
+    reason: it's a Parc de la Gatineau MTB trail, not a Greenbelt escapee
+
+# ============================================================================
+# CROSS_MEMBERSHIPS — paths in multiple networks, primary vs secondary
+# ============================================================================
+
+cross_memberships:
+
+  - slug: sentier-des-pionniers-pathway
+    primary_memberOf: capital-pathway
+    also_listed_in:
+      - gatineau-cycling-network
+
+  - slug: greenbelt-pathway-east
+    primary_memberOf: ncc-greenbelt
+    also_listed_in:
+      - capital-pathway
+
+  - slug: greenbelt-pathway-west
+    primary_memberOf: ncc-greenbelt
+    also_listed_in:
+      - capital-pathway
+
+  - slug: greenbelt-pathway-west-barrhaven
+    primary_memberOf: ncc-greenbelt
+    also_listed_in:
+      - capital-pathway
+
+  - slug: ottawa-river-pathway-west
+    primary_memberOf: capital-pathway       # per user edit: moved to Capital Pathway tier_1
+    also_listed_in:
+      - ncc-greenbelt
+
+  - slug: watts-creek-pathway
+    primary_memberOf: ncc-greenbelt
+    also_listed_in:
+      - capital-pathway
+
+  - slug: trans-canada-trail-bells-cornerswatts-creek
+    primary_memberOf: trans-canada-trail-ontario
+    also_listed_in:
+      - ncc-greenbelt
+
+# ============================================================================
+# RELATED_NETWORKS — bidirectional sibling links
+# ============================================================================
+
+related_networks_mutual:
+  - [trans-canada-trail-ontario, sentier-trans-canada-quebec]
+  # TODO(review) — other pairs?
+  #   - [ottawa-bikeways, gatineau-bikeways]       — urban siblings
+  #   - [capital-pathway, ncc-greenbelt]           — both NCC recreational
+  #   - [route-verte-1, le-ptit-train-du-nord]     — if P'tit Train is part of RV
+
+# ============================================================================
+# SEGMENTS_EXPECTATIONS — which paths show Stage 1 segments blocks
+# ============================================================================
+
+segments_expectations:
+
+  - slug: sentier-trans-canada-gatineau-montreal
+    min_named_segments: 10
+    note: the canonical Phase-1 test case
+
+  - slug: route-verte-1
+    min_named_segments: 5
+    note: depends on how much is in-bounds after Stage 1 clip
+
+  - slug: algonquin-trail
+    min_named_segments: 3
+
+  - slug: le-ptit-train-du-nord
+    min_named_segments: 5
+
+# ============================================================================
+# CITY_BOUNDS_EXPECTATIONS — what the bounds clip does
+# ============================================================================
+
+city_bounds_expectations:
+
+  hard_filtered:                           # entirely outside hard bounds
+    - fatbike-mont-tremblant
+    - cheminduquebec-5-st-jean-farnham
+
+  soft_trimmed:                            # clipped at soft bounds
+    - slug: route-verte-1
+      expected_length_after_km_range: [50, 400]  # TODO(review) — tighten
+    - slug: sentier-trans-canada-gatineau-montreal
+      expected_length_after_km_range: [60, 120]  # TODO(review)
+
+  force_included:                          # near-bounds trails that stay
+    - slug: algonquin-trail
+      reason: reaches into the Ottawa Valley, editorial keep
+    - slug: ottawa-valley-recreation-trail
+      reason: same
+
+# ============================================================================
+# NEEDS_REVIEW — editorial checklist. When empty, the golden file is ratified.
+# ============================================================================
+
+needs_review:
+
+  - topic: NCC Greenbelt hiking trails
+    question: |
+      Which named Greenbelt trails (Beaver, Chipmunk, Dewberry, Jack Pine,
+      Lime Kiln, Moe Anderson, Pine Grove, Arboretum Loop) allow cycling?
+      Filter non-cycling, reclassify cycling ones into MTB or Pathways.
+
+  - topic: Gatineau Bikeways network
+    question: |
+      Does this network exist editorially? Or should Boulevard de la Gappe,
+      Boulevard de la Cité-des-Jeunes, Chemin de Masson be standalone
+      bikeways with no network parent?
+
+  - topic: NCC Greenbelt MTB network
+    question: |
+      Does an MTB sub-network exist editorially? Or should the numbered
+      trails (Trail 1, 8, 10, etc.) be standalone MTB paths? If a network,
+      which trails are tier-1 famous?
+
+  - topic: Québec rail trail relationships
+    question: |
+      Is Le P'tit Train du Nord part of Route Verte 1, a sibling, or its
+      own thing? Same for Cycloparc PPJ and Voie Verte Chelsea. Determines
+      the `related_networks_mutual` structure.
+
+  - topic: Sentier Trans-Canada Québec decomposition
+    question: |
+      What regional sub-paths should decomposition produce? Need 5-8
+      named sections with real regional identity. My placeholders (Parc
+      de la Gatineau / Wakefield / Maniwaki / Mont-Laurier) are guesses.
+      What are the split points in km?
+
+  - topic: Route Verte 1 city bounds
+    question: |
+      How much of RV1 should remain visible under Ottawa city bounds?
+      Extends from Outaouais to Gaspé — most is "not Ottawa".
+
+  - topic: Mill of Kintail / Carp Barrens / Nepean Trail
+    question: |
+      Pathways, MTB, or Trails? Edge cases I'm guessing on.
+
+  - topic: Trans Canada Trail Ottawa area consolidation
+    question: |
+      Today "Trans Canada Trail (Ottawa area)" is separate from the
+      broader TCT. Should it be absorbed into `trans-canada-trail-ontario`
+      or kept as a regional sub-network? My reclassifications assume
+      absorption.
+
+  - topic: Cross-network primary_memberOf for Ottawa-Carleton Trailway
+    question: |
+      OCT-east is in NCC Greenbelt. OCT-west is (pending) in TCT Ontario.
+      Are these the same trail (should merge) or distinct pathways that
+      share a name?
+
+  - topic: Park-naming fallback rule (parc-de-la-gatineau-1 case)
+    question: |
+      The pipeline currently names paths after the containing park by
+      default. When the park is small and the path is unnamed, that's
+      usually fine. But when the park is huge and contains many paths
+      (Parc de la Gatineau), the result is multiple entries all called
+      "Parc de la Gatineau" with numeric suffixes, which is confusing.
+      Add a classifier rule: if the containing park has >N member paths
+      (threshold TBD), fall back to the road/trail name instead of the
+      park name. Pipeline work, not editorial.
+
+  - topic: trail-1-1 geometry lookup + rename
+    question: |
+      `trail-1-1` is an auto-generated slug from a numbered-trail
+      collision. User wants it kept under Trails (local or long-distance
+      TBD) but renamed based on geometry lookup. Investigation task:
+      look up the OSM geometry, figure out what park/area contains it,
+      propose a better slug. Related to the park-naming fallback rule
+      above — this is the first candidate for that rule.
+
+  - topic: Ottawa River Pathway markdown split
+    question: |
+      The markdown file for `ottawa-river-pathway` (bike-routes repo)
+      needs to be split into two parts and assigned to each existing
+      path entry with the correct slug (east vs west, or however the
+      pipeline resolves the split). Data-repo task, not a golden file
+      assertion — flag here so it's not forgotten.
+
+  - topic: Pine Grove Forestry Trail merge direction
+    question: |
+      Editorial call made (2026-04-15): canonical slug is
+      `pine-grove-forestry-trail`; `trail-43-pine-grove-forestry-trail`
+      is the duplicate to be filtered via slug_deduplications.
+      Placement: ncc-greenbelt-mtb tier_2. Confirm this is correct
+      before the dedup rule ships.
+
+  - topic: Monkey Trail placement
+    question: |
+      Claude moved `monkey-trail` from `ncc-greenbelt-mtb` tier_2 to
+      `parc-de-la-gatineau-mtb` tier_2 per user instruction. Confirm
+      this matches the trail's actual location — I did not verify
+      geometry.

@@ -1,0 +1,46 @@
+# Bikeways — urban utility, on-street protected infrastructure.
+#
+# You're here because you need to get somewhere. Protected lanes,
+# buffered lanes, bike boulevards, street-adjacent separated paths.
+# "Going to work downtown" — the bikeway is how you get there safely.
+#
+# Tiny file. One real network (Ottawa) + one proposed (Gatineau) built
+# from paths currently misclassified as pathways.
+#
+# See README.md for the broader structure.
+
+tabs:
+  bikeways:
+    label_key: paths.cat_bikeways
+
+    networks:
+
+      - slug: ottawa-bikeways
+        name: Ottawa Bikeways
+        container_type: pathway_system
+        operator: City of Ottawa
+        tier_1_paths:
+          - eastwest-crosstown-bikeway
+          - oconnor-bikeway
+          - crosstown-bikeway-2
+          - confederation-pathway            # moved from gatineau-cycling-network per user — it's an Ottawa bikeway
+        tier_2_paths: []
+
+      # Doesn't exist today — to be created from paths currently
+      # misclassified as pathways.
+      # TODO(review) — does this network exist editorially? Or should
+      # these be standalone bikeways without a network parent?
+      - slug: gatineau-bikeways
+        name: Gatineau Bikeways
+        container_type: pathway_system
+        operator: Ville de Gatineau
+        tier_1_paths:
+          - boulevard-de-la-gappe
+          - boulevard-de-la-cite-des-jeunes  # TODO(review)
+          - chemin-de-masson                 # TODO(review)
+          - parc-du-lac-beauchamp            # moved from filter_out per user — bikeway in Gatineau
+        tier_2_paths: []
+
+    standalone_paths:
+      - byron-richmond-path                  # moved from pathways standalones per user — utility character
+      - rue-lafrance                         # moved from filter_out per user — TODO(review) which network?

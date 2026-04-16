@@ -1,0 +1,30 @@
+# Local Trails — rail trails and day-destination rides.
+#
+# Short and medium trails that are day trips (as opposed to multi-day
+# expeditions). The big multi-day stuff (TCT Ontario, Sentier Trans-
+# Canada Québec, Route Verte 1, Le P'tit Train du Nord, Cycloparc PPJ)
+# lives in 04-long-distance.yaml under the separate
+# "long_distance_trails" tab.
+#
+# The split is editorial: a cyclist's mental model of "a trail I'll
+# ride this afternoon" is different from "a trail I'll ride over 3
+# days with camping gear." Same tab would conflate them.
+#
+# Standalones only for now — any network that naturally emerges from
+# local trail content can be added here.
+#
+# See README.md for the broader structure.
+
+tabs:
+  local_trails:
+    label_key: paths.cat_local_trails
+
+    networks: []
+
+    standalone_paths:
+      - voie-verte-chelsea                   # destination trail per user
+      - new-york-central-fitness-trail
+      - nepean-trail                         # moved from pathways standalones per user
+      - osgoode-link-pathway                 # moved from pathways standalones per user
+      - trail-1-1                            # TODO(review) — needs lookup + rename; user asked for geometry-based naming
+      - le-tour-des-plages                   # TODO(review)
