@@ -237,28 +237,43 @@ describe('information architecture — Ottawa bike path index', () => {
   // =====================================================================
 
   describe('park networks', () => {
-    it('Parc de la Gatineau exists with 50+ members', () => {
-      const gp = network('Parc de la Gatineau');
-      expect(gp).toBeDefined();
-      expect(gp.members.length).toBeGreaterThan(50);
+    // Rule 7 (Stage 1.5) split Parc de la Gatineau and NCC Greenbelt into
+    // pathway + MTB halves. Test both halves exist. Combined member count
+    // should still exceed the original thresholds.
+    it('Parc de la Gatineau splits into pathway + MTB halves totaling 50+ members', () => {
+      const pathway = networks.find(n => n.name === 'Parc de la Gatineau');
+      const mtb = networks.find(n => n.name === 'Parc de la Gatineau MTB');
+      expect(pathway, 'pathway half should exist').toBeDefined();
+      expect(mtb, 'MTB half should exist').toBeDefined();
+      const combined = (pathway.members?.length ?? 0) + (mtb.members?.length ?? 0);
+      expect(combined).toBeGreaterThan(50);
     });
 
-    it('NCC Greenbelt exists with 30+ members', () => {
-      const gb = network('NCC Greenbelt');
-      expect(gb).toBeDefined();
-      expect(gb.members.length).toBeGreaterThan(30);
+    it('NCC Greenbelt splits into pathway + MTB halves totaling 30+ members', () => {
+      const pathway = networks.find(n => n.name === 'NCC Greenbelt');
+      const mtb = networks.find(n => n.name === 'NCC Greenbelt MTB');
+      expect(pathway, 'pathway half should exist').toBeDefined();
+      expect(mtb, 'MTB half should exist').toBeDefined();
+      const combined = (pathway.members?.length ?? 0) + (mtb.members?.length ?? 0);
+      expect(combined).toBeGreaterThan(30);
     });
 
     it('South March Highlands exists with 10+ members', () => {
+      // Minority threshold keeps South March whole (1 non-MTB member + 28 MTB → no split).
       const sm = network('South March');
       expect(sm).toBeDefined();
       expect(sm.members.length).toBeGreaterThan(10);
     });
 
-    it('La Boucle MTB exists with 15+ members', () => {
-      const lb = network('La Boucle');
+    // Rule 6 (Stage 2) dropped the "La Boucle Trails" wrapper. La Boucle
+    // is now a standalone path entry (type=destination), not a network.
+    // Its former siblings (Dos d'Ane, Molo, etc.) are orphan standalones.
+    it('La Boucle is now a standalone path (wrapper suppressed per Rule 6)', () => {
+      const lb = entries.find(e => e.slug === 'la-boucle');
       expect(lb).toBeDefined();
-      expect(lb.members.length).toBeGreaterThan(15);
+      expect(lb.type).toBe('destination');
+      const wrapper = entries.find(e => e.slug === 'la-boucle-trails');
+      expect(wrapper, 'la-boucle-trails wrapper should be dropped').toBeUndefined();
     });
   });
 
@@ -599,25 +614,32 @@ describe('information architecture — Ottawa bike path index', () => {
       expect(barrhaven.member_of).toMatch(/greenbelt/i);
     });
 
-    it('no road (primary/secondary/tertiary) is adopted into a cycling network via ref', () => {
+    it('roads without cycling relations only enter networks through legitimate channels', () => {
+      // Roads (highway=primary/secondary/tertiary/residential/unclassified)
+      // without their own cycling relations should only end up in a
+      // network when:
+      //   (a) the network is park-based (polygon containment adopts roads
+      //       inside the park — Chemin Kingsmere in Parc de la Gatineau)
+      //   (b) the network is a pipeline-synthesized bikeway cluster (Rule 8)
+      //   (c) the network is an OSM-declared cycleway network (network=lcn
+      //       or cycle_network=*)
+      // Other adoption (e.g. ref-matching a road named like a trail) is
+      // a bug.
       const roadHighways = new Set(['primary', 'secondary', 'tertiary', 'residential', 'unclassified']);
       for (const entry of entries) {
         if (!entry.member_of || entry.type === 'network') continue;
-        if (entry.highway && roadHighways.has(entry.highway)) {
-          // Roads with their own cycling relations are legitimate network members
-          // (e.g. Laurier Segregated Bikelane is a cycling relation on a secondary road)
-          if (entry.osm_relations?.length > 0) continue;
-          // Roads can be in park networks (park adoption) but should NOT be
-          // in superroute/route-system networks via ref matching
-          const net = networks.find(n => {
-            const slug = n.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-              .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-');
-            return slug === entry.member_of;
-          });
-          if (net && !net._parkName) {
-            expect.fail(`Road "${entry.name}" (hw: ${entry.highway}) in non-park network "${net?.name}" — ref matching should exclude roads`);
-          }
-        }
+        if (!(entry.highway && roadHighways.has(entry.highway))) continue;
+        if (entry.osm_relations?.length > 0) continue;
+        const net = networks.find(n => {
+          const slug = n.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-');
+          return slug === entry.member_of;
+        });
+        if (!net) continue;
+        if (net._parkName) continue;                    // park containment — legitimate
+        if (net._source === 'bikeway-cluster') continue; // Rule 8 — legitimate
+        if (net.network === 'lcn' || net.cycle_network) continue; // OSM-declared — legitimate
+        expect.fail(`Road "${entry.name}" (hw: ${entry.highway}) in network "${net.name}" — no legitimate adoption channel`);
       }
     });
 

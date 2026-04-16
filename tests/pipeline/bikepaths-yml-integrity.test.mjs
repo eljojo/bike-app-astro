@@ -243,14 +243,22 @@ describe('known ways must survive the pipeline', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('way 380250817 is a member of parc-de-la-gatineau (directly or transitively)', () => {
+  it('way 380250817 is a member of the Parc de la Gatineau network pair (pathway or MTB half)', () => {
+    // Rule 7 (Stage 1.5) splits Parc de la Gatineau into pathway + MTB
+    // halves. Trail #54 is an MTB trail, so after the split it lives
+    // under parc-de-la-gatineau-mtb, not the pathway half. Test accepts
+    // either slug — the structural invariant is "somewhere in the Parc
+    // de la Gatineau network pair," not a specific one.
     const owners = entriesContainingWay(380250817);
     const underPdg = owners.some(e =>
-      e.member_of === 'parc-de-la-gatineau' || e.slug === 'parc-de-la-gatineau'
+      e.member_of === 'parc-de-la-gatineau' ||
+      e.member_of === 'parc-de-la-gatineau-mtb' ||
+      e.slug === 'parc-de-la-gatineau' ||
+      e.slug === 'parc-de-la-gatineau-mtb'
     );
     expect(
       underPdg,
-      `way 380250817 should live under parc-de-la-gatineau; owners=${owners.map(o => o.slug ?? o.name).join(', ')}`
+      `way 380250817 should live under a Parc de la Gatineau network half; owners=${owners.map(o => o.slug ?? o.name).join(', ')}`
     ).toBe(true);
   });
 

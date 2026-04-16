@@ -31,6 +31,12 @@ export interface BikewayClusterRegion {
 /** Path_type values that count as "bikeways" for Rule 8 clustering. */
 const BIKEWAY_PATH_TYPES = new Set(['bike-lane', 'separated-lane', 'paved-shoulder']);
 
+/** Major road highway values — entries on these roads don't belong in the
+ *  editorial bikeway grouping even if they have painted bike infrastructure.
+ *  Route 105 etc. are primary highways; cyclists looking for "Gatineau
+ *  Bikeways" aren't looking for primary-road bike lanes. */
+const MAJOR_ROAD_HIGHWAYS = new Set(['primary', 'secondary', 'tertiary', 'trunk', 'motorway']);
+
 /** Minimum member count to justify emitting a cluster network. */
 export const MIN_CLUSTER_MEMBERS = 3;
 
@@ -62,13 +68,18 @@ export const clusterStandaloneBikewaysPhase: Phase<Inputs, any[]> = async ({ ent
     if (e.type === 'network') existingSlugs.add(slugify(e.name ?? ''));
   }
 
-  // Standalones eligible for clustering: infrastructure-type paths with a
-  // bike-lane-class path_type and no existing network membership.
+  // Standalones eligible for clustering: any non-network entry with a
+  // bikeway-class path_type, no existing network membership, and NOT on
+  // a major road. Major-road entries (highway=primary/secondary/tertiary)
+  // are excluded even when they carry painted bike lanes — cyclists don't
+  // plan by "Route 105 bike lane"; they plan by protected corridors on
+  // residential or cycleway-class roads.
   const candidates = grouped.filter((e: any) =>
     e.type !== 'network'
     && !e._networkRef
     && !e.member_of
     && BIKEWAY_PATH_TYPES.has(e.path_type)
+    && !MAJOR_ROAD_HIGHWAYS.has(e.highway)
   );
 
   let added = 0;

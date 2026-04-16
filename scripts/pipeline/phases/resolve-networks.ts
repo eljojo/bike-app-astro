@@ -16,6 +16,7 @@ import type { WayRegistry } from '../lib/way-registry.mjs';
 import { discoverNetworks, discoverRouteSystemNetworks } from '../lib/discover-networks.mjs';
 import { isLongDistance } from '../lib/entry-type.mjs';
 import { applyMtbSplits } from '../lib/split-mtb-networks.ts';
+import { suppressEmptyWrappers } from '../lib/suppress-empty-wrappers.ts';
 
 interface Inputs {
   entries: any[];
@@ -405,11 +406,16 @@ export const resolveNetworksPhase: Phase<Inputs, Output> = async ({ entries, way
     }
   }
 
+  // Rule 6 (Stage 2): drop empty "<Name> Trails" wrappers when a
+  // non-network <Name> path entry exists. Auto-group synthesizes these
+  // wrappers and they clutter the MTB tab with zero-content networks.
+  const deWrapped = suppressEmptyWrappers(grouped);
+
   // Rule 7 (Stage 1.5): split networks that mix MTB-trail and non-MTB
   // members into <original> + <original> MTB. Fixes the category error
   // where the NCC Greenbelt lands in the MTB tab because its MTB members
   // outnumber pathway ones. See scripts/pipeline/lib/split-mtb-networks.ts.
-  const split = applyMtbSplits(grouped);
+  const split = applyMtbSplits(deWrapped);
 
   // Trace events at the decision-point boundary: one per network that now
   // has _memberRefs (both promoted auto-group networks and superroute networks).

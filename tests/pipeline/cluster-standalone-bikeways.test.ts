@@ -10,8 +10,8 @@ const GATINEAU_NORTH: BikewayClusterRegion = {
   latMin: 45.45, latMax: 45.70, lngMin: -76.10, lngMax: -75.40,
 };
 
-function mkStandalone(slug: string, pathType: string, lat: number, lng: number) {
-  return { name: slug, path_type: pathType, type: 'infrastructure', anchors: [[lng, lat]] };
+function mkStandalone(slug: string, pathType: string, lat: number, lng: number, highway: string = 'residential') {
+  return { name: slug, path_type: pathType, type: 'destination', highway, anchors: [[lng, lat]] };
 }
 function mkNetwork(slug: string) {
   return { name: slug, type: 'network', _memberRefs: [] };
@@ -81,6 +81,19 @@ describe('clusterStandaloneBikewaysPhase', () => {
       mkStandalone('a', 'mup', 45.50, -75.65),
       mkStandalone('b', 'trail', 45.55, -75.60),
       mkStandalone('c', 'mtb-trail', 45.52, -75.62),
+    ];
+    const result = await clusterStandaloneBikewaysPhase({ entries, regions: [GATINEAU_NORTH], ctx: nullCtx });
+    expect(result.find((e: any) => e.type === 'network' && e.name === 'Gatineau Bikeways')).toBeUndefined();
+  });
+
+  it('ignores major-road entries (highway=primary/secondary/tertiary)', async () => {
+    // After Stage 2 Rule 1, named major roads with painted cycleway tags
+    // appear as bike-lane path_type entries. They shouldn't be clustered
+    // into a bikeway network — cyclists don't plan by "Route 105".
+    const entries = [
+      { name: 'Route 105', path_type: 'bike-lane', type: 'infrastructure', highway: 'primary', anchors: [[-75.65, 45.50]] },
+      { name: 'Boulevard X', path_type: 'bike-lane', type: 'infrastructure', highway: 'secondary', anchors: [[-75.60, 45.55]] },
+      { name: 'Chemin Y', path_type: 'bike-lane', type: 'infrastructure', highway: 'tertiary', anchors: [[-75.62, 45.52]] },
     ];
     const result = await clusterStandaloneBikewaysPhase({ entries, regions: [GATINEAU_NORTH], ctx: nullCtx });
     expect(result.find((e: any) => e.type === 'network' && e.name === 'Gatineau Bikeways')).toBeUndefined();
