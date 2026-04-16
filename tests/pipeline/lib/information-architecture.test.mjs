@@ -463,26 +463,19 @@ describe('information architecture — Ottawa bike path index', () => {
       expect(selfRefs).toEqual([]);
     });
 
-    // --- Parc de la Gatineau self-reference investigation ---
+    // --- Parc de la Gatineau: Rule 4 (park-naming heuristic) verifies ---
 
-    it('there are exactly two entries named "Parc de la Gatineau" — one network, one path', () => {
+    it('Parc de la Gatineau has ONLY the network entry — no collision chain (Rule 4)', () => {
+      // Before Rule 4 (Stage 2, 2026-04-16): an unnamed chain inside
+      // Parc de la Gatineau borrowed the park's name, producing a
+      // collision slug (parc-de-la-gatineau-1). Rule 4's park-genericity
+      // heuristic rejects the park name when the park has 2+ cycling
+      // identities inside it. PdG has 146 distinct named paths plus many
+      // unnamed ways — well above the threshold. The chain now falls
+      // through to nearest-road naming, and the `-N` collision is gone.
       const gatineauEntries = entries.filter(e => e.name === 'Parc de la Gatineau');
-      expect(gatineauEntries.length).toBe(2);
-      expect(gatineauEntries.filter(e => e.type === 'network').length).toBe(1);
-      expect(gatineauEntries.filter(e => e.type !== 'network').length).toBe(1);
-    });
-
-    it('the non-network Parc de la Gatineau came from unnamed chain discovery (osm_names includes the park name)', () => {
-      const pathEntry = entries.find(e => e.name === 'Parc de la Gatineau' && e.type !== 'network');
-      expect(pathEntry).toBeDefined();
-      expect(pathEntry.osm_names).toContain('Parc de la Gatineau');
-      expect(pathEntry.osm_relations).toBeUndefined();
-    });
-
-    it('the non-network Parc de la Gatineau is not a parallel lane', () => {
-      const pathEntry = entries.find(e => e.name === 'Parc de la Gatineau' && e.type !== 'network');
-      expect(pathEntry).toBeDefined();
-      expect(pathEntry.parallel_to).toBeUndefined();
+      expect(gatineauEntries.length).toBe(1);
+      expect(gatineauEntries[0].type).toBe('network');
     });
 
     it('the Parc de la Gatineau network was created by park containment', () => {
@@ -491,35 +484,17 @@ describe('information architecture — Ottawa bike path index', () => {
       expect(net._parkName).toBeDefined();
     });
 
+    it('no `parc-de-la-gatineau-1` or suffixed park-name collision slug exists', () => {
+      const suffixed = entries.filter(e => /^parc-de-la-gatineau-\d+$/.test(e.slug || ''));
+      expect(suffixed.map(e => e.slug)).toEqual([]);
+    });
+
     it('the Cité-des-Jeunes parallel lane exists (proving Step 2b found that cycleway)', () => {
       const citeEntry = entries.find(e =>
         (e.name?.includes('Cité-des-Jeunes') || e.name?.includes('Cite-des-Jeunes')) &&
         e.type !== 'network'
       );
       expect(citeEntry, 'Should have a Cité-des-Jeunes entry').toBeDefined();
-    });
-
-    it('the non-network Parc de la Gatineau is NOT adopted into the park network (guard prevents self-ref)', () => {
-      const pathEntry = entries.find(e => e.name === 'Parc de la Gatineau' && e.type !== 'network');
-      expect(pathEntry).toBeDefined();
-      expect(pathEntry.member_of).toBeUndefined();
-    });
-
-    it('way 53309796 should be in a Cité-des-Jeunes entry (parallel lane)', () => {
-      const citeEntry = entries.find(e =>
-        (e.name?.includes('Cité-des-Jeunes') || e.name?.includes('Cite-des-Jeunes')) &&
-        e.type !== 'network'
-      );
-      expect(citeEntry, 'way 53309796 should be in a Cité-des-Jeunes entry').toBeDefined();
-    });
-
-    it('the non-network Parc de la Gatineau path entry has 6 anchors (= 3 ways in the chain)', () => {
-      const pathEntry = entries.find(e => e.name === 'Parc de la Gatineau' && e.type !== 'network');
-      expect(pathEntry).toBeDefined();
-      // Step 2c adds 2 anchor points per way. 6 anchors = 3 ways.
-      // This is a multi-way chain mixing cycleway and path ways.
-      // Not all of them are in Step 2b (only highway=cycleway).
-      expect(pathEntry.anchors.length).toBe(6);
     });
 
     it('the Parc de la Gatineau network does not contain itself as a member', () => {

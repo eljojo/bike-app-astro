@@ -17,6 +17,7 @@ import type { Phase } from './_phase-types.ts';
 import { mergeWayTags } from '../lib/osm-tags.ts';
 import { rankByGeomDistance } from '../lib/nearest-park.mjs';
 import { slugifyBikePathName as slugify } from '../../../src/lib/bike-paths/bikepaths-yml.server.ts';
+import { isParkTooGeneric } from '../lib/park-genericity.ts';
 
 const MIN_CHAIN_LENGTH_M = 1500;
 
@@ -107,9 +108,25 @@ area.a["landuse"~"recreation_ground"]["name"]->.c;
 area.a["natural"="wood"]["name"]->.d;
 (.b; .c; .d;);
 out tags;`);
-          if (isInData.elements.length > 0) {
-            chainName = isInData.elements[0].tags?.name || null;
-            if (chainName) nameSource = 'is-in';
+          // Rule 4: walk the returned areas and skip parks that are too
+          // generic — i.e. contain >=2 distinct cycling identities, so
+          // borrowing their name wouldn't uniquely identify this chain.
+          // A chain in Parc de la Gatineau has ~100 other paths nearby;
+          // "Parc de la Gatineau Path" identifies nothing specific.
+          for (const el of isInData.elements) {
+            const candidate = el.tags?.name;
+            if (!candidate) continue;
+            const tooGeneric = await isParkTooGeneric(candidate, ctx.bbox, ctx.queryOverpass);
+            if (tooGeneric) {
+              ctx.trace(`way:${unchainedWays[indices[0]].id}`, 'park-name-rejected', {
+                park: candidate,
+                reason: 'too-generic',
+              });
+              continue;
+            }
+            chainName = candidate;
+            nameSource = 'is-in';
+            break;
           }
         } catch {}
       }
@@ -139,9 +156,24 @@ out geom tags;`;
       candidates.push(...rankByGeomDistance(chainPts, nearParkData.elements).map((c: any) => ({ ...c, source: 'nearPark' })));
       candidates.push(...rankByGeomDistance(chainPts, roadData.elements).map((c: any) => ({ ...c, source: 'road' })));
       candidates.sort((a: any, b: any) => a.dist - b.dist);
-      if (candidates.length > 0) {
-        chainName = candidates[0].name;
-        nameSource = candidates[0].source;
+      // Rule 4: also applies to fallback ranking. Skip park candidates
+      // whose park is too generic (same check as step 1). Road
+      // candidates are always valid — specific-by-definition.
+      for (const c of candidates) {
+        if (c.source === 'nearPark') {
+          const tooGeneric = await isParkTooGeneric(c.name, ctx.bbox, ctx.queryOverpass);
+          if (tooGeneric) {
+            ctx.trace(`way:${unchainedWays[indices[0]].id}`, 'park-name-rejected', {
+              park: c.name,
+              reason: 'too-generic',
+              source: 'nearPark',
+            });
+            continue;
+          }
+        }
+        chainName = c.name;
+        nameSource = c.source;
+        break;
       }
     }
 
