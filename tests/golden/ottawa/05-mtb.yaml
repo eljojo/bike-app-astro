@@ -20,7 +20,10 @@ tabs:
       # `parc-de-la-gatineau` network in 01-pathways.yaml — same physical
       # park, different cycling experience entirely.
       - slug: parc-de-la-gatineau-mtb
-        name: Parc de la Gatineau (MTB trails)
+        name: Gatineau Park MTB
+        # Display renamed 2026-04-16 from "Parc de la Gatineau (MTB trails)"
+        # to avoid visual collision with the pathway sibling network in
+        # 01-pathways.yaml (both started with "Parc de la Gatineau...").
         container_type: park
         operator: National Capital Commission
         tier_1_paths:
@@ -83,7 +86,8 @@ tabs:
           - 76-skyridge
           - 77-happy-valley
           - 79b
-          - monkey-trail                        # moved from ncc-greenbelt-mtb per user — it's a Parc de la Gatineau MTB trail
+          - trail-1-1                           # auto-generated slug; anchor at Gatineau Park lat; Rule 4 (park-naming) renames when implemented
+          # monkey-trail removed 2026-04-16 — no geometric data, unverified guess. See needs_review in 06-everything-else.yaml.
 
         # Segments of this network — members that exist (appear on the
         # map, listed in the overflow accordion) but don't warrant their
@@ -230,6 +234,14 @@ tabs:
           - nature-and-tranquility          # TODO(review)
           - watts-east                      # TODO(review)
           - greenbelt-south                 # TODO(review)
+          # Cycling-legal "hiking trails" moved from filter_out 2026-04-16 — Overpass
+          # spot-check confirmed bicycle=yes / surface=ground or gravel. They're MTB.
+          - jack-pine-trail
+          - beaver-trail
+          - chipmunk-trail
+          - lime-kiln-trail
+          - moe-anderson-trail
+          - arboretum-loop                  # per user 2026-04-16: it's MTB, not hiking
 
     standalone_paths:
       - mississippi-valley-trail-bobs-run-loop-black  # collapsed from 1-member network

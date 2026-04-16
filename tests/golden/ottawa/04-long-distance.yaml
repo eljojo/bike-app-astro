@@ -52,9 +52,12 @@ tabs:
         stage_1_monolith_slug: route-verte-1
         tier_1_paths: []  # populated in Stage 2
 
-      # TODO(review) — network or standalone? My guess is network because
-      # P'tit Train is famous enough that its sub-sections likely have
-      # regional identity.
+      # User decision 2026-04-16: kept as its own network, NOT nested under
+      # sentier-trans-canada-quebec even though OSM data shows 128 of TCT-QC's
+      # 700 ways are named "Le P'tit Train du Nord". Users recognize P'tit
+      # Train as an independent destination trail. Stage 2 decomposition
+      # treats it as a sibling network with cross-membership into TCT-QC,
+      # not a nested sub-path.
       - slug: le-ptit-train-du-nord
         name: Le P'tit Train du Nord
         container_type: long_distance_trail
@@ -102,6 +105,11 @@ stage_2_pending:
           name:
             en: "Sentier Trans-Canada — Mont-Laurier section"
             fr: "Sentier Trans-Canada — section Mont-Laurier"
+      sibling_networks_with_cross_membership:
+        # NOT a decomposed child — sibling network with shared geometry
+        # (128 of TCT-QC's 700 ways are named "Le P'tit Train du Nord").
+        # Per user decision 2026-04-16: keep as its own network.
+        - le-ptit-train-du-nord
       related: [trans-canada-trail-ontario]
 
     - parent_slug: route-verte-1

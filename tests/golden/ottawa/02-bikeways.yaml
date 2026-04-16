@@ -26,10 +26,12 @@ tabs:
           - confederation-pathway            # moved from gatineau-cycling-network per user — it's an Ottawa bikeway
         tier_2_paths: []
 
-      # Doesn't exist today — to be created from paths currently
-      # misclassified as pathways.
-      # TODO(review) — does this network exist editorially? Or should
-      # these be standalone bikeways without a network parent?
+      # User decision 2026-04-16: this network DOES need to exist for users
+      # planning rides on the Gatineau side. Stage 1.5 implements Rule 8
+      # (geographic auto-clustering) — pipeline groups Gatineau-side bike-
+      # lane / separated-lane paths into this network automatically. The
+      # tier_1_paths below are the editorial minimum that must end up in
+      # the final network; pipeline auto-clustering may add more.
       - slug: gatineau-bikeways
         name: Gatineau Bikeways
         container_type: pathway_system

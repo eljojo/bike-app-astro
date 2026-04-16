@@ -26,5 +26,6 @@ tabs:
       - new-york-central-fitness-trail
       - nepean-trail                         # moved from pathways standalones per user
       - osgoode-link-pathway                 # moved from pathways standalones per user
-      - trail-1-1                            # TODO(review) — needs lookup + rename; user asked for geometry-based naming
+      # trail-1-1 moved to mtb/parc-de-la-gatineau-mtb tier_2 (2026-04-16)
+      # — Overpass shows it's MTB (highway=path, bicycle=yes, mtb-trail).
       - le-tour-des-plages                   # TODO(review)
