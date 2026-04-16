@@ -42,7 +42,6 @@ export const bikePathYmlEntrySchema = z.looseObject({
   access: z.string().optional(),
   ref: z.string().optional(),
   parallel_to: z.string().optional(),
-  segments: z.array(z.looseObject({ osm_way: z.number() })).optional(),
   /** Entry classification from the pipeline (see entry-type.mjs / _ctx/entry-types.md).
    * long-distance: named route people plan trips for (PPJ, Route Verte, TCT). May have members (sections).
    * network: interconnected city-level system (Capital Pathway, NCC Greenbelt). Has members.
@@ -124,7 +123,7 @@ export interface SuperNetworkMeta {
  * Single source of truth — used by both the geometry cache writer
  * (scripts/cache-path-geometry.ts) and the app reader (bike-path-entries.server.ts).
  *
- * Priority: relations → way IDs → names → segments → parallel.
+ * Priority: relations → way IDs → names → parallel.
  * An entry matches exactly one category.
  *
  * Network entries only honor osm_relations (their own superroute). They never
@@ -142,9 +141,6 @@ export function geoFilesForEntry(entry: SluggedBikePathYml): string[] {
   }
   if (entry.osm_names?.length) {
     return [`name-${entry.slug}.geojson`];
-  }
-  if (entry.segments?.length) {
-    return [`seg-${entry.slug}.geojson`];
   }
   if (entry.parallel_to) {
     return [`parallel-${entry.slug}.geojson`];
