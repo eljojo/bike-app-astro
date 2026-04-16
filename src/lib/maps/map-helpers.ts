@@ -1,6 +1,7 @@
 import { buildImageUrl } from '../media/image-service';
 import polylineCodec from '@mapbox/polyline';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
+import { normalizeNameForComparison, slugifySegmentName } from '../bike-paths/normalize-name';
 import type { Segment } from './tile-types';
 
 /**
@@ -184,22 +185,6 @@ function formatPathType(pathType: string | undefined): string {
   }
 }
 
-/**
- * Normalize a name for same-entity comparison. Lowercases, collapses
- * runs of whitespace and dash characters (hyphen, en-dash, em-dash)
- * into a single space, and trims. Used to decide whether a segment
- * name and its parent entry name refer to the same thing for popup
- * rendering (Mode A vs Mode B). Does NOT strip diacritics — "é" stays
- * distinct from "e" so different French names don't get falsely merged.
- *
- * Motivating case: an OSM relation `Sentier du Parc de la Gatineau`
- * containing member ways tagged `Sentier du Parc-de-la-Gatineau`.
- * Without normalization the strict `!==` check fires Mode B and the
- * popup reads as two near-duplicate headlines stacked on each other.
- */
-function normalizeNameForComparison(s: string): string {
-  return s.toLowerCase().replace(/[\s\-\u2013\u2014]+/g, ' ').trim();
-}
 
 export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: string }): string {
   // Mode B: the resolved segment has a distinct name from the entry.
@@ -234,6 +219,7 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
     const surfaceLine = formatSurfaceMix(seg.surface_mix);
     const typeLabel = formatPathType(data.path_type);
     const viewDetailsLabel = labels?.viewDetails ?? 'View details';
+    const segmentFragment = seg.name ? `#segment-${slugifySegmentName(seg.name)}` : '';
 
     let popup = '<div class="path-popup">';
     // Parent breadcrumb above. Clicking it goes to the same URL as the
@@ -245,9 +231,10 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
     // parent entry has a URL, the segment name links to it — same
     // destination as the breadcrumb above and the View details link
     // below. Segments don't have their own pages; all three
-    // affordances go to the parent entry.
+    // affordances go to the parent entry. The fragment deep-links to
+    // the segment's anchor on the detail page.
     popup += data.url
-      ? html`<strong class="path-popup-name"><a href="${data.url}">${seg.name}</a></strong>`
+      ? html`<strong class="path-popup-name"><a href="${data.url}${raw(segmentFragment)}">${seg.name}</a></strong>`
       : html`<strong class="path-popup-name">${seg.name}</strong>`;
     if (surfaceLine) {
       popup += html`<div class="path-popup-meta">${surfaceLine}</div>`;
@@ -256,7 +243,7 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
       popup += html`<div class="path-popup-meta">${typeLabel}</div>`;
     }
     if (data.url) {
-      popup += html`<a href="${data.url}" class="path-popup-link">${viewDetailsLabel} \u2192</a>`;
+      popup += html`<a href="${data.url}${raw(segmentFragment)}" class="path-popup-link">${viewDetailsLabel} \u2192</a>`;
     }
     popup += '</div>';
     return popup;
@@ -326,13 +313,15 @@ export function buildPathCardContent(data: PathPopupData): string {
     // Mode B: segment-first with parent breadcrumb.
     const surfaceLine = formatSurfaceMix(seg.surface_mix);
     const typeLabel = formatPathType(data.path_type);
+    const segmentFragment = seg.name ? `#segment-${slugifySegmentName(seg.name)}` : '';
+    const segUrl = data.url ? `${data.url}${segmentFragment}` : undefined;
 
     const parentEl = data.url
       ? html`<a class="map-path-card-parent-link" href="${data.url}">${data.name}</a>`
       : html`<span class="map-path-card-parent-link">${data.name}</span>`;
 
-    const nameEl = data.url
-      ? html`<a class="map-path-card-name" href="${data.url}">${seg.name}</a>`
+    const nameEl = segUrl
+      ? html`<a class="map-path-card-name" href="${raw(segUrl)}">${seg.name}</a>`
       : html`<span class="map-path-card-name">${seg.name}</span>`;
 
     const metaEl = surfaceLine

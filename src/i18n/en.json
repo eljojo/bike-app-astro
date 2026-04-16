@@ -661,6 +661,7 @@
   "paths.fact.network_local": "Part of the local cycling network",
   "paths.seo_description": "Explore {count} cycling paths in {city} — surface types, distances, and which routes use each path.",
   "paths.seo_fallback": "cycling path",
+  "paths.named_sections": "Named sections",
   "paths.stub_cta": "Know this path?",
   "paths.stub_cta_link": "Add a description to help others know what to expect.",
   "paths.fact.flat": "Flat",

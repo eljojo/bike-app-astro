@@ -15,6 +15,8 @@ import { readGeoFileData } from '../geo/geojson-reader.server';
 import { scoreBikePath, isHardExcluded, isDestination } from './bike-path-scoring.server';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
+import { loadSlugIndex } from './slug-index.server';
+import { normalizeNameForComparison } from './normalize-name';
 
 function resolveWikidataDescription(entry?: SluggedBikePathYml): string | undefined {
   if (!entry?.wikidata_meta) return undefined;
@@ -126,6 +128,8 @@ export interface BikePathPage {
   featured: boolean;
   /** Slug of the primary network this path belongs to, if any. */
   memberOf?: string;
+  /** Named segments from tile-layer data — sub-stretches with distinct names. */
+  segments?: Array<{ name: string; surface_mix: Array<{ value: string; km: number }> }>;
   /** For network pages: lightweight refs to member paths. */
   memberRefs?: MemberRef[];
   ymlEntries: SluggedBikePathYml[];
@@ -761,6 +765,49 @@ export function loadBikePathEntries(): {
       .filter((mp: BikePathPage | undefined): mp is BikePathPage => !!mp && mp.slug !== p.slug);
     if (memberPages.length < 2) continue;
     p.memberRefs = memberPages.map(toMemberRef);
+  }
+
+  // 9. Load segments from tile features for detail-page rendering.
+  const slugIndex = loadSlugIndex();
+  const tileDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo', 'tiles');
+
+  // Cache loaded tile data to avoid re-reading the same tile file
+  const tileCache = new Map<string, unknown>();
+  function loadTile(tileId: string) {
+    if (tileCache.has(tileId)) return tileCache.get(tileId);
+    const filePath = path.join(tileDir, `tile-${tileId}.geojson`);
+    if (!fs.existsSync(filePath)) { tileCache.set(tileId, null); return null; }
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    tileCache.set(tileId, data);
+    return data;
+  }
+
+  for (const page of pages) {
+    const indexEntry = slugIndex[page.slug];
+    if (!indexEntry) continue;
+
+    const seenNames = new Set<string>();
+    const segments: Array<{ name: string; surface_mix: Array<{ value: string; km: number }> }> = [];
+
+    for (const tileId of indexEntry.tiles) {
+      const tile = loadTile(tileId) as { features: Array<{ properties: { slug?: string; _segments?: Array<{ name?: string; surface_mix: Array<{ value: string; km: number }> }> } }> } | null;
+      if (!tile) continue;
+
+      for (const feature of tile.features) {
+        if (feature.properties.slug !== page.slug) continue;
+        for (const seg of feature.properties._segments ?? []) {
+          if (!seg.name || seenNames.has(seg.name)) continue;
+          seenNames.add(seg.name);
+          segments.push({ name: seg.name, surface_mix: seg.surface_mix });
+        }
+      }
+    }
+
+    // Only attach if there are named segments different from the page name
+    const hasDistinct = segments.some(s =>
+      normalizeNameForComparison(s.name) !== normalizeNameForComparison(page.name)
+    );
+    if (hasDistinct && segments.length > 0) page.segments = segments;
   }
 
   // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)

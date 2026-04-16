@@ -1184,6 +1184,15 @@
   margin-left: 0.25rem;
 }
 
+.segment-highlighted {
+  background: rgba($color-primary, 0.12);
+  transition: background 2s ease-out;
+
+  @include dark-mode {
+    background: rgba($color-link-dark, 0.15);
+  }
+}
+
 // Independent paths section
 .paths-independent {
   margin-top: 2rem;

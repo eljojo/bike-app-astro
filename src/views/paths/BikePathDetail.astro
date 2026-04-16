@@ -21,6 +21,7 @@ import { breadcrumbJsonLd } from '@/lib/json-ld';
 import { imageUrl } from '@/lib/media/image-service';
 import { mapImageUrl } from '@/lib/maps/map-image-url';
 import { computeCenter, buildPathFacts, buildNetworkFacts, factLabelKey, localizeFactValue, localizeFactSentence, localizeNetworkFactValue, localizeSurface, localizePathType, findNearestMajorPath, type PathMeta } from '@/lib/bike-paths/bike-path-facts';
+import { slugifySegmentName } from '@/lib/bike-paths/normalize-name';
 import { groupPathsByNetwork, tierNetworkMembers, type NetworkMeta } from '@/lib/bike-paths/infrastructure-grouping';
 import { getInstanceFeatures } from '@/lib/config/instance-features';
 
@@ -218,6 +219,53 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
         {constituentNames.join(', ')}
       </p>
     )}
+
+    {page.segments && page.segments.length > 0 && (() => {
+      const namedSegments = page.segments!;
+      const tier1 = namedSegments.filter(s => {
+        const km = s.surface_mix.reduce((acc, m) => acc + m.km, 0);
+        return km >= 1;
+      });
+      const tier2 = namedSegments.filter(s => {
+        const km = s.surface_mix.reduce((acc, m) => acc + m.km, 0);
+        return km < 1;
+      });
+      if (tier2.length > 0 && tier2.length <= 3) {
+        tier1.push(...tier2);
+        tier2.length = 0;
+      }
+      return tier1.length > 0 ? (
+        <section class="bike-path-segments">
+          <h2>{t('paths.named_sections', locale)}</h2>
+          <ul class="network-members-list">
+            {tier1.map(seg => (
+              <li id={`segment-${slugifySegmentName(seg.name)}`}>
+                <span class="network-member-name">{seg.name}</span>
+                <span class="network-member-meta">
+                  {seg.surface_mix.length === 1
+                    ? localizeSurface(seg.surface_mix[0].value, t, locale)
+                    : seg.surface_mix.map(m => `${m.km} km ${localizeSurface(m.value, t, locale)}`).join(' \u00b7 ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {tier2.length > 0 && (
+            <details class="network-tier2">
+              <summary class="network-tier2-label">
+                + {tier2.length} shorter sections
+              </summary>
+              <ul class="network-members-list">
+                {tier2.map(seg => (
+                  <li id={`segment-${slugifySegmentName(seg.name)}`}>
+                    <span class="network-member-name">{seg.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      ) : null;
+    })()}
 
     {/* Full-width browse-style map for networks — same infrastructure as the index page */}
     {hasMembers && (
@@ -734,4 +782,18 @@ const websiteHostname = websiteUrl ? (() => { try { return new URL(websiteUrl).h
       showAllBtn.style.display = 'none';
     });
   }
+</script>
+
+<script>
+  function highlightSegment() {
+    const hash = location.hash;
+    if (!hash.startsWith('#segment-')) return;
+    const el = document.getElementById(hash.slice(1));
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('segment-highlighted');
+    setTimeout(() => el.classList.remove('segment-highlighted'), 2000);
+  }
+  highlightSegment();
+  window.addEventListener('hashchange', highlightSegment);
 </script>
