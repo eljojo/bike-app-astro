@@ -70,6 +70,44 @@ export function parseMarkdownOverrides(bikePathsDir: string) {
   return overrides;
 }
 
+export interface MarkdownIncludesDecl {
+  slug: string;
+  name?: string;
+  name_fr?: string;
+  includes: string[];
+  related?: string[];
+  operator?: string;
+}
+
+/** Parse markdown frontmatter for network declarations via `includes:`.
+ *  Used by Rule 5 (Stage 1.5): when a markdown file declares a multi-entry
+ *  page via `includes: [slug, slug, ...]`, the pipeline emits a network
+ *  entry in bikepaths.yml so downstream consumers (tile generation, audit
+ *  tools, third-party readers) see it without needing to replicate the
+ *  markdown overlay logic. */
+export function parseMarkdownIncludes(bikePathsDir: string): MarkdownIncludesDecl[] {
+  if (!bikePathsDir || !fs.existsSync(bikePathsDir)) return [];
+  const out: MarkdownIncludesDecl[] = [];
+  for (const f of fs.readdirSync(bikePathsDir).filter(f => f.endsWith('.md') && !f.includes('.fr.'))) {
+    const content = fs.readFileSync(path.join(bikePathsDir, f), 'utf8');
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+    if (!fmMatch) continue;
+    let fm: any;
+    try { fm = yaml.load(fmMatch[1]); } catch { continue; }
+    const includes = Array.isArray(fm?.includes) ? (fm.includes as string[]) : [];
+    if (includes.length === 0) continue;
+    out.push({
+      slug: f.replace('.md', ''),
+      name: typeof fm.name === 'string' ? fm.name : undefined,
+      name_fr: typeof fm.name_fr === 'string' ? fm.name_fr : undefined,
+      includes,
+      related: Array.isArray(fm?.related) ? (fm.related as string[]) : undefined,
+      operator: typeof fm.operator === 'string' ? fm.operator : undefined,
+    });
+  }
+  return out;
+}
+
 export function writeYaml(
   entries: any[],
   superNetworks: any[],

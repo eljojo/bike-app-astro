@@ -26,7 +26,9 @@ related: [pipeline-overview]
 | resolve.networks | group.cluster, discover.bundle | {entries, superNetworks} |
 | resolve.classification | resolve.networks, discover.bundle | Entry[] |
 | finalize.overrides | resolve.classification | Entry[] |
-| finalize.resolve | finalize.overrides, resolve.networks, discover.bundle | {entries, slugMap} |
+| resolve.markdownNetworks | finalize.overrides | Entry[] |
+| cluster.standaloneBikeways | resolve.markdownNetworks | Entry[] |
+| finalize.resolve | cluster.standaloneBikeways, resolve.networks, discover.bundle | {entries, slugMap} |
 | finalize.write | finalize.resolve | {entries, slugMap} |
 
 ## Graph
@@ -44,6 +46,8 @@ graph TD
   resolve_networks["resolve.networks"]
   resolve_classification["resolve.classification"]
   finalize_overrides["finalize.overrides"]
+  resolve_markdownNetworks["resolve.markdownNetworks"]
+  cluster_standaloneBikeways["cluster.standaloneBikeways"]
   finalize_resolve["finalize.resolve"]
   finalize_write["finalize.write"]
   discover_relations -->|"OsmRelation[]"| discover_nonCycling
@@ -61,7 +65,9 @@ graph TD
   resolve_networks -->|"{entries, superNetworks}"| resolve_classification
   discover_bundle -->|"DiscoveredData"| resolve_classification
   resolve_classification -->|"Entry[]"| finalize_overrides
-  finalize_overrides -->|"Entry[]"| finalize_resolve
+  finalize_overrides -->|"Entry[]"| resolve_markdownNetworks
+  resolve_markdownNetworks -->|"Entry[]"| cluster_standaloneBikeways
+  cluster_standaloneBikeways -->|"Entry[]"| finalize_resolve
   resolve_networks -->|"{entries, superNetworks}"| finalize_resolve
   discover_bundle -->|"DiscoveredData"| finalize_resolve
   finalize_resolve -->|"{entries, slugMap}"| finalize_write

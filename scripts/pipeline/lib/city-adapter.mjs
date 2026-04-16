@@ -116,6 +116,24 @@ const ottawa = {
   discoverNetworks: true,
 
   memberSort: naturalNameSort,
+
+  // Rule 8 (Stage 1.5): regions for clustering standalone bikeway paths
+  // into synthesized editorial networks. An entry whose anchor falls inside
+  // a region's bbox and whose path_type is in the bikeway set contributes
+  // to that region's cluster. If the cluster reaches the threshold (>=3)
+  // and no existing network with the same slug exists, a network entry is
+  // emitted. The Ottawa adapter declares two regions split by the Ottawa
+  // River — south (Ottawa) and north (Gatineau).
+  bikewayClusterRegions: [
+    // Ottawa side — south of the Ottawa River. The OSM relation for
+    // cycle_network=CA:ON:Ottawa already produces an ottawa-bikeways
+    // network, so this region's cluster is usually skipped. Declared
+    // anyway to document the structural intent and catch future data
+    // changes.
+    { name: 'Ottawa Bikeways', slug: 'ottawa-bikeways', latMin: 45.05, latMax: 45.45, lngMin: -76.40, lngMax: -75.30 },
+    // Gatineau side — north of the Ottawa River.
+    { name: 'Gatineau Bikeways', slug: 'gatineau-bikeways', latMin: 45.45, latMax: 45.75, lngMin: -76.10, lngMax: -75.30 },
+  ],
 };
 
 // ---------------------------------------------------------------------------
