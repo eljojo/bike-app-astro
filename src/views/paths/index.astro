@@ -228,7 +228,7 @@ const ogImage = config.page_posters?.map ? imageUrl(config.page_posters.map, { w
       if (!bounds) { map.flyTo({ center: mapCenter, zoom: 11, duration: 500 }); return; }
       const [minLng, minLat, maxLng, maxLat] = bounds;
       const opts: { padding: number; animate: boolean; duration: number; maxZoom?: number } = { padding: 60, animate: true, duration: 500 };
-      if (slug === 'trails') opts.maxZoom = 10;
+      if (slug === 'local_trails' || slug === 'long_distance_trails') opts.maxZoom = 10;
       map.fitBounds([[minLng, minLat], [maxLng, maxLat]], opts);
     }
 

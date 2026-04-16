@@ -5,9 +5,12 @@
  * Both index.astro and tests import from here — single source of truth.
  */
 
-export type BrowseCategory = 'pathways' | 'mtb' | 'trails' | 'bikeways';
+export type BrowseCategory = 'pathways' | 'bikeways' | 'local_trails' | 'long_distance_trails' | 'mtb';
 
 export const TIER1_MIN_KM = 3;
+
+/** MTB-member share at which a network is classified as MTB. */
+export const MTB_NETWORK_THRESHOLD = 0.7;
 
 /**
  * Classify a network page into a browse tab category.
@@ -21,12 +24,13 @@ export function classifyNetwork(
   network: string | undefined,
   memberPathTypes: string[],
 ): BrowseCategory {
+  if (entryType === 'long-distance') return 'long_distance_trails';
+
   if (memberPathTypes.length === 0) return 'pathways';
 
   const mtbCount = memberPathTypes.filter(pt => pt === 'mtb-trail').length;
-  if (mtbCount / memberPathTypes.length >= 0.5) return 'mtb';
+  if (mtbCount / memberPathTypes.length >= MTB_NETWORK_THRESHOLD) return 'mtb';
 
-  if (entryType === 'long-distance') return 'trails';
   if (network === 'lcn') return 'bikeways';
   return 'pathways';
 }
@@ -34,14 +38,19 @@ export function classifyNetwork(
 /**
  * Classify a standalone path (not in any network) into a browse tab category.
  * Returns null for paths that go to the "all" tab (uncategorized).
+ *
+ * `type:long-distance` is authoritative — the pipeline already applies a
+ * length threshold (≥50km OR megatrail ≥30km with relation) when assigning
+ * that type. No second length check here; we trust pipeline output.
  */
 export function classifyIndependentPath(
   entryType: string,
   pathType?: string,
 ): BrowseCategory | null {
-  if (entryType === 'long-distance') return 'trails';
+  if (entryType === 'long-distance') return 'long_distance_trails';
   if (pathType === 'mtb-trail') return 'mtb';
-  if (pathType === 'trail') return 'trails';
+  if (pathType === 'trail') return 'local_trails';
+  if (pathType === 'bike-lane' || pathType === 'separated-lane' || pathType === 'paved-shoulder') return 'bikeways';
   if (pathType === 'mup') return 'pathways';
   return null;
 }
