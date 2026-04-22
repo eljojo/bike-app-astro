@@ -22,13 +22,17 @@ describe('parseIcs — one-off events', () => {
     expect(e.series).toBeUndefined();
   });
 
-  test('VEVENT all-day: start is the date', () => {
+  test('VEVENT all-day: start/end are date-only strings (no time component)', () => {
     const feed = parseIcs(fixture('one-off-all-day.ics'), 'https://example.com/feed.ics');
     expect(feed.events).toHaveLength(1);
     const e = feed.events[0];
     expect(e.uid).toBe('test-oneoff-allday@example.com');
     expect(e.summary).toBe('Community Bike Day');
-    expect(e.start.slice(0, 10)).toBe('2026-06-12');
+    // Exact date string — not .slice(0,10), which would mask timezone drift bugs where
+    // all-day Dates parse as the wrong calendar day in non-UTC environments.
+    expect(e.start).toBe('2026-06-12');
+    expect(e.start.length).toBe(10);
+    expect(e.end).toBe('2026-06-13');
     expect(e.series).toBeUndefined();
   });
 });

@@ -70,6 +70,9 @@ export async function dismissSuggestion(
   snapshot?: { name: string; start: string },
 ): Promise<void> {
   const now = new Date().toISOString();
+  // First dismissal wins: preserves the original dismisser/timestamp/snapshot
+  // even if another admin re-dismisses the same (city, uid) later. The filter
+  // semantics only care whether a row exists.
   await db.insert(calendarSuggestionDismissals)
     .values({
       city, uid, organizerSlug,
@@ -77,15 +80,7 @@ export async function dismissSuggestion(
       dismissedBy,
       eventSnapshotJson: snapshot ? JSON.stringify(snapshot) : null,
     })
-    .onConflictDoUpdate({
-      target: [calendarSuggestionDismissals.city, calendarSuggestionDismissals.uid],
-      set: {
-        organizerSlug: sql`excluded.organizer_slug`,
-        dismissedAt: sql`excluded.dismissed_at`,
-        dismissedBy: sql`excluded.dismissed_by`,
-        eventSnapshotJson: sql`excluded.event_snapshot_json`,
-      },
-    })
+    .onConflictDoNothing()
     .run();
 }
 

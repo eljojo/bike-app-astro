@@ -30,7 +30,6 @@ export async function POST({ locals, request }: APIContext) {
     return jsonResponse({ ok: true });
   } catch (err: unknown) {
     console.error('calendar suggestion dismiss error:', err);
-    const message = err instanceof Error ? err.message : 'Failed to dismiss';
-    return jsonError(message, 500);
+    return jsonError('Failed to dismiss', 500);
   }
 }

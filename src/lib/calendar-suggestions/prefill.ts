@@ -22,15 +22,20 @@ export function buildCopyDataFromVevent(v: ParsedVEvent, organizerSlug: string):
     ics_uid: v.uid,
   };
   if (!v.series) return base;
-  const series = v.series.kind === 'recurrence'
-    ? {
-        recurrence: v.series.recurrence,
-        recurrence_day: v.series.recurrence_day,
-        season_start: v.series.season_start,
-        season_end: v.series.season_end,
-        skip_dates: v.series.skip_dates,
-        overrides: v.series.overrides,
-      }
-    : { schedule: v.series.schedule };
+  // Conditional spreads so undefined fields don't end up as explicit nulls in
+  // the serialized YAML frontmatter.
+  let series: Record<string, unknown>;
+  if (v.series.kind === 'recurrence') {
+    series = {
+      ...(v.series.recurrence && { recurrence: v.series.recurrence }),
+      ...(v.series.recurrence_day && { recurrence_day: v.series.recurrence_day }),
+      ...(v.series.season_start && { season_start: v.series.season_start }),
+      ...(v.series.season_end && { season_end: v.series.season_end }),
+      ...(v.series.skip_dates && v.series.skip_dates.length > 0 && { skip_dates: v.series.skip_dates }),
+      ...(v.series.overrides && v.series.overrides.length > 0 && { overrides: v.series.overrides }),
+    };
+  } else {
+    series = v.series.schedule ? { schedule: v.series.schedule } : {};
+  }
   return { ...base, series };
 }

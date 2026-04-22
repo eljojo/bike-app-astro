@@ -66,8 +66,29 @@ describe('buildCopyDataFromVevent', () => {
       season_start: '2026-05-04',
       season_end: '2026-09-28',
       skip_dates: ['2026-05-18'],
-      overrides: undefined,
     });
+    // Absent fields must not appear as explicit undefined keys — YAML would emit them as nulls.
+    expect(Object.keys(cd.series as Record<string, unknown>)).not.toContain('overrides');
+  });
+
+  test('series with no EXDATE/overrides omits skip_dates/overrides entirely', () => {
+    const v: ParsedVEvent = {
+      uid: 'series-clean@x',
+      summary: 'Every Monday',
+      start: '2026-05-04T18:00:00.000Z',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'monday',
+        season_start: '2026-05-04',
+        season_end: '2026-09-28',
+      },
+    };
+    const cd = buildCopyDataFromVevent(v, 'qbc');
+    const seriesKeys = Object.keys(cd.series as Record<string, unknown>);
+    expect(seriesKeys).not.toContain('skip_dates');
+    expect(seriesKeys).not.toContain('overrides');
+    expect(seriesKeys.sort()).toEqual(['recurrence', 'recurrence_day', 'season_end', 'season_start']);
   });
 
   test('series with schedule fallback — includes schedule list', () => {

@@ -28,6 +28,8 @@ export interface BuildArgs {
   organizers: Array<Pick<AdminOrganizer, 'slug' | 'name' | 'ics_url'>>;
   repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer'>>;
   fetcher?: (url: string) => Promise<ParsedFeed>;
+  /** Cache writer — injectable so tests can simulate D1 write failures without mocking the module. */
+  writer?: (slug: string, sourceUrl: string, feed: ParsedFeed) => Promise<void>;
   now?: Date;
 }
 
@@ -44,6 +46,7 @@ export interface BuildArgs {
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   const { db, city, organizers, repoEvents } = args;
   const fetcher = args.fetcher ?? fetchIcsFeed;
+  const writer = args.writer ?? ((slug, sourceUrl, feed) => writeCachedFeed(db, slug, sourceUrl, feed));
   const now = args.now ?? new Date();
 
   const withFeed = organizers.filter(o => o.ics_url);
@@ -63,7 +66,13 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
     const cached = await readCachedFeed(db, o.slug, o.ics_url!);
     if (cached) return { slug: o.slug, name: o.name, feed: cached };
     const feed = await fetcher(o.ics_url!);
-    await writeCachedFeed(db, o.slug, o.ics_url!, feed);
+    // Cache write is best-effort — a D1 hiccup must not throw away a successful parse.
+    // The feed is still returned; the next pageload will try the cache write again.
+    try {
+      await writer(o.slug, o.ics_url!, feed);
+    } catch (err) {
+      console.warn(`calendar feed cache write failed for ${o.slug}:`, err);
+    }
     return { slug: o.slug, name: o.name, feed };
   }));
 

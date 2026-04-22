@@ -25,6 +25,8 @@ interface VEventExtensions {
   exdate?: Record<string, Date | string>;
   recurrences?: Record<string, VEvent & { status?: string }>;
   status?: string;
+  // node-ical sets this to 'date' for VALUE=DATE (all-day) events and 'date-time' otherwise.
+  datetype?: string;
 }
 function ext(v: VEvent): VEventExtensions {
   return v as unknown as VEventExtensions;
@@ -161,19 +163,34 @@ function buildScheduleFallback(v: VEvent): ParsedSeries {
 
 function mapOneOff(v: VEvent): ParsedVEvent | null {
   if (!v.uid || !v.summary || !v.start) return null;
+  const isAllDay = ext(v).datetype === 'date';
   return {
     uid: String(v.uid),
     summary: String(v.summary),
-    start: toIso(v.start),
-    end: v.end ? toIso(v.end) : undefined,
+    start: renderDateTime(v.start, isAllDay),
+    end: v.end ? renderDateTime(v.end, isAllDay) : undefined,
     location: v.location ? String(v.location) : undefined,
     description: v.description ? String(v.description) : undefined,
     url: v.url ? String(v.url) : undefined,
   };
 }
 
-function toIso(d: Date | string): string {
-  return d instanceof Date ? d.toISOString() : new Date(d).toISOString();
+/**
+ * Render a VEvent start/end as a string downstream code can compare lexicographically.
+ *
+ * - Timed events → full ISO string (UTC instant). `toISOString()` is correct here because
+ *   the Date represents a specific moment and we want that moment's UTC projection.
+ * - All-day events → `YYYY-MM-DD` string via local-time getters. node-ical constructs
+ *   VALUE=DATE events as `new Date(year, monthIndex, day)` which is local-midnight,
+ *   so UTC getters would shift the calendar day east of UTC (Tokyo: `2026-06-12` → `2026-06-11`).
+ */
+function renderDateTime(d: Date | string, isAllDay: boolean): string {
+  if (!(d instanceof Date)) d = new Date(d);
+  if (!isAllDay) return d.toISOString();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
 
 const FETCH_TIMEOUT_MS = 5_000;

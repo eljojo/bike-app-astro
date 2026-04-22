@@ -98,16 +98,38 @@ if (fromFeed && icsUid && !copyFromId) {
   }
 }
 
-// Force full editor when importing a series (the wizard doesn't expose series UI).
+// Route ICS prefills through the full editor.
+// Spec says wizard for one-offs and full editor for series, but EventWizard doesn't
+// currently accept a copyData prop (its flow starts with a poster upload + extraction).
+// Threading copyData through EventWizard is a separate follow-up; for now both one-off
+// and series ICS imports land in EventCreator where the prefill works.
 const hasSeries = !!icsCopyData && 'series' in icsCopyData;
 const useFullEditor = fullEditor || hasSeries || !!icsCopyData;
 const effectiveCopyData = icsCopyData ?? copyData;
 ---
 
 <AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events" hideTitle={!useFullEditor}>
+  {icsMissing && (
+    <p class="ics-missing-notice">
+      This suggestion is no longer in the source calendar. You can still create the event manually.
+    </p>
+  )}
   {useFullEditor ? (
     <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={effectiveCopyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
   ) : (
     <EventWizard client:load cdnUrl={cdnUrl} organizers={organizers} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} siteName={cityConfig.display_name} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
   )}
 </AdminEditorLayout>
+
+<style>
+  .ics-missing-notice {
+    background: rgba(255, 200, 120, 0.12);
+    border: 1px solid rgba(255, 200, 120, 0.4);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 1rem;
+    font-size: 0.95em;
+    color: inherit;
+    opacity: 0.85;
+  }
+</style>

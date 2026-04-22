@@ -207,4 +207,32 @@ describe('admin calendar suggestions — build logic', () => {
     expect(fetchCount).toBe(1);
     expect(suggestions.map(s => s.uid)).toEqual(['new-feed@x']);
   });
+
+  test('still returns a parsed feed when writer fails after a successful fetch', async () => {
+    const suggestions = await buildSuggestions({
+      db,
+      city: 'ottawa',
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [],
+      fetcher: async (url) => ({
+        fetched_at: new Date().toISOString(),
+        source_url: url,
+        events: [{ uid: 'new@x', summary: 'New ride', start: '2026-05-02T18:00:00.000Z' }],
+      }),
+      writer: async () => { throw new Error('simulated D1 hiccup'); },
+      now: new Date('2026-04-21T00:00:00Z'),
+    });
+    // The feed was parsed successfully — the writer failure should not discard it.
+    expect(suggestions.map(s => s.uid)).toEqual(['new@x']);
+  });
 });
+
+// D1 overlay integration (loadAdminEventList → buildSuggestions) is intentionally not
+// unit-tested here: loadAdminEventList chains through src/lib/get-db.ts which imports
+// src/lib/env/env.service.ts, which has a top-level `await import('cloudflare:workers')`
+// that vitest can't resolve in a Node environment. The overlay's ics_uid propagation is
+// verified by: (a) this file's existing UID-match tests confirming buildSuggestions
+// filters on any repoEvents.ics_uid; (b) P19's E2E spec which exercises the full flow
+// through the real Astro preview server; (c) typecheck verifying the overlay signature
+// returns `ics_uid` on the resulting AdminEvent. A production bug in the overlay would
+// surface as "imported suggestion keeps reappearing after save" — visible in E2E.
