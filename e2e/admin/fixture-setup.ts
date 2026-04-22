@@ -519,6 +519,22 @@ A test bike shop for E2E tests.
 `
   );
 
+  // e2e-calendar-club: test-only organizer with ics_url for calendar-suggestions E2E
+  fs.writeFileSync(
+    path.join(orgDir, 'e2e-calendar-club.md'),
+    `---
+name: E2E Calendar Club
+featured: false
+hidden: false
+tags:
+  - group-rides
+ics_url: https://example.test/e2e-calendar.ics
+---
+
+Test-only organizer for calendar-suggestions E2E.
+`
+  );
+
   // lbs-featured-shop: featured bike shop that appears in both communities and LBS sections
   fs.writeFileSync(
     path.join(orgDir, 'lbs-featured-shop.md'),

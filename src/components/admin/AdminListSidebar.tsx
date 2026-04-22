@@ -79,7 +79,7 @@ export default function AdminListSidebar({
     let cancelled = false;
     fetch('/api/admin/calendar-suggestions')
       .then(r => r.ok ? r.json() : null)
-      .then((data: Suggestion[] | null) => { if (!cancelled) setSuggestions(data ?? []); })
+      .then((data: { suggestions: Suggestion[] } | null) => { if (!cancelled) setSuggestions(data?.suggestions ?? []); })
       .catch((err) => { console.error('Failed to load suggestions', err); });
     return () => { cancelled = true; };
   }, [contentType]);
