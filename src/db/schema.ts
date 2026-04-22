@@ -217,3 +217,24 @@ export const statsCache = sqliteTable('stats_cache', {
 }, (table) => [
   primaryKey({ columns: [table.city, table.cacheKey] }),
 ]);
+
+// --- Calendar Tables ---
+
+export const calendarFeedCache = sqliteTable('calendar_feed_cache', {
+  organizerSlug: text('organizer_slug').primaryKey(),
+  sourceUrl:     text('source_url').notNull(),
+  eventsJson:    text('events_json').notNull(),
+  updatedAt:     text('updated_at').notNull(),
+});
+
+export const calendarSuggestionDismissals = sqliteTable('calendar_suggestion_dismissals', {
+  city:              text('city').notNull(),
+  uid:               text('uid').notNull(),
+  organizerSlug:     text('organizer_slug').notNull(),
+  dismissedAt:       text('dismissed_at').notNull(),
+  dismissedBy:       text('dismissed_by').notNull(),
+  eventSnapshotJson: text('event_snapshot_json'),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.uid] }),
+  index('csd_city_idx').on(table.city),
+]);
