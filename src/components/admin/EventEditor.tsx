@@ -158,6 +158,11 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [orgPhotoHeight, setOrgPhotoHeight] = useState<number | undefined>(initOrg.photoHeight);
   const [isExistingRef, setIsExistingRef] = useState(initOrg.isRef);
 
+  // Hidden pass-through: the ICS VEVENT UID, set when the form was pre-filled
+  // via /admin/events/new?from_feed=…&uid=…. Not user-editable; serialized into
+  // frontmatter on save so the suggestion disappears from the sidebar.
+  const icsUid = initialData.ics_uid;
+
   // Progressive disclosure — show fields when data exists or user clicks link
   const disclosure = useProgressiveDisclosure({
     time: !!(initialData.start_time || initialData.end_time || initialData.meet_time),
@@ -206,6 +211,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(eventUrl && { event_url: eventUrl }),
           ...(mapUrl && { map_url: mapUrl }),
           ...(previousEvent && { previous_event: previousEvent }),
+          ...(icsUid && { ics_uid: icsUid }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg', ...(posterWidth && { poster_width: posterWidth }), ...(posterHeight && { poster_height: posterHeight }) }),
           ...(tags.length > 0 && { tags }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),

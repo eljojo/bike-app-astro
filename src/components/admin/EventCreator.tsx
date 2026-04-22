@@ -208,17 +208,20 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     const today = new Date().toISOString().split('T')[0];
     // copyData takes priority (duplicating an event), then event draft (extraction)
     const source = copyData || eventDraft?.draft || {};
+    // ICS prefill carries an ics_uid and real dates — keep them; "copy another event" blanks dates.
+    const isIcsPrefill = !!(copyData && copyData.ics_uid);
+    const blankDates = !!copyData && !isIcsPrefill;
 
     return {
       id: '',
       slug: (source.slug as string) || '',
-      year: copyData ? '' : ((source.start_date as string) || today).substring(0, 4),
+      year: blankDates ? '' : ((source.start_date as string) || today).substring(0, 4),
       name: (source.name as string) || '',
       // When copying, leave dates empty so user must pick new ones
-      start_date: copyData ? '' : ((source.start_date as string) || today),
+      start_date: blankDates ? '' : ((source.start_date as string) || today),
       start_time: source.start_time as string | undefined,
       meet_time: source.meet_time as string | undefined,
-      end_date: copyData ? undefined : (source.end_date as string | undefined),
+      end_date: blankDates ? undefined : (source.end_date as string | undefined),
       end_time: source.end_time as string | undefined,
       location: source.location as string | undefined,
       distances: source.distances as string | undefined,
@@ -239,6 +242,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       results: (source.results as EventDetail['results']) || [],
       media: (source.media as EventDetail['media']) || [],
       series: source.series as EventDetail['series'],
+      ics_uid: source.ics_uid as string | undefined,
       isNew: true,
     };
   }

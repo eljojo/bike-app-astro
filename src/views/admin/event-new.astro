@@ -59,11 +59,54 @@ if (copyFromId) {
     };
   }
 }
+
+// Branch: ?from_feed=<slug>&uid=<ics_uid> — prefill from an organizer's ICS feed
+const fromFeed = Astro.url.searchParams.get('from_feed');
+const icsUid = Astro.url.searchParams.get('uid');
+let icsCopyData: Record<string, unknown> | undefined;
+let icsMissing = false;
+
+if (fromFeed && icsUid && !copyFromId) {
+  const { db } = await import('../../lib/get-db');
+  const { readCachedFeed, writeCachedFeed } = await import('../../lib/calendar-suggestions/cache.server');
+  const { fetchIcsFeed } = await import('../../lib/external/ics-feed.server');
+  const { buildCopyDataFromVevent } = await import('../../lib/calendar-suggestions/prefill');
+
+  const org = adminOrganizers.find(o => o.slug === fromFeed);
+  if (!org?.ics_url) {
+    icsMissing = true;
+  } else {
+    try {
+      let feed = await readCachedFeed(db(), fromFeed, org.ics_url);
+      if (!feed) {
+        feed = await fetchIcsFeed(org.ics_url);
+        await writeCachedFeed(db(), fromFeed, org.ics_url, feed);
+      }
+      const vevent = feed.events.find(e => e.uid === icsUid);
+      if (!vevent) {
+        icsMissing = true;
+      } else {
+        icsCopyData = buildCopyDataFromVevent(vevent, fromFeed);
+      }
+    } catch (err) {
+      console.error('ICS prefill failed:', err);
+      icsMissing = true;
+    }
+  }
+  if (icsMissing) {
+    console.warn(`ICS prefill missing: feed=${fromFeed} uid=${icsUid}`);
+  }
+}
+
+// Force full editor when importing a series (the wizard doesn't expose series UI).
+const hasSeries = !!icsCopyData && 'series' in icsCopyData;
+const useFullEditor = fullEditor || hasSeries || !!icsCopyData;
+const effectiveCopyData = icsCopyData ?? copyData;
 ---
 
-<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events" hideTitle={!fullEditor}>
-  {fullEditor ? (
-    <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
+<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events" hideTitle={!useFullEditor}>
+  {useFullEditor ? (
+    <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={effectiveCopyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
   ) : (
     <EventWizard client:load cdnUrl={cdnUrl} organizers={organizers} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} siteName={cityConfig.display_name} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
   )}

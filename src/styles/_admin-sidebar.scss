@@ -47,3 +47,31 @@
   font-size: 0.8rem;
   font-style: italic;
 }
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.suggestion-dismiss {
+  opacity: 0.4;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  font-size: 1rem;
+  line-height: 1;
+
+  &:hover { opacity: 1; }
+}
+
+.suggestion-name {
+  display: block;
+}
+
+.suggestion-meta {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
