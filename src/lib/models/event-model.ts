@@ -105,6 +105,7 @@ export const eventDetailSchema = z.object({
   previous_event: z.string().optional(),
   edition: z.string().optional(),
   banner_text: z.string().optional(),
+  ics_uid: z.string().optional(),
   linked_routes: z.array(z.object({
     route: z.string(),
     variant: z.string().optional(),
