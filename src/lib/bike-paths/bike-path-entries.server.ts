@@ -15,6 +15,18 @@ import { readGeoFileData } from '../geo/geojson-reader.server';
 import { scoreBikePath, isHardExcluded, isDestination } from './bike-path-scoring.server';
 import { supportedLocales, defaultLocale } from '../i18n/locale-utils';
 import { getCityConfig } from '../config/city-config';
+import { loadSlugIndex } from './slug-index.server';
+import { normalizeNameForComparison } from './normalize-name';
+
+/** Merge `related:` values from markdown frontmatter and pipeline YAML.
+ *  Markdown authors don't know about pipeline-emitted siblings (e.g. Rule 7
+ *  MTB splits), and pipeline output doesn't know about editorial siblings.
+ *  Union-merge so both sources contribute. Returns undefined if neither has
+ *  values — keeps the field absent rather than writing `[]`. */
+function mergeRelated(a?: string[], b?: string[]): string[] | undefined {
+  const merged = [...new Set([...(a ?? []), ...(b ?? [])])];
+  return merged.length > 0 ? merged : undefined;
+}
 
 function resolveWikidataDescription(entry?: SluggedBikePathYml): string | undefined {
   if (!entry?.wikidata_meta) return undefined;
@@ -126,6 +138,11 @@ export interface BikePathPage {
   featured: boolean;
   /** Slug of the primary network this path belongs to, if any. */
   memberOf?: string;
+  /** Sibling-network slugs rendered as "also see X" links. Editorial (from
+   *  markdown `related:` frontmatter) or pipeline-emitted (Rule 7 MTB split). */
+  related?: string[];
+  /** Named segments from tile-layer data — sub-stretches with distinct names. */
+  segments?: Array<{ name: string; surface_mix: Array<{ value: string; km: number }> }>;
   /** For network pages: lightweight refs to member paths. */
   memberRefs?: MemberRef[];
   ymlEntries: SluggedBikePathYml[];
@@ -166,6 +183,8 @@ export interface BikePathPage {
   smoothness?: string;
   operator?: string;
   network?: string;
+  /** OSM cycle_network tag (e.g. "CA:ON:Ottawa") — signals a cycleway network. */
+  cycle_network?: string;
   highway?: string;
   /** OSM cycleway tag: 'track', 'lane', 'shared_lane', 'crossing'. */
   cycleway?: string;
@@ -306,6 +325,7 @@ interface MarkdownEntry {
     stub: boolean;
     featured: boolean;
     includes: string[];
+    related?: string[];
     photo_key?: string;
     tags: string[];
     wikipedia?: string;
@@ -341,6 +361,7 @@ function readMarkdownEntries(): MarkdownEntry[] {
         stub: (fm.stub as boolean) || false,
         featured: (fm.featured as boolean) || false,
         includes: (fm.includes as string[]) || [],
+        related: fm.related as string[] | undefined,
         photo_key: fm.photo_key as string | undefined,
         tags: (fm.tags as string[]) || [],
         wikipedia: fm.wikipedia as string | undefined,
@@ -518,6 +539,7 @@ export function loadBikePathEntries(): {
       stub: md.data.stub ?? false,
       featured: md.data.featured ?? false,
       memberOf: primary?.member_of,
+      related: mergeRelated(md.data.related, primary?.related),
       ymlEntries: matchedEntries,
       osmRelationIds,
       osmNames,
@@ -539,6 +561,7 @@ export function loadBikePathEntries(): {
       smoothness: primary?.smoothness,
       operator: normalizeOperator(md.data.operator ?? primary?.operator) ?? primary?.wikidata_meta?.operator,
       network: primary?.network,
+      cycle_network: primary?.cycle_network,
       highway: primary?.highway,
       cycleway: primary?.cycleway,
       bicycle: primary?.bicycle,
@@ -592,6 +615,7 @@ export function loadBikePathEntries(): {
       stub: true, // all YML-only entries are stubs
       featured: false,
       memberOf: entry.member_of,
+      related: entry.related,
       ymlEntries: [entry],
       osmRelationIds: entry.osm_relations ?? [],
       osmNames: entry.osm_names ?? [],
@@ -613,6 +637,7 @@ export function loadBikePathEntries(): {
       smoothness: entry.smoothness,
       operator: normalizeOperator(entry.operator) ?? entry.wikidata_meta?.operator,
       network: entry.network,
+      cycle_network: entry.cycle_network,
       highway: entry.highway,
       cycleway: entry.cycleway,
       bicycle: entry.bicycle,
@@ -761,6 +786,49 @@ export function loadBikePathEntries(): {
       .filter((mp: BikePathPage | undefined): mp is BikePathPage => !!mp && mp.slug !== p.slug);
     if (memberPages.length < 2) continue;
     p.memberRefs = memberPages.map(toMemberRef);
+  }
+
+  // 9. Load segments from tile features for detail-page rendering.
+  const slugIndex = loadSlugIndex();
+  const tileDir = path.join(getProjectRoot(), 'public', 'bike-paths', 'geo', 'tiles');
+
+  // Cache loaded tile data to avoid re-reading the same tile file
+  const tileCache = new Map<string, unknown>();
+  function loadTile(tileId: string) {
+    if (tileCache.has(tileId)) return tileCache.get(tileId);
+    const filePath = path.join(tileDir, `tile-${tileId}.geojson`);
+    if (!fs.existsSync(filePath)) { tileCache.set(tileId, null); return null; }
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    tileCache.set(tileId, data);
+    return data;
+  }
+
+  for (const page of pages) {
+    const indexEntry = slugIndex[page.slug];
+    if (!indexEntry) continue;
+
+    const seenNames = new Set<string>();
+    const segments: Array<{ name: string; surface_mix: Array<{ value: string; km: number }> }> = [];
+
+    for (const tileId of indexEntry.tiles) {
+      const tile = loadTile(tileId) as { features: Array<{ properties: { slug?: string; _segments?: Array<{ name?: string; surface_mix: Array<{ value: string; km: number }> }> } }> } | null;
+      if (!tile) continue;
+
+      for (const feature of tile.features) {
+        if (feature.properties.slug !== page.slug) continue;
+        for (const seg of feature.properties._segments ?? []) {
+          if (!seg.name || seenNames.has(seg.name)) continue;
+          seenNames.add(seg.name);
+          segments.push({ name: seg.name, surface_mix: seg.surface_mix });
+        }
+      }
+    }
+
+    // Only attach if there are named segments different from the page name
+    const hasDistinct = segments.some(s =>
+      normalizeNameForComparison(s.name) !== normalizeNameForComparison(page.name)
+    );
+    if (hasDistinct && segments.length > 0) page.segments = segments;
   }
 
   // Scan for cached GeoJSON files (dev only — build uses inlined list from plugin)

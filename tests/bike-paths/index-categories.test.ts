@@ -87,20 +87,34 @@ describe('independent paths that should be in MTB tab', () => {
   }
 });
 
-// ── Trails tab (gravel / long distance) ─────────────────────────────
-// Unpaved trails and pipeline-classified long-distance paths share one
-// tab. The signal is path_type=trail OR entryType=long-distance.
+// ── Local / long-distance trails tabs ─────────────────────────────
+// In the 5-tab classifier, "trails" split into local_trails (day-trip /
+// short) and long_distance_trails (entryType=long-distance AND
+// length_km >= LONG_DISTANCE_MIN_KM). Sort by entry shape.
 
-describe('independent paths that should be in Trails tab', () => {
-  const shouldBeTrails = [
-    'prescott-russell-trail-link',
-    'osgoode-link-pathway',
+describe('independent paths that should be in Local Trails tab', () => {
+  const shouldBeLocalTrails = [
+    'osgoode-link-pathway',  // path_type=trail, not long-distance
+    'prescott-russell-trail-link', // pipeline currently type=destination; Stage 2 fixes
   ];
 
-  for (const slug of shouldBeTrails) {
-    it(`${slug} → trails`, () => {
+  for (const slug of shouldBeLocalTrails) {
+    it(`${slug} → local_trails`, () => {
       const e = requireEntry(slug);
-      expect(independentCategory(e), `${slug} category${traceCtx(e)}`).toBe('trails');
+      expect(independentCategory(e), `${slug} category${traceCtx(e)}`).toBe('local_trails');
+    });
+  }
+});
+
+describe('independent paths that should be in Long Distance tab', () => {
+  const shouldBeLongDistance = [
+    'algonquin-trail',  // entryType=long-distance, 219km trail
+  ];
+
+  for (const slug of shouldBeLongDistance) {
+    it(`${slug} → long_distance_trails`, () => {
+      const e = requireEntry(slug);
+      expect(independentCategory(e), `${slug} category${traceCtx(e)}`).toBe('long_distance_trails');
     });
   }
 });

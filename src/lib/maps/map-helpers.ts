@@ -1,6 +1,8 @@
 import { buildImageUrl } from '../media/image-service';
 import polylineCodec from '@mapbox/polyline';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';
+import { normalizeNameForComparison, slugifySegmentName } from '../bike-paths/normalize-name';
+import type { Segment } from './tile-types';
 
 /**
  * Yield every [lng, lat] coordinate from a collection of GeoJSON features.
@@ -136,9 +138,118 @@ export interface PathPopupData {
   vibe?: string;
   network?: string;
   networkUrl?: string;
+  /**
+   * Optional resolved segment for per-click context. When set and the
+   * segment has a distinct name from the entry, `buildPathPopup` renders
+   * Mode B (segment-first, entry as parent context). When undefined —
+   * or when the segment is unnamed or shares its name with the entry —
+   * the popup falls through to Mode A, which is the existing rendering
+   * used everywhere before Phase 1 of the pageless-path-segments plan.
+   */
+  segment?: Segment;
 }
 
+/**
+ * Format a `surface_mix` array for popup display. Returns strings like:
+ *   "asphalt"                            (single value)
+ *   "9 km asphalt · 0.1 km gravel"       (multi-value)
+ * Input is expected to be sorted descending by km (per `Segment.surface_mix`
+ * invariant). Km values are rendered with 1dp precision, with a trailing
+ * `.0` stripped so whole-number kilometres read naturally.
+ */
+function formatSurfaceMix(mix: Array<{ value: string; km: number }>): string {
+  if (mix.length === 0) return '';
+  // Single-element mix: drop the km prefix because there's no
+  // contrast to illustrate. "asphalt" reads cleaner than
+  // "3.2 km asphalt" when that's the whole segment.
+  if (mix.length === 1) return mix[0].value;
+  return mix.map(m => `${formatKm(m.km)} km ${m.value}`).join(' \u00b7 ');
+}
+
+function formatKm(km: number): string {
+  const s = km.toFixed(1);
+  return s.endsWith('.0') ? s.slice(0, -2) : s;
+}
+
+/** Human-readable label for a `path_type` value. Unknown types pass through as-is. */
+function formatPathType(pathType: string | undefined): string {
+  if (!pathType) return '';
+  switch (pathType) {
+    case 'mup': return 'multi-use pathway';
+    case 'bike-lane': return 'bike lane';
+    case 'separated-lane': return 'separated bike lane';
+    case 'paved-shoulder': return 'paved shoulder';
+    case 'trail': return 'trail';
+    case 'mtb-trail': return 'mountain bike trail';
+    default: return pathType;
+  }
+}
+
+
 export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: string }): string {
+  // Mode B: the resolved segment has a distinct name from the entry.
+  // Rendered as: parent breadcrumb (small, muted, clickable) above the
+  // segment name, then segment surface_mix + parent path_type as meta
+  // lines, and finally the shared `path-popup-link` "View details →"
+  // text link at the bottom — same inline link style Mode A uses.
+  //
+  // The structure deliberately reuses Mode A's class vocabulary
+  // (`path-popup-name`, `path-popup-meta`, `path-popup-link`) so both
+  // modes share one visual language. The only Mode-B-specific class
+  // is `path-popup-parent-link` for the breadcrumb above the name.
+  //
+  // Intentionally shows only segment name, segment-level surface_mix,
+  // parent entry name, and parent path_type — NOT the entry's
+  // aggregate `surface`, `length_km`, `vibe`, `network`, or
+  // `networkUrl`. Those fields belong to the entry as a whole and
+  // would be misleading when the user clicked on a specific
+  // sub-section (the whole point of segment popups is to avoid
+  // the aggregate-label category error).
+  //
+  // The guard uses `normalizeNameForComparison` so that near-duplicate
+  // names differing only in punctuation (e.g. `Sentier du Parc-de-la-
+  // Gatineau` vs `Sentier du Parc de la Gatineau`) fall through to
+  // Mode A instead of stacking two near-identical headlines on top of
+  // each other.
+  const seg = data.segment;
+  if (
+    seg !== undefined && seg.name && data.name &&
+    normalizeNameForComparison(seg.name) !== normalizeNameForComparison(data.name)
+  ) {
+    const surfaceLine = formatSurfaceMix(seg.surface_mix);
+    const typeLabel = formatPathType(data.path_type);
+    const viewDetailsLabel = labels?.viewDetails ?? 'View details';
+    const segmentFragment = seg.name ? `#segment-${slugifySegmentName(seg.name)}` : '';
+
+    let popup = '<div class="path-popup">';
+    // Parent breadcrumb above. Clicking it goes to the same URL as the
+    // "View details" link below — two affordances, one destination.
+    popup += data.url
+      ? html`<a href="${data.url}" class="path-popup-parent-link">${data.name}</a>`
+      : html`<div class="path-popup-parent-link">${data.name}</div>`;
+    // Segment name is the only bold element in Mode B. When the
+    // parent entry has a URL, the segment name links to it — same
+    // destination as the breadcrumb above and the View details link
+    // below. Segments don't have their own pages; all three
+    // affordances go to the parent entry. The fragment deep-links to
+    // the segment's anchor on the detail page.
+    popup += data.url
+      ? html`<strong class="path-popup-name"><a href="${data.url}${raw(segmentFragment)}">${seg.name}</a></strong>`
+      : html`<strong class="path-popup-name">${seg.name}</strong>`;
+    if (surfaceLine) {
+      popup += html`<div class="path-popup-meta">${surfaceLine}</div>`;
+    }
+    if (typeLabel) {
+      popup += html`<div class="path-popup-meta">${typeLabel}</div>`;
+    }
+    if (data.url) {
+      popup += html`<a href="${data.url}${raw(segmentFragment)}" class="path-popup-link">${viewDetailsLabel} \u2192</a>`;
+    }
+    popup += '</div>';
+    return popup;
+  }
+
+  // Mode A: the existing rendering — unchanged.
   const meta: string[] = [];
   if (data.length_km) meta.push(`${data.length_km} km`);
   if (data.surface) meta.push(escapeHtml(data.surface));
@@ -170,14 +281,61 @@ export function buildPathPopup(data: PathPopupData, labels?: { viewDetails?: str
 /**
  * Build the inner content markup for the paths-browse map path card.
  * Takes the same data shape as buildPathPopup. The surrounding card
- * container + close button are created by paths-browse-map.ts.
+ * container + close button are created by paths-browse-map.ts /
+ * BigMap.astro.
  *
- * Compact two-row layout: primary row is name + meta on a single line,
- * optional secondary row carries network + vibe. Clicking the name
- * navigates to the detail page — no separate "view details" link so
- * the card stays short enough to see the map behind.
+ * Two render modes, matching `buildPathPopup`:
+ *
+ * - **Mode B** — the resolved segment has a name distinct from the entry.
+ *   Renders a small parent-entry breadcrumb above a primary row whose
+ *   name is the segment name and whose meta is the segment's
+ *   `surface_mix`. The parent `path_type` moves to the secondary row.
+ *   Triggered when a click on a heterogeneous long trail lands on a
+ *   cyclist-meaningful sub-section — the whole point of pageless path
+ *   segments is to avoid showing the aggregate entry label as "the
+ *   thing you clicked on".
+ *
+ * - **Mode A** — no segment, or segment and entry names match (modulo
+ *   punctuation, via `normalizeNameForComparison`). Compact two-row
+ *   layout: primary row is entry name + entry meta, optional secondary
+ *   row is network + vibe. The existing behaviour.
+ *
+ * Clicking the primary name navigates to the entry detail page — no
+ * separate "view details" link so the card stays short enough to see
+ * the map behind.
  */
 export function buildPathCardContent(data: PathPopupData): string {
+  const seg = data.segment;
+  if (
+    seg !== undefined && seg.name && data.name &&
+    normalizeNameForComparison(seg.name) !== normalizeNameForComparison(data.name)
+  ) {
+    // Mode B: segment-first with parent breadcrumb.
+    const surfaceLine = formatSurfaceMix(seg.surface_mix);
+    const typeLabel = formatPathType(data.path_type);
+    const segmentFragment = seg.name ? `#segment-${slugifySegmentName(seg.name)}` : '';
+    const segUrl = data.url ? `${data.url}${segmentFragment}` : undefined;
+
+    const parentEl = data.url
+      ? html`<a class="map-path-card-parent-link" href="${data.url}">${data.name}</a>`
+      : html`<span class="map-path-card-parent-link">${data.name}</span>`;
+
+    const nameEl = segUrl
+      ? html`<a class="map-path-card-name" href="${raw(segUrl)}">${seg.name}</a>`
+      : html`<span class="map-path-card-name">${seg.name}</span>`;
+
+    const metaEl = surfaceLine
+      ? html`<span class="map-path-card-meta">${surfaceLine}</span>`
+      : '';
+
+    let body = `${parentEl}<div class="map-path-card-primary">${nameEl}${metaEl}</div>`;
+    if (typeLabel) {
+      body += html`<div class="map-path-card-secondary"><span>${typeLabel}</span></div>`;
+    }
+    return body;
+  }
+
+  // Mode A: entry-level rendering (unchanged).
   const meta: string[] = [];
   if (data.length_km) meta.push(`${data.length_km} km`);
   if (data.surface) meta.push(escapeHtml(data.surface));

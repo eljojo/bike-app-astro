@@ -86,6 +86,16 @@ export const finalizeResolvePhase: Phase<Inputs, Output> = async ({
         .filter(Boolean);
       delete entry._memberRefs;
     }
+    // Resolve Rule 7 MTB-split sibling marker into a schema-level `related`
+    // entry. Preserves any pre-existing `related:` values (from markdown or
+    // upstream phases) rather than clobbering.
+    if (entry._mtb_split_sibling) {
+      const siblingSlug = slugMap.get(entry._mtb_split_sibling);
+      if (siblingSlug) {
+        entry.related = Array.from(new Set([...(entry.related ?? []), siblingSlug]));
+      }
+      delete entry._mtb_split_sibling;
+    }
     entry.slug = slugMap.get(entry);
     ctx.trace(`entry:${entry.name}`, 'slugged', { slug: entry.slug });
   }

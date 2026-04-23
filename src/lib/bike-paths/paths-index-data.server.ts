@@ -34,16 +34,19 @@ const MEMBER_MIN_KM = 0.5;
  * destinations riders plan around. */
 const STANDALONE_FEATURED_MIN_KM = 3;
 
-/** Category keys that can absorb classified independent paths, in display
- * order. Trails has its own merge path (handled up-front). */
-const INDEPENDENT_INJECTION_ORDER: BrowseCategory[] = ['pathways', 'mtb', 'bikeways'];
+/** Category keys that receive injected classified independent paths in
+ * display order. local_trails + long_distance_trails are handled specially
+ * above (local_trails pushed directly, long_distance_trails merges LD
+ * member refs) and are NOT in this list. */
+const INDEPENDENT_INJECTION_ORDER: BrowseCategory[] = ['pathways', 'bikeways', 'mtb'];
 
 /** i18n label key per category — single source of truth. */
 const CATEGORY_LABEL_KEYS: Record<BrowseCategory, string> = {
   pathways: 'paths.cat_pathways',
-  mtb: 'paths.cat_mtb',
-  trails: 'paths.cat_trails',
   bikeways: 'paths.cat_bikeways',
+  local_trails: 'paths.cat_local_trails',
+  long_distance_trails: 'paths.cat_long_distance_trails',
+  mtb: 'paths.cat_mtb',
 };
 
 // ── Public types ─────────────────────────────────────────────────────
@@ -188,7 +191,7 @@ function classifyNetworkForIndex(
   pageBySlug: Map<string, BikePathPage>,
 ): BrowseCategory {
   const memberPathTypes = (net.memberRefs ?? []).map(m => pageBySlug.get(m.slug)?.path_type ?? '');
-  return classifyNetworkByMembers(net.entryType, net.network, memberPathTypes);
+  return classifyNetworkByMembers(net.entryType, net.network, memberPathTypes, net.cycle_network);
 }
 
 // ── Network info builder (pure: no hidden mutation) ──────────────────
@@ -269,17 +272,22 @@ export function assembleCategories(params: {
   const { categoryMap, independentByCategory, longDistanceMemberRefs, pageBySlug, locale, t } = params;
   const uncategorized = [...params.initialUncategorized];
 
-  // Trails standalones = independent trails + extracted LD members (deduped)
-  const trailsIndependents = independentByCategory.trails ?? [];
-  const trailsSlugs = new Set(trailsIndependents.map(p => p.slug));
+  // Local trails standalones = independent paths classified into local_trails
+  // (path_type=trail, or short long-distance entries below LONG_DISTANCE_MIN_KM).
+  const localTrailsIndependents = independentByCategory.local_trails ?? [];
+
+  // Long-distance standalones = independent long-distance paths + extracted
+  // LD members pulled out of long-distance networks (deduped, sorted by km).
+  const longDistanceIndependents = independentByCategory.long_distance_trails ?? [];
+  const longDistanceSlugs = new Set(longDistanceIndependents.map(p => p.slug));
   const extractedLdPages: BikePathPage[] = [];
   for (const m of longDistanceMemberRefs) {
-    if (trailsSlugs.has(m.slug)) continue;
-    trailsSlugs.add(m.slug);
+    if (longDistanceSlugs.has(m.slug)) continue;
+    longDistanceSlugs.add(m.slug);
     const page = pageBySlug.get(m.slug);
     if (page) extractedLdPages.push(page);
   }
-  const trailsStandalonePages = [...trailsIndependents, ...extractedLdPages]
+  const longDistanceStandalonePages = [...longDistanceIndependents, ...extractedLdPages]
     .sort((a, b) => (b.length_km ?? 0) - (a.length_km ?? 0));
 
   const toInfos = (pages: BikePathPage[]): StandalonePathInfo[] =>
@@ -301,9 +309,10 @@ export function assembleCategories(params: {
   };
 
   pushCategory('pathways');
-  pushCategory('mtb');
-  pushCategory('trails', trailsStandalonePages);
   pushCategory('bikeways');
+  pushCategory('local_trails', localTrailsIndependents);
+  pushCategory('long_distance_trails', longDistanceStandalonePages);
+  pushCategory('mtb');
 
   // Inject classified independents into their tabs. Pathways demotes
   // short/anonymous MUPs into the uncategorized bucket.
@@ -561,9 +570,10 @@ export function buildPathsIndexData(params: {
   // Classify networks by their members' dominant path_type and group.
   const categoryMap: Record<BrowseCategory, NetworkInfo[]> = {
     pathways: [],
-    mtb: [],
-    trails: [],
     bikeways: [],
+    local_trails: [],
+    long_distance_trails: [],
+    mtb: [],
   };
   for (const net of networkPages) {
     const cat = classifyNetworkForIndex(net, pageBySlug);

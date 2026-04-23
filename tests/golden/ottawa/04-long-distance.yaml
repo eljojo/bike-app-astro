@@ -1,0 +1,138 @@
+# Long-distance — the big multi-day trails that cross regions.
+#
+# These are Trails-tab entries that need Stage 2 decomposition. Each is
+# a network whose children are regional sub-paths with their own detail
+# pages. In Stage 1 they still exist as single monolithic entries; the
+# `stage_1_monolith_slug` field names the entry that currently holds
+# all the geometry.
+#
+# This file also contains the Stage 2 pending assertions (decomposed
+# sub-path slugs, segment re-parenting rules). Tests in `stage_2_pending`
+# are skipped in CI until the decomposition work ships.
+#
+# See README.md for the broader structure.
+# See the design doc at:
+#   ~/code/bike-app/docs/plans/2026-04-15-phase-2-pageless-segments-design.md
+
+tabs:
+  long_distance_trails:
+    label_key: paths.cat_long_distance_trails
+
+    networks:
+
+      - slug: trans-canada-trail-ontario
+        name: Trans Canada Trail (Ontario sections)
+        container_type: long_distance_trail
+        related: [sentier-trans-canada-quebec]  # mutual link
+        tier_1_paths:
+          - ottawa-river-pathway-trans-canada-trail
+          - ottawa-carleton-trailway           # west section, primary under TCT Ontario
+          - ottawa-carleton-trailway-east      # east section, moved from NCC Greenbelt per user
+          - prescott-russell-trail             # current slug is prescott-russell-trail-link
+          - algonquin-trail
+          - ottawa-valley-recreation-trail
+        tier_2_paths:
+          - trans-canada-trail-bells-cornerswatts-creek
+          - workman-avenue
+
+      # Sentier Trans-Canada Québec — Stage 1 treats it as a single
+      # monolithic path. Stage 2 decomposes it into regional sub-sections.
+      - slug: sentier-trans-canada-quebec
+        name: Sentier Trans-Canada (Québec)
+        container_type: long_distance_trail
+        related: [trans-canada-trail-ontario]
+        stage_1_monolith_slug: sentier-trans-canada-gatineau-montreal
+        tier_1_paths: []  # populated in Stage 2; see stage_2_pending below
+
+      - slug: route-verte-1
+        name: Route Verte 1
+        container_type: long_distance_trail
+        operator: Vélo Québec
+        related: []                         # TODO(review)
+        stage_1_monolith_slug: route-verte-1
+        tier_1_paths: []  # populated in Stage 2
+
+      # User decision 2026-04-16: kept as its own network, NOT nested under
+      # sentier-trans-canada-quebec even though OSM data shows 128 of TCT-QC's
+      # 700 ways are named "Le P'tit Train du Nord". Users recognize P'tit
+      # Train as an independent destination trail. Stage 2 decomposition
+      # treats it as a sibling network with cross-membership into TCT-QC,
+      # not a nested sub-path.
+      - slug: le-ptit-train-du-nord
+        name: Le P'tit Train du Nord
+        container_type: long_distance_trail
+        related: []                         # TODO(review) — relation to RV1?
+        stage_1_monolith_slug: le-ptit-train-du-nord
+        tier_1_paths: []  # populated in Stage 2
+
+    # Long-distance standalones that don't need network decomposition —
+    # they're single continuous routes (bikepacking lines, etc.).
+    standalone_paths:
+      - quebec-bikepacking-traverse-segment-i
+      - quebec-bikepacking-traverse-segment-ii
+      - cycloparc-ppj                        # TODO(review) — part of RV1 or standalone?
+
+# ============================================================================
+# STAGE 2 PENDING
+# ============================================================================
+#
+# Assertions that apply only after Stage 2 (network decomposition) ships.
+# Tests marked `stage: 2` are skipped in CI until the mega branch is
+# ready to merge. Before merging, all of these must un-skip and pass.
+
+stage_2_pending:
+
+  decomposed_networks:
+
+    - parent_slug: sentier-trans-canada-gatineau-montreal
+      becomes_network_slug: sentier-trans-canada-quebec
+      tier_1_sub_paths:
+        # TODO(review) — PLACEHOLDERS. Replace with real regional
+        # boundaries. Expected ~5-8 sub-paths after editorial decision.
+        - slug: sentier-trans-canada-parc-de-la-gatineau
+          name:
+            en: "Sentier Trans-Canada — Parc de la Gatineau section"
+            fr: "Sentier Trans-Canada — section Parc de la Gatineau"
+        - slug: sentier-trans-canada-wakefield
+          name:
+            en: "Sentier Trans-Canada — Wakefield section"
+            fr: "Sentier Trans-Canada — section Wakefield"
+        - slug: sentier-trans-canada-maniwaki
+          name:
+            en: "Sentier Trans-Canada — Maniwaki section"
+            fr: "Sentier Trans-Canada — section Maniwaki"
+        - slug: sentier-trans-canada-mont-laurier
+          name:
+            en: "Sentier Trans-Canada — Mont-Laurier section"
+            fr: "Sentier Trans-Canada — section Mont-Laurier"
+      sibling_networks_with_cross_membership:
+        # NOT a decomposed child — sibling network with shared geometry
+        # (128 of TCT-QC's 700 ways are named "Le P'tit Train du Nord").
+        # Per user decision 2026-04-16: keep as its own network.
+        - le-ptit-train-du-nord
+      related: [trans-canada-trail-ontario]
+
+    - parent_slug: route-verte-1
+      becomes_network_slug: route-verte-1
+      tier_1_sub_paths:
+        # TODO(review) — PLACEHOLDER. What sub-paths does RV1 decompose
+        # into within the Ottawa/Gatineau region?
+        - slug: route-verte-1-outaouais
+          name:
+            fr: "Route Verte 1 — Outaouais"
+
+    - parent_slug: le-ptit-train-du-nord
+      becomes_network_slug: le-ptit-train-du-nord
+      tier_1_sub_paths:
+        # TODO(review) — PLACEHOLDER. Regional identity likely means
+        # 4-6 named sub-sections by commune/station.
+        - slug: le-ptit-train-du-nord-saint-jerome-mont-tremblant
+          name:
+            fr: "P'tit Train du Nord — Saint-Jérôme à Mont-Tremblant"
+
+  segment_reparenting_expectations:
+
+    - parent_slug: sentier-trans-canada-gatineau-montreal
+      expected_after_decomposition:
+        each_sub_path_has_segments: true
+        total_segments_unchanged: true    # sum of sub-path segments = original count

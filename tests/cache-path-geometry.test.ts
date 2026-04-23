@@ -18,6 +18,7 @@ describe('overpassToGeoJSON', () => {
         {
           type: 'way',
           id: 12345,
+          tags: { name: 'Path #15', surface: 'gravel' },
           geometry: [
             { lat: 45.4, lon: -75.7 },
             { lat: 45.41, lon: -75.71 },
@@ -46,7 +47,12 @@ describe('overpassToGeoJSON', () => {
       [-75.7, 45.4],
       [-75.71, 45.41],
     ]);
-    expect(result.features[0].properties).toEqual({ wayId: 12345, sourceId: 99999, surface: '' });
+    expect(result.features[0].properties).toEqual({
+      wayId: 12345,
+      sourceId: 99999,
+      surface: 'gravel',
+      name: 'Path #15',
+    });
 
     // Second feature
     expect((result.features[1].geometry as GeoJSON.LineString).coordinates).toEqual([
@@ -54,7 +60,12 @@ describe('overpassToGeoJSON', () => {
       [-75.61, 45.51],
       [-75.62, 45.52],
     ]);
-    expect(result.features[1].properties).toEqual({ wayId: 67890, sourceId: 99999, surface: '' });
+    expect(result.features[1].properties).toEqual({
+      wayId: 67890,
+      sourceId: 99999,
+      surface: '',
+      name: '',
+    });
   });
 
   it('skips non-way elements and elements without geometry', () => {
@@ -77,7 +88,7 @@ describe('overpassToGeoJSON', () => {
     const result = overpassToGeoJSON(data, 100);
 
     expect(result.features).toHaveLength(1);
-    expect(result.features[0].properties).toEqual({ wayId: 4, sourceId: 100, surface: '' });
+    expect(result.features[0].properties).toEqual({ wayId: 4, sourceId: 100, surface: '', name: '' });
   });
 
   it('handles empty elements array', () => {
@@ -137,6 +148,7 @@ describe('overpassToGeoJSON', () => {
       wayId: 555,
       sourceId: 'ottawa-river-pathway',
       surface: '',
+      name: '',
     });
   });
 });

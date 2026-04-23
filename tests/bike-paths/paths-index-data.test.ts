@@ -122,8 +122,10 @@ describe('classifyIndependentPaths', () => {
 
     expect(byCategory.pathways?.map(p => p.slug)).toEqual(['mup']);
     expect(byCategory.mtb?.map(p => p.slug)).toEqual(['mtb']);
-    expect(byCategory.trails?.map(p => p.slug)).toEqual(['trail', 'ld']);
-    expect(uncategorized.map(p => p.slug)).toEqual(['other']);
+    expect(byCategory.local_trails?.map(p => p.slug)).toEqual(['trail']);
+    expect(byCategory.long_distance_trails?.map(p => p.slug)).toEqual(['ld']);
+    expect(byCategory.bikeways?.map(p => p.slug)).toEqual(['other']);
+    expect(uncategorized.map(p => p.slug)).toEqual([]);
   });
 });
 
@@ -169,18 +171,19 @@ describe('buildNetworkInfo', () => {
 describe('assembleCategories', () => {
   const emptyCategoryMap = {
     pathways: [],
-    mtb: [],
-    trails: [],
     bikeways: [],
+    local_trails: [],
+    long_distance_trails: [],
+    mtb: [],
   };
 
-  it('orders tabs: pathways → mtb → trails → bikeways', () => {
+  it('orders tabs: pathways → bikeways → local_trails → long_distance_trails → mtb', () => {
     const { categories } = assembleCategories({
       categoryMap: {
+        ...emptyCategoryMap,
         bikeways: [{ slug: 'b', name: 'B', url: '/bike-paths/b', tier1: [], tier2: [] }],
         pathways: [{ slug: 'p', name: 'P', url: '/bike-paths/p', tier1: [], tier2: [] }],
         mtb: [{ slug: 'm', name: 'M', url: '/bike-paths/m', tier1: [], tier2: [] }],
-        trails: [],
       },
       independentByCategory: {},
       initialUncategorized: [],
@@ -190,10 +193,10 @@ describe('assembleCategories', () => {
       t: tStub,
     });
 
-    expect(categories.map(c => c.key)).toEqual(['pathways', 'mtb', 'bikeways']);
+    expect(categories.map(c => c.key)).toEqual(['pathways', 'bikeways', 'mtb']);
   });
 
-  it('merges extracted long-distance members into the Trails tab', () => {
+  it('merges extracted long-distance members into the long_distance_trails tab', () => {
     const ldMemberPage = makePage({
       slug: 'sentier-x',
       name: 'Sentier X',
@@ -214,22 +217,22 @@ describe('assembleCategories', () => {
       t: tStub,
     });
 
-    expect(categories.map(c => c.key)).toEqual(['trails']);
+    expect(categories.map(c => c.key)).toEqual(['long_distance_trails']);
     expect(categories[0].standalonePaths.map(sp => sp.slug)).toEqual(['sentier-x']);
   });
 
-  it('does not duplicate a trail already present as an independent', () => {
+  it('does not duplicate a long-distance trail already present as an independent', () => {
     const trail = makePage({
       slug: 'prescott-russell',
       name: 'Prescott-Russell',
       length_km: 60,
-      path_type: 'trail',
+      entryType: 'long-distance',
     });
     const pageBySlug = new Map([[trail.slug, trail]]);
 
     const { categories } = assembleCategories({
       categoryMap: emptyCategoryMap,
-      independentByCategory: { trails: [trail] },
+      independentByCategory: { long_distance_trails: [trail] },
       initialUncategorized: [],
       longDistanceMemberRefs: [
         makeMemberRef({ slug: 'prescott-russell', name: 'Prescott-Russell', length_km: 60 }),
@@ -239,8 +242,8 @@ describe('assembleCategories', () => {
       t: tStub,
     });
 
-    const trailsTab = categories.find(c => c.key === 'trails')!;
-    expect(trailsTab.standalonePaths.map(sp => sp.slug)).toEqual(['prescott-russell']);
+    const tab = categories.find(c => c.key === 'long_distance_trails')!;
+    expect(tab.standalonePaths.map(sp => sp.slug)).toEqual(['prescott-russell']);
   });
 
   it('demotes short anonymous MUPs from Pathways into the uncategorized bucket', () => {

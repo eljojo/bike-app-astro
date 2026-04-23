@@ -10,6 +10,7 @@ import { createTileLoader, type TileLoader, type TileManifestEntry } from '../ti
 import { loadFeaturesForGeoIds } from '../geo-id-resolver';
 import { SOURCE_ID, ALL_LAYER_IDS, LINE_LAYERS, BG_LAYERS, addPathLayers } from './tile-path-styles';
 import { setupPathInteractions } from './tile-path-interactions';
+import type { Segment } from '../tile-types';
 import type { MapLayer, LayerContext } from './types';
 
 export interface TilePathLayerOptions {
@@ -31,10 +32,13 @@ export interface TilePathLayerOptions {
   slugInfo?: Record<string, { name: string; url: string; length_km?: number; surface?: string; path_type?: string; vibe?: string; network?: string; networkUrl?: string }>;
   /** Localized labels for popups. */
   labels?: { viewDetails?: string };
-  /** If provided, path feature clicks call this with the slug instead of
-   *  spawning a MapLibre popup. Used by paths-browse-map to route all
-   *  clicks (map + sidebar) through the same lock/card flow. */
-  onPathClick?: (slug: string) => void;
+  /** If provided, path feature clicks call this with the slug (and the
+   *  resolved `Segment` when applicable) instead of spawning a MapLibre
+   *  popup. Used by paths-browse-map and BigMap to route all clicks
+   *  through the same lock/card flow. The segment is present when the
+   *  clicked sub-line maps to a named sub-section different from the
+   *  entry — the card renders Mode B in that case. */
+  onPathClick?: (slug: string, segment?: Segment) => void;
 }
 
 export interface FitOptions { maxZoom?: number; padding?: number }

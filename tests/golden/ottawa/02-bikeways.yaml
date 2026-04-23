@@ -1,0 +1,48 @@
+# Bikeways — urban utility, on-street protected infrastructure.
+#
+# You're here because you need to get somewhere. Protected lanes,
+# buffered lanes, bike boulevards, street-adjacent separated paths.
+# "Going to work downtown" — the bikeway is how you get there safely.
+#
+# Tiny file. One real network (Ottawa) + one proposed (Gatineau) built
+# from paths currently misclassified as pathways.
+#
+# See README.md for the broader structure.
+
+tabs:
+  bikeways:
+    label_key: paths.cat_bikeways
+
+    networks:
+
+      - slug: ottawa-bikeways
+        name: Ottawa Bikeways
+        container_type: pathway_system
+        operator: City of Ottawa
+        tier_1_paths:
+          - eastwest-crosstown-bikeway
+          - oconnor-bikeway
+          - crosstown-bikeway-2
+          - confederation-pathway            # moved from gatineau-cycling-network per user — it's an Ottawa bikeway
+        tier_2_paths: []
+
+      # User decision 2026-04-16: this network DOES need to exist for users
+      # planning rides on the Gatineau side. Stage 1.5 implements Rule 8
+      # (geographic auto-clustering) — pipeline groups Gatineau-side bike-
+      # lane / separated-lane paths into this network automatically. The
+      # tier_1_paths below are the editorial minimum that must end up in
+      # the final network; pipeline auto-clustering may add more.
+      - slug: gatineau-bikeways
+        name: Gatineau Bikeways
+        container_type: pathway_system
+        operator: Ville de Gatineau
+        tier_1_paths:
+          - boulevard-de-la-gappe
+          - boulevard-de-la-cite-des-jeunes  # TODO(review)
+          - chemin-de-masson                 # TODO(review)
+          - parc-du-lac-beauchamp            # moved from filter_out per user — bikeway in Gatineau
+        tier_2_paths: []
+
+    standalone_paths:
+      - byron-richmond-path                  # moved from pathways standalones per user — utility character
+      - rue-lafrance                         # moved from filter_out per user — TODO(review) which network?

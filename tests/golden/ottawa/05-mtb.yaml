@@ -1,0 +1,249 @@
+# MTB — dirt, purpose-built, technical. Dedicated bike, dedicated day.
+#
+# The biggest file. 8 networks, each with a tier_1 (famous / named
+# trails) and tier_2 (numbered / shorter / less-known) split. Parc de la
+# Gatineau alone has ~58 trails that mostly collapse into tier_2.
+#
+# This is the only file where the "3-5 up to 8" cap really bites.
+#
+# See README.md for the broader structure.
+
+tabs:
+  mtb:
+    label_key: paths.cat_mtb
+
+    networks:
+
+      # The MTB side of Gatineau Park — dirt singletrack, technical,
+      # dedicated suspension bike territory. The non-MTB cycling (paved
+      # Parkway, gravel roads, non-technical trails) lives in the
+      # `parc-de-la-gatineau` network in 01-pathways.yaml — same physical
+      # park, different cycling experience entirely.
+      - slug: parc-de-la-gatineau-mtb
+        name: Gatineau Park MTB
+        # Display renamed 2026-04-16 from "Parc de la Gatineau (MTB trails)"
+        # to avoid visual collision with the pathway sibling network in
+        # 01-pathways.yaml (both started with "Parc de la Gatineau...").
+        container_type: park
+        operator: National Capital Commission
+        tier_1_paths:
+          - hermit
+          - whale
+          - salamander
+          - the-sweet-line
+          - 41-de-la-mine
+          - 45-powerline
+          - 76-jesses-girl
+          - 79-bresilienne
+        tier_2_paths:
+          # Named trails
+          - la-chica
+          - bypass                              # TODO(review) — still uncertain
+          - carman-lake-lookout-trail           # confirmed MTB per user
+          - chemin-cowden                       # confirmed MTB per user (surprising — chemin = road, but user knows)
+          - gay-beach-trail                     # confirmed MTB per user
+          # trail-to-fire-tower moved to segments below (no HTML page, too short)
+          # Numbered trails
+          - trail-1b
+          - trail-2
+          - trail-3
+          - trail-7
+          - piste-9
+          - trail-14
+          - trail-22b
+          - trail-24-1
+          - piste-25
+          - trail-26
+          - trail-33
+          - piste-35
+          - trail-40
+          - 43-boreale
+          - 44-mo
+          - trail-47
+          - trail-47-hope-trail
+          - trail-50
+          - sentier-trail-51
+          - trail-52
+          - trail-52-parc-de-la-gatineau-pathway
+          - 53b-bench
+          - trail-53
+          - trail-54
+          - trail-55
+          - trail-56b
+          - trail-57
+          - 58-konnektor
+          - 58-glazer
+          - 59-moonshine
+          - trail-65
+          - trail-66
+          - 68-missing-link
+          - trail-68
+          - trail-71
+          - 72b-irish-cream
+          - 72b-irish-whiskey
+          - trail-72
+          - trail-74
+          - 76-skyridge
+          - 77-happy-valley
+          - 79b
+          - trail-1-1                           # auto-generated slug; anchor at Gatineau Park lat; Rule 4 (park-naming) renames when implemented
+          # monkey-trail removed 2026-04-16 — no geometric data, unverified guess. See needs_review in 06-everything-else.yaml.
+
+        # Segments of this network — members that exist (appear on the
+        # map, listed in the overflow accordion) but don't warrant their
+        # own HTML detail page. Classifier rule: members listed here get
+        # `standalone: false`, which the existing rendering at
+        # BikePathDetail.astro:331-358 already shows as a muted non-link.
+        #
+        # Distinct from tier_2_paths (which have HTML pages, just collapsed).
+        # Same vocabulary as Phase 1's path-parent segments, different
+        # rendering path — path-parent segments render on the parent's
+        # detail page with #segment-slug anchors; network-parent segments
+        # render in the member list as standalone:false entries.
+        segments:
+          - trail-to-fire-tower              # too short for a page, per user
+
+      - slug: south-march-highlands
+        name: South March Highlands Conservation Forest
+        container_type: park
+        tier_1_paths:
+          - autobahn
+          - klondike
+          - coconut-tree
+          - beartree
+          - origins
+          - rockhopper
+          - pwt
+          - imba
+        tier_2_paths:
+          - bailout
+          - beluga
+          - brady
+          - cannonball-run
+          - dark-side
+          - deerdrop-baypass
+          - fastout
+          - forestbrook
+          - garter-belt
+          - impaler
+          - m-line
+          - north-dogsled
+          - outback
+          - porcupine
+          - railway-bypass
+          - ridgetop
+          - south-dogsled
+          - staycation
+          - waterfall
+          - waterfall-climb
+
+      - slug: la-boucle
+        name: La Boucle
+        container_type: park
+        # Current slug is `la-boucle-trails` — renamed via 06-everything-else.yaml.
+        tier_1_paths:
+          - la-boucle
+          - la-crete
+          - la-tour
+          - extreme
+          - castor
+          - major
+          - marais
+        tier_2_paths:
+          - dos-dane
+          - houleuse
+          - jl-speciale
+          - mm
+          - molo
+          - molo-2
+          - molo-3
+          - montee
+          - new-path
+          - rentre-a-maison
+          - rockys
+          - rue-de-la-tire
+          - silly
+
+      - slug: kizell-pond-north
+        name: Kizell Pond North
+        container_type: park
+        # Current slug is `kizell-pond-trail-north-trails` — renamed.
+        tier_1_paths:
+          - lumberjack
+          - marathon-nw
+          - northwest-passage
+        tier_2_paths: []
+
+      - slug: monk-environmental-park
+        name: Monk Environmental Park
+        container_type: park
+        tier_1_paths:
+          - shadows-ridge
+          - shirleys-brook
+          - trillium                        # TODO(review) — conflict with Trillium Pathway?
+          - trillium-woods-trail
+        tier_2_paths: []
+
+      - slug: st-james-woods
+        name: St. James Woods
+        container_type: park
+        # Current slug is `st-james-woods-trails` — renamed.
+        tier_1_paths:
+          - rotary-centennial-trail
+          - st-james-woods
+        tier_2_paths: []
+
+      - slug: the-beast-trail
+        name: The Beast Trail
+        container_type: park
+        # Current slug is `the-beast-trail-trails` — renamed.
+        tier_1_paths:
+          - the-beast-trail
+          - jinx-link
+          - oh-deer
+        tier_2_paths:
+          - forest-walk                     # TODO(review) — low-quality entry
+
+      # NCC Greenbelt MTB — doesn't exist today. To be created from
+      # trails currently misclassified into ncc-greenbelt (Pathways).
+      - slug: ncc-greenbelt-mtb
+        name: NCC Greenbelt (MTB trails)
+        container_type: park
+        operator: National Capital Commission
+        tier_1_paths: []                    # TODO(review) — which numbered trails are "famous"?
+        tier_2_paths:
+          - trail-1
+          - trail-8
+          - trail-10
+          - trail-11
+          - trail-12
+          - trail-12a
+          - trail-12b
+          - trail-20
+          - trail-21
+          - trail-23
+          - trail-24
+          - trail-25
+          - trail-26-1
+          - trail-27-1
+          - ncc29
+          - pine-grove-forestry-trail       # was trail-43-pine-grove-forestry-trail; merged with the bare-slug version per user
+          - trail-44
+          - trail-61
+          # Standalone MTB escapees that probably belong here:
+          - nature-and-tranquility          # TODO(review)
+          - watts-east                      # TODO(review)
+          - greenbelt-south                 # TODO(review)
+          # Cycling-legal "hiking trails" moved from filter_out 2026-04-16 — Overpass
+          # spot-check confirmed bicycle=yes / surface=ground or gravel. They're MTB.
+          - jack-pine-trail
+          - beaver-trail
+          - chipmunk-trail
+          - lime-kiln-trail
+          - moe-anderson-trail
+          - arboretum-loop                  # per user 2026-04-16: it's MTB, not hiking
+
+    standalone_paths:
+      - mississippi-valley-trail-bobs-run-loop-black  # collapsed from 1-member network
+      - carp-barrens-trail                 # TODO(review)
+      - mill-of-kintail-conservation-area  # TODO(review)

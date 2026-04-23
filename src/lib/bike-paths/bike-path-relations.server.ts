@@ -161,11 +161,6 @@ export function computeBikePathRelations(
       const coords = geoCoords[`name-${entry.slug}`];
       if (coords) points = points.concat(coords);
     }
-    // GeoJSON for segments
-    if (points.length === 0 && (entry as unknown as { segments?: unknown[] }).segments?.length) {
-      const coords = geoCoords[`seg-${entry.slug}`];
-      if (coords) points = points.concat(coords);
-    }
     // GeoJSON for parallel lanes
     if (points.length === 0 && entry.parallel_to) {
       const coords = geoCoords[`parallel-${entry.slug}`];
@@ -478,24 +473,20 @@ export function enrichBikePathPages(
     page.connectedPaths = connectedPaths;
 
     // Compute elevation_gain_m from all matched entries' geo files
-    // (relation-based, name-based, or segment-based)
+    // (relation-based, name-based, or parallel-based)
     let totalElevation = 0;
     for (const e of matchedEntries) {
       for (const relId of e.osm_relations ?? []) {
         const ele = geoElevation[String(relId)];
         if (ele) totalElevation += ele.gain_m;
       }
-      // Also check way-ID, name-based, segment-based, and parallel geo files
+      // Also check way-ID, name-based, and parallel geo files
       if (totalElevation === 0 && (e as unknown as { osm_way_ids?: unknown[] }).osm_way_ids?.length) {
         const ele = geoElevation[`ways-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
       if (totalElevation === 0 && e.osm_names?.length) {
         const ele = geoElevation[`name-${e.slug}`];
-        if (ele) totalElevation += ele.gain_m;
-      }
-      if (totalElevation === 0 && e.segments?.length) {
-        const ele = geoElevation[`seg-${e.slug}`];
         if (ele) totalElevation += ele.gain_m;
       }
       if (totalElevation === 0 && e.parallel_to) {

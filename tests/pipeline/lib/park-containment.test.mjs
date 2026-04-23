@@ -443,7 +443,12 @@ describe('pipeline park containment — real Ottawa data', () => {
   // La Boucle MTB network
   // -----------------------------------------------------------------------
 
-  it('La Boucle area MTB trails are all in one network', () => {
+  it('La Boucle area MTB trails exist (Rule 6 dropped the wrapper; they are standalones)', () => {
+    // Rule 6 (Stage 2) dropped the "La Boucle Trails" wrapper network
+    // because a same-named "La Boucle" path entry exists. The former
+    // wrapper members are now orphan standalones. This test used to
+    // assert "all in one network" — rewritten to the Stage-2 invariant:
+    // the trails still exist, just without the empty-wrapper parent.
     const trailNames = [
       'La Boucle', 'Extreme', "Rocky's", 'Molo', 'M&M', 'Major',
       'JL Speciale', 'Rentre a Maison', '417', 'La Tour', 'Castor',
@@ -455,15 +460,10 @@ describe('pipeline park containment — real Ottawa data', () => {
       .map(name => entries.find(e => e.name === name))
       .filter(Boolean);
 
-    // Should find most of them
-    expect(found.length).toBeGreaterThan(15);
-
-    // All trails with member_of should point to the SAME network
-    const networks = new Set(found.map(e => e.member_of).filter(Boolean));
-    expect(
-      networks.size,
-      `La Boucle trails split into ${networks.size} networks: ${[...networks].join(', ')}. Should be 1.`
-    ).toBe(1);
+    expect(found.length, 'most La Boucle-area trails should exist as entries').toBeGreaterThan(15);
+    // The wrapper "la-boucle-trails" must NOT exist (Rule 6 dropped it).
+    const wrapper = entries.find(e => e.slug === 'la-boucle-trails');
+    expect(wrapper, 'la-boucle-trails wrapper should be dropped by Rule 6').toBeUndefined();
   });
 
   // -----------------------------------------------------------------------

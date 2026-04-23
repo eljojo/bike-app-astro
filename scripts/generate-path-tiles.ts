@@ -19,7 +19,8 @@ import type {
   Position,
 } from 'geojson';
 
-import type { TileFeatureMeta, TileManifestEntry } from '../src/lib/maps/tile-types';
+import type { Segment, TileFeatureMeta, TileManifestEntry } from '../src/lib/maps/tile-types';
+import { groupWaysIntoSegments, type WayInput } from '../src/lib/bike-paths/segments';
 export type { TileManifestEntry, TileFeatureMeta };
 
 /** Metadata entry keyed by geoId, passed into buildTiles. */
@@ -156,11 +157,30 @@ function buildFeature(
 // ── Feature merging ─────────────────────────────────────────────
 
 /**
- * Merge all features for a single geoId into tile features.
+ * Merge all features for a single geoId into up to three tile features
+ * (one per surface_category), each with a `_segments` array that groups
+ * the underlying OSM ways by name.
  *
  * Splits ways by surface category (road/gravel/mtb) before merging.
  * Uses per-way surface tags when available, falling back to metadata surface.
  * Produces up to 3 features per path for mixed-surface paths.
+ *
+ * CRITICAL INVARIANT — contiguous sub-line ordering:
+ *
+ *   The MultiLineString geometry of each emitted feature MUST have all
+ *   sub-lines of `_segments[0]` before any sub-line of `_segments[1]`,
+ *   and so on. The `lineCount` on each segment is exactly the length of
+ *   its contiguous run. The click handler in
+ *   `src/lib/maps/layers/tile-path-interactions.ts::resolveSegmentFromClick`
+ *   walks this array with a running offset to map a sub-line index back
+ *   to the owning segment. If you change how lines are appended to
+ *   `categoryBuckets[cat].lines`, update both sides together — the
+ *   click-time lookup will silently resolve to the wrong segment if the
+ *   ordering drifts.
+ *
+ *   See `_ctx/bike-path-tiles.md` "Segment resolution" for the full
+ *   contract and `src/lib/bike-paths/segments.ts::groupWaysIntoSegments`
+ *   for the grouping rule itself.
  */
 function mergeFeatures(
   geoId: string,
@@ -168,23 +188,96 @@ function mergeFeatures(
   metadata?: Map<string, GeoMetaEntry>,
 ): Feature<LineString | MultiLineString>[] {
   const meta = metadata?.get(geoId);
-  const groups: Record<SurfaceCategory, Position[][]> = { road: [], gravel: [], mtb: [] };
 
+  // ── Phase 1: collect per-way inputs with name and surface ────────
+  // Local narrowing: mergeFeatures builds lines as `Position[][]`
+  // (mutable) and reads them back in Phase 3 to push into per-category
+  // buckets typed `Position[][]`. The generic `groupWaysIntoSegments<W>`
+  // preserves this narrower type through `LogicalSegment<W>.ways`, so
+  // no cast is needed at the Phase 3 read-back site.
+  type LocalWayInput = WayInput & { lines: Position[][] };
+  const wayInputs: LocalWayInput[] = [];
   for (const feature of fc.features) {
-    const waySurface = (feature.properties?.surface as string) || undefined;
-    const cat = classifySurface(waySurface ?? meta?.surface);
-    groups[cat].push(...collectLines(feature.geometry));
+    const truncatedLines = collectLines(feature.geometry);
+    if (truncatedLines.length === 0) continue;
+    const props = feature.properties ?? {};
+    const name = typeof props.name === 'string' && props.name.length > 0 ? props.name : undefined;
+    const surface = typeof props.surface === 'string' && props.surface.length > 0 ? props.surface : undefined;
+    wayInputs.push({
+      name,
+      surface,
+      lines: truncatedLines,
+    });
+  }
+  if (wayInputs.length === 0) return [];
+
+  // ── Phase 2: group into logical segments (pure function) ─────────
+  const logicalSegments = groupWaysIntoSegments(wayInputs);
+
+  // ── Phase 3: distribute each segment's ways across surface categories ──
+  // categoryBuckets[cat] accumulates lines in segment order so that
+  // _segments[i]'s lineCount partitions the resulting MultiLineString
+  // contiguously.
+  type CategoryBucket = { lines: Position[][]; segments: Segment[] };
+  const categoryBuckets: Record<SurfaceCategory, CategoryBucket> = {
+    road: { lines: [], segments: [] },
+    gravel: { lines: [], segments: [] },
+    mtb: { lines: [], segments: [] },
+  };
+
+  for (const ls of logicalSegments) {
+    // Split this logical segment's ways across the three surface categories.
+    const linesByCategory: Record<SurfaceCategory, Position[][]> = {
+      road: [],
+      gravel: [],
+      mtb: [],
+    };
+    for (const way of ls.ways) {
+      // Per-way surface tag wins; fall back to the entry-level metadata
+      // surface so ways with no explicit surface still land in the right
+      // category (preserves prior behaviour).
+      // Note: a way with no OSM `surface` tag is labelled "unknown" in the
+      // segment's surface_mix (segments.ts::groupWaysIntoSegments) but
+      // routes to the entry's declared surface for category bucketing —
+      // preserving prior rendering behaviour for untagged ways on
+      // long-distance trails.
+      const cat = classifySurface(way.surface ?? meta?.surface);
+      for (const waysLine of way.lines) {
+        linesByCategory[cat].push(waysLine);
+      }
+    }
+    // Append to each category bucket in segment order; every non-empty
+    // category gets a Segment record with the *segment-wide*
+    // surface_mix (identical across duplicates) and a per-feature
+    // lineCount (the number of sub-lines of this segment that
+    // ended up in this category).
+    for (const cat of ['road', 'gravel', 'mtb'] as const) {
+      const catLines = linesByCategory[cat];
+      if (catLines.length === 0) continue;
+      categoryBuckets[cat].lines.push(...catLines);
+      categoryBuckets[cat].segments.push({
+        name: ls.name,
+        surface_mix: ls.surface_mix,
+        lineCount: catLines.length,
+      });
+    }
   }
 
-  const activeCategories = (['road', 'gravel', 'mtb'] as const).filter(c => groups[c].length > 0);
+  // ── Phase 4: emit one feature per active surface category ───────
+  const activeCategories = (['road', 'gravel', 'mtb'] as const)
+    .filter(c => categoryBuckets[c].lines.length > 0);
   if (activeCategories.length === 0) return [];
   const needsSplit = activeCategories.length > 1;
 
   const results: Feature<LineString | MultiLineString>[] = [];
   for (const cat of activeCategories) {
+    const bucket = categoryBuckets[cat];
     const props = buildProps(geoId, meta, cat);
     if (needsSplit) props._fid = `${geoId}:${cat}`;
-    results.push(buildFeature(groups[cat], props));
+    // Attach segments as a feature property. `_segments` is intentionally
+    // allowed on TileFeatureMeta as optional.
+    props._segments = bucket.segments;
+    results.push(buildFeature(bucket.lines, props));
   }
   return results;
 }

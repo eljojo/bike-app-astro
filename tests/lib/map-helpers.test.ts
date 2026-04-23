@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { html, raw, buildPlacePopup, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
+import { html, raw, buildPlacePopup, buildPathPopup, buildPathCardContent, buildWaypointPopup, filterMapByCategory } from '../../src/lib/maps/map-helpers';
 import polylineCodec from '@mapbox/polyline';
 
 describe('html tagged template', () => {
@@ -172,6 +172,213 @@ describe('buildWaypointPopup', () => {
     expect(popup).toContain('Pottery village with good food');
     expect(popup).toContain('Plaza de Armas, Pomaire');
     expect(popup).toContain('Website');
+  });
+});
+
+describe('buildPathPopup with segment', () => {
+  const baseInput = {
+    name: 'Sentier Trans-Canada Gatineau – Montréal',
+    url: '/bike-paths/sentier-trans-canada-gatineau-montreal',
+    surface: 'asphalt',
+    path_type: 'mtb-trail',
+  };
+
+  it('Mode A: renders the entry as today when segment is undefined', () => {
+    const html = buildPathPopup({ ...baseInput, segment: undefined });
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).toContain('asphalt');
+    expect(html).not.toContain('Path #15');
+  });
+
+  it('Mode A: renders the entry as today when segment name matches entry name', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      name: 'Aviation Pathway',
+      segment: {
+        name: 'Aviation Pathway',
+        surface_mix: [{ value: 'asphalt', km: 3.2 }],
+        lineCount: 15,
+      },
+    });
+    expect(html).toContain('Aviation Pathway');
+    const occurrences = (html.match(/Aviation Pathway/g) ?? []).length;
+    expect(occurrences).toBeGreaterThanOrEqual(1);
+    expect(occurrences).toBeLessThanOrEqual(2);
+  });
+
+  it('Mode A: renders the entry as today when segment name is undefined', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      segment: {
+        name: undefined,
+        surface_mix: [{ value: 'asphalt', km: 0.4 }],
+        lineCount: 3,
+      },
+    });
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+  });
+
+  it('Mode A: renders the entry as today when segment name is an empty string', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      segment: {
+        name: '',
+        surface_mix: [{ value: 'asphalt', km: 0.4 }],
+        lineCount: 3,
+      },
+    });
+    // Should fall through to Mode A — no breadcrumb (the only
+    // Mode-B-specific class), no segment structure.
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).not.toContain('path-popup-parent-link');
+  });
+
+  it('Mode A: normalizes punctuation so near-duplicate names fall through', () => {
+    // Real-world OSM case: the relation is tagged
+    // "Sentier du Parc de la Gatineau" and its member ways are tagged
+    // "Sentier du Parc-de-la-Gatineau" (hyphens). The two refer to
+    // the same entity — Mode B should NOT fire just because the
+    // punctuation differs.
+    const html = buildPathPopup({
+      name: 'Sentier du Parc de la Gatineau',
+      url: '/bike-paths/sentier-du-parc-de-la-gatineau',
+      surface: 'asphalt',
+      path_type: 'mup',
+      segment: {
+        name: 'Sentier du Parc-de-la-Gatineau',
+        surface_mix: [{ value: 'asphalt', km: 3.2 }],
+        lineCount: 10,
+      },
+    });
+    expect(html).toContain('Sentier du Parc de la Gatineau');
+    expect(html).not.toContain('path-popup-parent-link');
+  });
+
+  it('Mode B: renders segment name and surface_mix when segment name differs from entry name', () => {
+    const html = buildPathPopup({
+      ...baseInput,
+      segment: {
+        name: 'Path #15',
+        surface_mix: [
+          { value: 'asphalt', km: 9.0 },
+          { value: 'gravel',  km: 0.1 },
+        ],
+        lineCount: 12,
+      },
+    });
+    expect(html).toContain('Path #15');
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).toContain('asphalt');
+    expect(html).toContain('gravel');
+    expect(html).toContain('mountain bike trail');
+    // Structural ordering: the parent breadcrumb appears ABOVE the
+    // segment name in Mode B. A bug that moved the breadcrumb below
+    // the segment would still pass the toContain checks above.
+    const breadcrumbIdx = html.indexOf('path-popup-parent-link');
+    const segmentNameIdx = html.indexOf('Path #15');
+    expect(breadcrumbIdx).toBeGreaterThanOrEqual(0);
+    expect(segmentNameIdx).toBeGreaterThan(breadcrumbIdx);
+    // View details uses the same inline link class as Mode A.
+    expect(html).toContain('path-popup-link');
+  });
+});
+
+describe('buildPathCardContent', () => {
+  const baseInput = {
+    name: 'Sentier Trans-Canada Gatineau – Montréal',
+    url: '/bike-paths/sentier-trans-canada-gatineau-montreal',
+    length_km: 46.2,
+    surface: 'asphalt',
+    path_type: 'mtb-trail',
+  };
+
+  it('Mode A: renders entry name + meta when no segment is provided', () => {
+    const html = buildPathCardContent({ ...baseInput });
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    expect(html).toContain('46.2 km');
+    expect(html).toContain('asphalt');
+    expect(html).toContain('map-path-card-primary');
+    expect(html).not.toContain('map-path-card-parent-link');
+  });
+
+  it('Mode A: normalizes hyphens so near-duplicate names fall through', () => {
+    const html = buildPathCardContent({
+      name: 'Sentier du Parc de la Gatineau',
+      url: '/bike-paths/sentier-du-parc-de-la-gatineau',
+      surface: 'asphalt',
+      path_type: 'mup',
+      segment: {
+        name: 'Sentier du Parc-de-la-Gatineau',
+        surface_mix: [{ value: 'asphalt', km: 3.2 }],
+        lineCount: 10,
+      },
+    });
+    // No breadcrumb class — the normalization collapsed the two names.
+    expect(html).not.toContain('map-path-card-parent-link');
+    expect(html).toContain('Sentier du Parc de la Gatineau');
+  });
+
+  it('Mode A: empty-string segment name falls through to entry rendering', () => {
+    const html = buildPathCardContent({
+      ...baseInput,
+      segment: {
+        name: '',
+        surface_mix: [{ value: 'asphalt', km: 0.4 }],
+        lineCount: 3,
+      },
+    });
+    expect(html).not.toContain('map-path-card-parent-link');
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+  });
+
+  it('Mode B: renders parent breadcrumb + segment name + surface_mix when segment differs', () => {
+    const html = buildPathCardContent({
+      ...baseInput,
+      segment: {
+        name: 'Trail #36',
+        surface_mix: [
+          { value: 'ground', km: 6.6 },
+          { value: 'gravel', km: 0.1 },
+        ],
+        lineCount: 12,
+      },
+    });
+    // Parent breadcrumb element is present with the entry name inside it.
+    expect(html).toContain('map-path-card-parent-link');
+    expect(html).toContain('Sentier Trans-Canada Gatineau');
+    // Segment name is present.
+    expect(html).toContain('Trail #36');
+    // Segment-level surface mix, not the entry-level `asphalt` aggregate.
+    expect(html).toContain('ground');
+    expect(html).toContain('gravel');
+    // Entry path_type is humanized in the secondary row.
+    expect(html).toContain('mountain bike trail');
+    // Structural ordering: breadcrumb appears before the segment name.
+    const breadcrumbIdx = html.indexOf('map-path-card-parent-link');
+    const segmentNameIdx = html.indexOf('Trail #36');
+    expect(breadcrumbIdx).toBeGreaterThanOrEqual(0);
+    expect(segmentNameIdx).toBeGreaterThan(breadcrumbIdx);
+    // Mode B deliberately omits the aggregate `length_km` and entry-level
+    // `surface` — the whole point is to avoid the aggregate-label error
+    // when the user clicked a specific sub-section.
+    expect(html).not.toContain('46.2 km');
+  });
+
+  it('Mode B: escapes segment and parent names', () => {
+    const html = buildPathCardContent({
+      name: 'Parent & "Trail"',
+      url: '/bike-paths/parent',
+      path_type: 'mup',
+      segment: {
+        name: '<script>alert(1)</script>',
+        surface_mix: [{ value: 'asphalt', km: 1.0 }],
+        lineCount: 2,
+      },
+    });
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('&amp;');
+    expect(html).toContain('&quot;');
   });
 });
 

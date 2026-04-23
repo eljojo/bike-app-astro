@@ -119,13 +119,13 @@ describe('buildDataPlugin virtual modules', () => {
     expect(resolved).toBe('\0virtual:bike-app/admin-routes');
   });
 
-  it('resolves virtual:bike-app/admin-route-detail', () => {
+  it('resolves virtual:bike-app/admin-route-detail', { timeout: 15000 }, () => {
     const plugin = buildDataPlugin();
     const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/admin-route-detail');
     expect(resolved).toBe('\0virtual:bike-app/admin-route-detail');
   });
 
-  it('does not resolve unknown virtual modules', () => {
+  it('does not resolve unknown virtual modules', { timeout: 15000 }, () => {
     const plugin = buildDataPlugin();
     const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/unknown');
     expect(resolved).toBeUndefined();

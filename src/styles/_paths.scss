@@ -73,6 +73,24 @@
   color: $color-link;
   text-decoration: none;
   &:hover { text-decoration: underline; }
+  @include dark-mode { color: $color-link-dark; }
+}
+
+// Mode B breadcrumb: parent entry shown as a small muted clickable
+// line above the segment name. The rest of Mode B reuses Mode A's
+// classes (.path-popup-name, .path-popup-meta, .path-popup-link) so
+// both modes share one visual language.
+.path-popup-parent-link {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: $color-text-muted;
+  text-decoration: none;
+  margin-bottom: 0.15rem;
+
+  &:hover { text-decoration: underline; }
+
+  @include dark-mode { color: $color-text-muted-dark; }
 }
 
 .paths-map-hero {
@@ -1164,6 +1182,15 @@
   @include muted-text;
   font-size: 0.8rem;
   margin-left: 0.25rem;
+}
+
+.segment-highlighted {
+  background: rgba($color-primary, 0.12);
+  transition: background 2s ease-out;
+
+  @include dark-mode {
+    background: rgba($color-link-dark, 0.15);
+  }
 }
 
 // Independent paths section

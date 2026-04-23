@@ -66,6 +66,46 @@ export function isSkiOnlyEntry(entry) {
 }
 
 /**
+ * Broader non-cycling detection for Stage 2 Rules 2 and 3.
+ *
+ * Rule 2 — OSM route tag authoritative on relations. A relation tagged
+ * `route=hiking` or `route=foot` is not a cycling route; the pipeline
+ * shouldn't emit it as a destination. Exception: explicit bicycle-legal
+ * tags on the ways/entry override the relation-level signal.
+ *
+ * Rule 3 — `bicycle` tag authoritative on `highway=path`/`footway`. If
+ * the entry has only `foot=yes` (no `bicycle`), or `bicycle=no`/`dismount`,
+ * it's not rideable. Treat as connector.
+ *
+ * Rule 2 also applies to `route=piste` via isSkiOnlyEntry (existing
+ * logic), so not duplicated here. Monkey Trail and similar piste routes
+ * stay classified per the existing ski-only rule.
+ */
+export function isNonCyclingEntry(entry) {
+  if (!entry) return false;
+  if (isSkiOnlyEntry(entry)) return true;
+
+  // Rule 2: hiking / foot route without cycling evidence
+  if (entry.route_type === 'hiking' || entry.route_type === 'foot') {
+    const hasCyclingEvidence =
+      entry.bicycle === 'designated' ||
+      entry.bicycle === 'yes' ||
+      entry.highway === 'cycleway';
+    if (!hasCyclingEvidence) return true;
+  }
+
+  // Rule 3: path/footway with foot-only or explicit bicycle-excluded
+  const hw = entry.highway;
+  if (hw === 'path' || hw === 'footway') {
+    if (entry.bicycle === 'no' || entry.bicycle === 'dismount') return true;
+    // foot=yes with no bicycle tag → pedestrian-only
+    if (entry.foot === 'yes' && !entry.bicycle) return true;
+  }
+
+  return false;
+}
+
+/**
  * Check if an entry qualifies as long-distance.
  * Usable before deriveEntryType runs (e.g. during network member resolution).
  *
@@ -102,8 +142,9 @@ export function isLongDistance(entry) {
 export function deriveEntryType(entry, thresholds = {}) {
   if (entry.type === 'network' || entry.type === 'long-distance') return undefined;
 
-  // Belt-and-suspenders: never give ski-only entries a page or map presence.
-  if (isSkiOnlyEntry(entry)) return 'connector';
+  // Belt-and-suspenders: never give ski-only or other non-cycling entries
+  // a page or map presence. Connector keeps them routable but invisible.
+  if (isNonCyclingEntry(entry)) return 'connector';
 
   const {
     destinationLengthM = 1000,

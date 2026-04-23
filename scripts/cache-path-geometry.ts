@@ -33,7 +33,7 @@ export function overpassToGeoJSON(data: any, id: number | string): GeoJSON.Featu
   const ways = data.elements.filter((e: any) => e.type === 'way' && e.geometry);
   const features = ways.map((way: any) => ({
     type: 'Feature' as const,
-    properties: { wayId: way.id, sourceId: id, surface: way.tags?.surface || '' },
+    properties: { wayId: way.id, sourceId: id, surface: way.tags?.surface || '', name: way.tags?.name || '' },
     geometry: {
       type: 'LineString' as const,
       coordinates: way.geometry.map((p: any) => [p.lon, p.lat]),
@@ -197,9 +197,7 @@ const cacheEntries: CacheEntry[] = allEntries.map(e => ({ ...e, anchors: e.ancho
 const relationEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => /^\d+\.geojson$/.test(f)));
 const wayIdEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => f.startsWith('ways-')));
 const nameEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => f.startsWith('name-')) && e.anchors && e.anchors.length >= 2);
-const segmentEntries = cacheEntries.filter(e => geoFilesForEntry(e).some(f => f.startsWith('seg-')));
-
-console.log(`[path-geo] ${relationEntries.length} relations + ${wayIdEntries.length} way-id + ${nameEntries.length} named + ${segmentEntries.length} segmented (${allEntries.length} total)`);
+console.log(`[path-geo] ${relationEntries.length} relations + ${wayIdEntries.length} way-id + ${nameEntries.length} named (${allEntries.length} total)`);
 
 if (!dryRun) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
@@ -271,23 +269,7 @@ for (const entry of nameEntries) {
   if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
 }
 
-// --- Pass 3: Segment-based entries (query individual ways by ID) ---
-for (const entry of segmentEntries) {
-  const file = geoFilesForEntry(entry)[0];
-  if (fixturedFiles.has(file)) continue;
-  const outPath = path.join(CACHE_DIR, file);
-
-  if (dryRun) {
-    console.log(`  Would fetch segments: ${entry.segments!.length} ways (${entry.name})`);
-    continue;
-  }
-
-  const wayIds = entry.segments!.map(s => s.osm_way);
-  const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
-  if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
-}
-
-// --- Pass 4: Parallel-to entries — unnamed cycleways alongside named roads ---
+// --- Pass 3: Parallel-to entries — unnamed cycleways alongside named roads ---
 const parallelEntries = cacheEntries.filter(
   e => geoFilesForEntry(e).some(f => f.startsWith('parallel-')),
 );

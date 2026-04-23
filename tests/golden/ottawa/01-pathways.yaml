@@ -1,0 +1,101 @@
+# Pathways — off-street, recreation-first, family-friendly.
+#
+# You're here because the path itself is the thing. Paved MUPs, crushed
+# stone trails, shared with walkers. "Going for a bike ride" — the
+# pathway is the destination.
+#
+# 3 networks + standalones. Small file, mostly clean.
+#
+# See README.md for the broader structure.
+
+tabs:
+  pathways:
+    label_key: paths.cat_pathways
+
+    networks:
+
+      - slug: capital-pathway
+        name: Capital Pathway
+        container_type: pathway_system
+        operator: National Capital Commission
+        tier_1_paths:
+          - aviation-pathway
+          - experimental-farm-pathway
+          - rideau-canal-eastern-pathway
+          - rideau-canal-western-pathway
+          - rideau-river-eastern-pathway
+          - ottawa-river-pathway-east
+          - ottawa-river-pathway-west
+          - trillium-pathway
+        tier_2_paths:
+          - pinecrest-creek-pathway
+          - trans-canada-trail-sussex-drive  # short TCT connector
+
+      - slug: ncc-greenbelt
+        name: NCC Greenbelt Pathway
+        container_type: pathway_system
+        operator: National Capital Commission
+        tier_1_paths:
+          - greenbelt-pathway-east
+          - greenbelt-pathway-west
+          - greenbelt-pathway-west-barrhaven
+          - watts-creek-pathway
+          - greenbelt-trail
+        tier_2_paths: []
+        # NOTE: this network is heavily polluted today with MTB trails
+        # and hiking paths. See 06-everything-else.yaml for what has to
+        # move or disappear for this golden state to hold.
+
+      - slug: gatineau-cycling-network
+        name: Gatineau Cycling Network
+        container_type: pathway_system
+        operator: Ville de Gatineau
+        tier_1_paths:
+          - sentier-du-ruisseau-de-la-brasserie-pathway
+          - sentier-de-lile
+          - sentier-du-lac-leamy-pathway
+          - sentier-du-lac-leamy-skiing-trail   # moved out of filter_out per user — great path
+          - sentier-du-corridor-champlain
+          - sentier-du-ruisseau-leamy
+          - sentier-du-lac-des-fees
+          - sentier-de-la-riviere-gatineau
+          - sentier-des-voyageurs-pathway
+        tier_2_paths: []
+
+      # The non-MTB side of Gatineau Park: the paved Parkway (Sunday
+      # car-free ride destination), gravel service roads, non-technical
+      # trails. Same physical park as the MTB network in 05-mtb.yaml,
+      # different cycling experience entirely. This is where "road and
+      # gravel bike in Gatineau" lives.
+      #
+      # Slug `parc-de-la-gatineau` is clean here; the MTB network in
+      # 05-mtb.yaml has been renamed to `parc-de-la-gatineau-mtb` to
+      # disambiguate.
+      - slug: parc-de-la-gatineau
+        name: Parc de la Gatineau
+        container_type: park
+        operator: National Capital Commission
+        tier_1_paths:
+          - sentier-du-parc-de-la-gatineau  # the paved Parkway
+          # TODO(review) — what other paved/gravel entries should live
+          # here? Candidates currently sitting in 05-mtb.yaml's tier_2
+          # that are likely road/gravel rather than singletrack:
+          #   - chemin-cowden            (chemin = road, probably gravel)
+          #   - trail-to-fire-tower      (likely gravel fire road)
+          #   - carman-lake-lookout-trail (possibly gravel)
+          #   - bypass                   (uncertain)
+          #   - gay-beach-trail          (beach access, could be gravel)
+          # Move them here if they're road/gravel; keep them in
+          # 05-mtb.yaml if they're actual singletrack.
+        tier_2_paths: []
+
+    standalone_paths:
+      - sawmill-creek-pathway
+      - hospital-link-multi-use-pathway
+      - greenboro-pathway
+      - corridor-du-ruisseau-des-fees
+      - trans-orleans-pathway
+      - cardinal-creek-trail
+      - stonebridge-trail-beryl-gaffney-park
+      - rideau-river-eastern-pathway-city-section  # TODO(review) — merge with rideau-river-eastern-pathway?
+      - sentier-du-vallon                  # TODO(review) — pathway or Gatineau bikeway?
