@@ -25,6 +25,25 @@ jobs:
             app:
               - '!docs/**'
 
+  # Always-on guard: fail the PR if package.json / package-lock.json / flake.nix
+  # disagree on @playwright/test version. Without this, npm's caret ranges and
+  # Dependabot silent-roll can drift past the flake's pinned browsers and break
+  # local E2E ("Executable doesn't exist at .../chromium_headless_shell-<rev>/").
+  check-playwright-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Enforce playwright version alignment
+        run: node scripts/check-playwright-sync.mjs
+
+  # Dependabot-only convenience: when Dependabot bumps @playwright/test, auto-
+  # commit a matching flake.nix bump to the PR. The resulting rerun passes the
+  # always-on check above. Human PRs have to fix drift manually.
   sync-playwright-flake:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
@@ -68,7 +87,7 @@ jobs:
           git push
 
   test:
-    needs: changes
+    needs: [changes, check-playwright-sync]
     if: needs.changes.outputs.app == 'true'
     uses: ./.github/workflows/_test.yml
     with:

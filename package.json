@@ -83,7 +83,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@phosphor-icons/core": "^2.1.1",
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "1.59.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/mapbox__polyline": "^1.0.5",
