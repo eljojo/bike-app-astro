@@ -90,7 +90,7 @@ export default function AdminListSidebar({
     const res = await fetch('/api/admin/calendar-suggestions/dismiss', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: s.uid, organizer_slug: s.organizer_slug, snapshot: { name: s.name, start: s.start } }),
+      body: JSON.stringify({ uid: s.uid }),
     });
     if (!res.ok) {
       console.error('Dismiss failed', res.status);

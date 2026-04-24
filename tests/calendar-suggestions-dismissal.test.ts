@@ -5,7 +5,7 @@ import {
   dismissSuggestion,
   listDismissedUids,
   undismissSuggestion,
-} from '../src/lib/calendar-suggestions/cache.server';
+} from '../src/lib/calendar-suggestions/dismissals.server';
 
 describe('calendar suggestion dismissals', () => {
   let h: ReturnType<typeof createTestDb>;
@@ -18,43 +18,22 @@ describe('calendar suggestion dismissals', () => {
   });
 
   test('dismiss then list round-trips per city', async () => {
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-a');
-    await dismissSuggestion(db, 'ottawa', 'uid-2@x', 'qbc', 'user-a');
-    await dismissSuggestion(db, 'brevet', 'uid-3@x', 'obmc', 'user-a');
+    await dismissSuggestion(db, 'ottawa', 'uid-1@x');
+    await dismissSuggestion(db, 'ottawa', 'uid-2@x');
+    await dismissSuggestion(db, 'brevet', 'uid-3@x');
     expect(await listDismissedUids(db, 'ottawa')).toEqual(new Set(['uid-1@x', 'uid-2@x']));
     expect(await listDismissedUids(db, 'brevet')).toEqual(new Set(['uid-3@x']));
   });
 
   test('re-dismissing the same UID is idempotent', async () => {
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-a');
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-a');
+    await dismissSuggestion(db, 'ottawa', 'uid-1@x');
+    await dismissSuggestion(db, 'ottawa', 'uid-1@x');
     expect((await listDismissedUids(db, 'ottawa')).size).toBe(1);
   });
 
-  test('re-dismissing by a different admin preserves the original dismisser and snapshot', async () => {
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-a', { name: 'Ride A', start: '2026-05-10' });
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-b');  // no snapshot this time
-    const { calendarSuggestionDismissals } = await import('../src/db/schema');
-    const { eq, and } = await import('drizzle-orm');
-    const rows = await db.select().from(calendarSuggestionDismissals)
-      .where(and(eq(calendarSuggestionDismissals.city, 'ottawa'), eq(calendarSuggestionDismissals.uid, 'uid-1@x')));
-    expect(rows).toHaveLength(1);
-    expect(rows[0].dismissedBy).toBe('user-a');
-    expect(rows[0].eventSnapshotJson).toBe(JSON.stringify({ name: 'Ride A', start: '2026-05-10' }));
-  });
-
   test('undismiss removes the entry', async () => {
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-a');
+    await dismissSuggestion(db, 'ottawa', 'uid-1@x');
     await undismissSuggestion(db, 'ottawa', 'uid-1@x');
     expect(await listDismissedUids(db, 'ottawa')).toEqual(new Set());
-  });
-
-  test('event snapshot is stored when provided', async () => {
-    await dismissSuggestion(db, 'ottawa', 'uid-1@x', 'qbc', 'user-a', { name: 'Ride A', start: '2026-05-10' });
-    const { calendarSuggestionDismissals } = await import('../src/db/schema');
-    const { eq, and } = await import('drizzle-orm');
-    const rows = await db.select().from(calendarSuggestionDismissals)
-      .where(and(eq(calendarSuggestionDismissals.city, 'ottawa'), eq(calendarSuggestionDismissals.uid, 'uid-1@x')));
-    expect(rows[0].eventSnapshotJson).toBe(JSON.stringify({ name: 'Ride A', start: '2026-05-10' }));
   });
 });

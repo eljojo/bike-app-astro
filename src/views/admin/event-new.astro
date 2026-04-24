@@ -67,20 +67,25 @@ let icsCopyData: Record<string, unknown> | undefined;
 let icsMissing = false;
 
 if (fromFeed && icsUid && !copyFromId) {
-  const { db } = await import('../../lib/get-db');
-  const { readCachedFeed, writeCachedFeed } = await import('../../lib/calendar-suggestions/cache.server');
+  const { calendarFeedCache } = await import('../../lib/env/env.service');
   const { fetchIcsFeed } = await import('../../lib/external/ics-feed.server');
   const { buildCopyDataFromVevent } = await import('../../lib/calendar-suggestions/prefill');
 
+  const FEED_TTL_SECONDS = 60 * 60;
   const org = adminOrganizers.find(o => o.slug === fromFeed);
   if (!org?.ics_url) {
     icsMissing = true;
   } else {
     try {
-      let feed = await readCachedFeed(db(), fromFeed, org.ics_url);
+      let feed = await calendarFeedCache.get(fromFeed, org.ics_url);
       if (!feed) {
         feed = await fetchIcsFeed(org.ics_url);
-        await writeCachedFeed(db(), fromFeed, org.ics_url, feed);
+        try {
+          await calendarFeedCache.put(fromFeed, org.ics_url, feed, FEED_TTL_SECONDS);
+        } catch (err) {
+          // Cache write is best-effort — don't lose the parsed feed over a KV hiccup.
+          console.warn(`calendar feed cache write failed for ${fromFeed}:`, err);
+        }
       }
       const vevent = feed.events.find(e => e.uid === icsUid);
       if (!vevent) {

@@ -4,14 +4,12 @@ import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
-import { dismissSuggestion } from '../../lib/calendar-suggestions/cache.server';
+import { dismissSuggestion } from '../../lib/calendar-suggestions/dismissals.server';
 
 export const prerender = false;
 
 const bodySchema = z.object({
   uid: z.string().min(1),
-  organizer_slug: z.string().min(1),
-  snapshot: z.object({ name: z.string(), start: z.string() }).optional(),
 });
 
 export async function POST({ locals, request }: APIContext) {
@@ -26,10 +24,11 @@ export async function POST({ locals, request }: APIContext) {
   }
 
   try {
-    await dismissSuggestion(db(), CITY, body.uid, body.organizer_slug, user.id, body.snapshot);
+    await dismissSuggestion(db(), CITY, body.uid);
     return jsonResponse({ ok: true });
   } catch (err: unknown) {
     console.error('calendar suggestion dismiss error:', err);
     return jsonError('Failed to dismiss', 500);
   }
 }
+

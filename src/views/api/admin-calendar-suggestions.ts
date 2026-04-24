@@ -3,6 +3,7 @@ import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { db } from '../../lib/get-db';
 import { CITY } from '../../lib/config/config';
+import { calendarFeedCache } from '../../lib/env/env.service';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import adminEventsVirtual from 'virtual:bike-app/admin-events';
 import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
@@ -25,6 +26,7 @@ export async function GET({ locals }: APIContext) {
       city: CITY,
       organizers: adminOrganizers,
       repoEvents,
+      feedCache: calendarFeedCache,
     });
     return jsonResponse({ suggestions, meta: {} });
   } catch (err: unknown) {

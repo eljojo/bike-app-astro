@@ -1,15 +1,13 @@
-import {
-  listDismissedUids,
-  readCachedFeed,
-  writeCachedFeed,
-} from './cache.server';
+import { listDismissedUids } from './dismissals.server';
 import { fetchIcsFeed } from '../external/ics-feed.server';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
+import type { CalendarFeedCache } from '../calendar-feed-cache/feed-cache.service';
 
 const HORIZON_DAYS = 180;
 const MAX_ITEMS = 10;
+const FEED_TTL_SECONDS = 60 * 60;  // 1 hour
 
 export interface Suggestion {
   uid: string;
@@ -27,16 +25,18 @@ export interface BuildArgs {
   city: string;
   organizers: Array<Pick<AdminOrganizer, 'slug' | 'name' | 'ics_url'>>;
   repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer'>>;
+  feedCache: CalendarFeedCache;
   fetcher?: (url: string) => Promise<ParsedFeed>;
-  /** Cache writer — injectable so tests can simulate D1 write failures without mocking the module. */
-  writer?: (slug: string, sourceUrl: string, feed: ParsedFeed) => Promise<void>;
   now?: Date;
 }
 
 /**
  * Pure core. Builds the suggestion list from organizer feeds, hiding anything
  * already in the repo (UID match; for one-offs, also organizer+date match) or
- * previously dismissed. Caches feed data in D1 with a 1h TTL.
+ * previously dismissed.
+ *
+ * Feed data is read/written via the injected `feedCache` (KV in prod, filesystem
+ * in local dev). Dismissals are read from D1 via `listDismissedUids`.
  *
  * Planned: extend to surface UID-matched repo events whose fields differ from
  * the upstream VEVENT ("updated suggestions"). See
@@ -44,9 +44,8 @@ export interface BuildArgs {
  * Future work.
  */
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
-  const { db, city, organizers, repoEvents } = args;
+  const { db, city, organizers, repoEvents, feedCache } = args;
   const fetcher = args.fetcher ?? fetchIcsFeed;
-  const writer = args.writer ?? ((slug, sourceUrl, feed) => writeCachedFeed(db, slug, sourceUrl, feed));
   const now = args.now ?? new Date();
 
   const withFeed = organizers.filter(o => o.ics_url);
@@ -63,13 +62,13 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   const dismissedUids = await listDismissedUids(db, city);
 
   const feeds = await Promise.allSettled(withFeed.map(async o => {
-    const cached = await readCachedFeed(db, o.slug, o.ics_url!);
+    const cached = await feedCache.get(o.slug, o.ics_url!);
     if (cached) return { slug: o.slug, name: o.name, feed: cached };
     const feed = await fetcher(o.ics_url!);
-    // Cache write is best-effort — a D1 hiccup must not throw away a successful parse.
+    // Cache write is best-effort — a KV hiccup must not throw away a successful parse.
     // The feed is still returned; the next pageload will try the cache write again.
     try {
-      await writer(o.slug, o.ics_url!, feed);
+      await feedCache.put(o.slug, o.ics_url!, feed, FEED_TTL_SECONDS);
     } catch (err) {
       console.warn(`calendar feed cache write failed for ${o.slug}:`, err);
     }
