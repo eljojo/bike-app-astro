@@ -209,13 +209,15 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
           </button>
         </div>
 
-        <div class="form-field">
-          <label for="community-ics-url">ICS calendar URL</label>
-          <input id="community-ics-url" type="text"
-            placeholder="https://..."
-            {...bindText(icsUrl, setIcsUrl)} />
-          <p class="field-hint-block">Public ICS/iCal feed URL for this community's calendar.</p>
-        </div>
+        {userRole === 'admin' && (
+          <div class="form-field">
+            <label for="community-ics-url">ICS calendar URL</label>
+            <input id="community-ics-url" type="text"
+              placeholder="https://..."
+              {...bindText(icsUrl, setIcsUrl)} />
+            <p class="field-hint-block">Public ICS/iCal feed URL for this community's calendar. Admin-only: the value is used to generate event suggestions for admins.</p>
+          </div>
+        )}
 
         {tags.includes('bike-shop') && locations && (
           <div class="form-field">
