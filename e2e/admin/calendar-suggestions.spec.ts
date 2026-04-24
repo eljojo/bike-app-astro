@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import Database from 'better-sqlite3';
+import fs from 'node:fs';
+import path from 'node:path';
 import { DB_PATH } from './fixture-setup.ts';
 import {
   seedSession,
@@ -13,6 +15,19 @@ const ICS_URL = 'https://example.test/e2e-calendar.ics';
 
 const ONEOFF_UID = 'e2e-oneoff@example.com';
 const SERIES_UID = 'e2e-series@example.com';
+
+// Local filesystem adapter for the calendar feed cache writes to `.data/calendar-feed-cache/`
+// (matching src/lib/env/env.adapter-local.ts's LOCAL_CALENDAR_FEED_CACHE_DIR). The E2E test
+// seeds the adapter directly by creating the same on-disk files the adapter would.
+const FEED_CACHE_DIR = path.resolve(path.dirname(DB_PATH), 'calendar-feed-cache');
+
+function feedDataPath(slug: string): string {
+  // Mirrors sanitization in feed-cache.adapter-local.ts.
+  return path.join(FEED_CACHE_DIR, `${slug.replace(/[^a-zA-Z0-9._\-]/g, '_')}.json`);
+}
+function feedMetaPath(slug: string): string {
+  return feedDataPath(slug) + '.meta';
+}
 
 function openDb(): InstanceType<typeof Database> {
   const db = new Database(DB_PATH);
@@ -34,50 +49,51 @@ function futureDate(offsetDays: number): string {
 }
 
 function seedFeedCache() {
-  const db = openDb();
-  try {
-    // Use dates within the 180-day suggestions horizon (relative to today).
-    // The series end is kept far enough out that it doesn't expire during a run.
-    const eventsJson = JSON.stringify({
-      fetched_at: new Date().toISOString(),
-      source_url: ICS_URL,
-      events: [
-        {
-          uid: ONEOFF_UID,
-          summary: 'E2E One-off Ride',
-          start: futureIso(30),
-          end: futureIso(30),
-          location: 'Test Park',
+  // Feed cache now lives in the filesystem adapter (production uses KV). Seed by writing
+  // the same `<slug>.json` + `<slug>.json.meta` files the local adapter reads.
+  fs.mkdirSync(FEED_CACHE_DIR, { recursive: true });
+  const feed = {
+    fetched_at: new Date().toISOString(),
+    source_url: ICS_URL,
+    events: [
+      {
+        uid: ONEOFF_UID,
+        summary: 'E2E One-off Ride',
+        start: futureIso(30),
+        end: futureIso(30),
+        location: 'Test Park',
+      },
+      {
+        uid: SERIES_UID,
+        summary: 'E2E Weekly Ride',
+        start: futureIso(7),
+        series: {
+          kind: 'recurrence',
+          recurrence: 'weekly',
+          recurrence_day: 'monday',
+          season_start: futureDate(7),
+          season_end: futureDate(150),
         },
-        {
-          uid: SERIES_UID,
-          summary: 'E2E Weekly Ride',
-          start: futureIso(7),
-          series: {
-            kind: 'recurrence',
-            recurrence: 'weekly',
-            recurrence_day: 'monday',
-            season_start: futureDate(7),
-            season_end: futureDate(150),
-          },
-        },
-      ],
-    });
-    db.prepare(`
-      INSERT OR REPLACE INTO calendar_feed_cache
-      (organizer_slug, source_url, events_json, updated_at)
-      VALUES (?, ?, ?, ?)
-    `).run(ORG_SLUG, ICS_URL, eventsJson, new Date().toISOString());
-  } finally {
-    db.close();
-  }
+      },
+    ],
+  };
+  fs.writeFileSync(feedDataPath(ORG_SLUG), JSON.stringify({ source_url: ICS_URL, feed }));
+  fs.writeFileSync(feedMetaPath(ORG_SLUG), JSON.stringify({ expires_at: Date.now() + 3600_000 }));
 }
 
 function clearFeedCache() {
+  // Remove the filesystem feed-cache entry for our test organizer.
+  try { fs.unlinkSync(feedDataPath(ORG_SLUG)); } catch { /* ignore — fresh run */ }
+  try { fs.unlinkSync(feedMetaPath(ORG_SLUG)); } catch { /* ignore */ }
+
+  // Clear dismissals for this test's UIDs. The table is now `(city, uid)` with a
+  // composite PK — no more `organizer_slug` column. Delete by UID across all cities
+  // since our test UIDs are unique to this spec.
   const db = openDb();
   try {
-    db.prepare('DELETE FROM calendar_feed_cache WHERE organizer_slug = ?').run(ORG_SLUG);
-    db.prepare('DELETE FROM calendar_suggestion_dismissals WHERE organizer_slug = ?').run(ORG_SLUG);
+    const stmt = db.prepare('DELETE FROM calendar_suggestion_dismissals WHERE uid = ?');
+    stmt.run(ONEOFF_UID);
+    stmt.run(SERIES_UID);
   } finally {
     db.close();
   }
