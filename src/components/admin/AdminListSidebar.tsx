@@ -1,18 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
 import { useHydrated } from '../../lib/hooks';
-
-// Duplicated shape from src/lib/calendar-suggestions/build.server.ts to avoid
-// pulling server-only runtime deps into the browser bundle via import type.
-interface Suggestion {
-  uid: string;
-  kind: 'one-off' | 'series';
-  organizer_slug: string;
-  organizer_name: string;
-  name: string;
-  start: string;
-  location?: string;
-  series_label?: string;
-}
+import type { Suggestion } from '../../lib/calendar-suggestions/types';
 
 function formatShortDate(iso: string): string {
   const d = new Date(iso);

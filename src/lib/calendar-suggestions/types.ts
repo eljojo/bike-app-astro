@@ -5,6 +5,22 @@ export interface ParsedFeed {
   events: ParsedVEvent[];
 }
 
+/**
+ * A surfaced suggestion ready for the admin sidebar — the post-filter shape
+ * built by `buildSuggestions`. Lives here (not in build.server.ts) so the
+ * browser sidebar can `import type` it without crossing the .server boundary.
+ */
+export interface Suggestion {
+  uid: string;
+  kind: 'one-off' | 'series';
+  organizer_slug: string;
+  organizer_name: string;
+  name: string;
+  start: string;
+  location?: string;
+  series_label?: string;
+}
+
 export interface ParsedVEvent {
   uid: string;
   summary: string;

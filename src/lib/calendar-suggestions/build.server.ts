@@ -1,6 +1,6 @@
 import { listDismissedUids } from './dismissals.server';
 import { fetchIcsFeed } from '../external/ics-feed.server';
-import type { ParsedFeed, ParsedSeries, ParsedVEvent } from './types';
+import type { ParsedFeed, ParsedSeries, ParsedVEvent, Suggestion } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
 import type { CalendarFeedCache } from '../calendar-feed-cache/feed-cache.service';
@@ -9,16 +9,7 @@ const HORIZON_DAYS = 180;
 const MAX_ITEMS = 10;
 const FEED_TTL_SECONDS = 60 * 60;  // 1 hour
 
-export interface Suggestion {
-  uid: string;
-  kind: 'one-off' | 'series';
-  organizer_slug: string;
-  organizer_name: string;
-  name: string;
-  start: string;
-  location?: string;
-  series_label?: string;
-}
+export type { Suggestion };
 
 export interface BuildArgs {
   db: Database;
