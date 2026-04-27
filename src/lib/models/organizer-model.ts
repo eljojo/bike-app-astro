@@ -50,15 +50,28 @@ export function isCommunity(org: OrganizerEntry): boolean {
  * - A tagline
  * - Media attached
  * - The featured flag set to true
+ *
+ * Bike shops have inherent utility (they're a place to fix or buy a bike)
+ * so they additionally qualify on minimal contact info — a photo or any
+ * social_link is enough.
  */
 export function hasDetailPage(org: OrganizerEntry): boolean {
   if (org.data.hidden) return false;
-  return !!(
+  if (
     org.body?.trim() ||
     org.data.tagline ||
     (org.data.media && org.data.media.length > 0) ||
     org.data.featured
-  );
+  ) {
+    return true;
+  }
+  if (isBikeShop(org)) {
+    return !!(
+      org.data.photo_key ||
+      (org.data.social_links && org.data.social_links.length > 0)
+    );
+  }
+  return false;
 }
 
 /**
