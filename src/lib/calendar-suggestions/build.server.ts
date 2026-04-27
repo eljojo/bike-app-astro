@@ -1,5 +1,4 @@
 import { listDismissedUids } from './dismissals.server';
-import { fetchIcsFeed } from '../external/ics-feed.server';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, Suggestion } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
@@ -17,7 +16,12 @@ export interface BuildArgs {
   organizers: Array<Pick<AdminOrganizer, 'slug' | 'name' | 'ics_url'>>;
   repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer'>>;
   feedCache: CalendarFeedCache;
-  fetcher?: (url: string) => Promise<ParsedFeed>;
+  /**
+   * Required. Caller binds `siteTz` (and any other context the parser needs)
+   * into a closure so build.server.ts stays decoupled from city config and
+   * from `fetchIcsFeed`'s evolving signature.
+   */
+  fetcher: (url: string) => Promise<ParsedFeed>;
   now?: Date;
 }
 
@@ -35,8 +39,7 @@ export interface BuildArgs {
  * Future work.
  */
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
-  const { db, city, organizers, repoEvents, feedCache } = args;
-  const fetcher = args.fetcher ?? fetchIcsFeed;
+  const { db, city, organizers, repoEvents, feedCache, fetcher } = args;
   const now = args.now ?? new Date();
 
   const withFeed = organizers.filter(o => o.ics_url);

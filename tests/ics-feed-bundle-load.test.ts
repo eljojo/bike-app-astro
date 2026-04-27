@@ -49,7 +49,7 @@ describe.skipIf(!distExists)('built ics-feed chunk loads on a Node-like runtime'
     // If the bundle wrapper drops static methods we throw at module init,
     // before this line; if it returns successfully, the wrapper survived.
     const text = readFileSync(path.join(projectRoot, 'tests/fixtures/ics/series-weekly-until.ics'), 'utf-8');
-    const feed = mod.parseIcs(text, 'https://example.test/');
+    const feed = mod.parseIcs(text, 'https://example.test/', 'America/Toronto');
     expect(feed.events.length).toBeGreaterThan(0);
     expect(feed.events[0].uid).toBe('test-weekly@example.com');
   });

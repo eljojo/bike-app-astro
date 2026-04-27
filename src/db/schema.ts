@@ -226,7 +226,7 @@ export const statsCache = sqliteTable('stats_cache', {
 // current feature doesn't surface any of it. Add columns when a feature demands them.
 //
 // The feed cache (parsed upstream ICS) lives in KV under the TILE_CACHE binding, with
-// `calfeed:feed:v2:` key prefix — see src/lib/calendar-feed-cache/.
+// `calfeed:feed:v3:` key prefix — see src/lib/calendar-feed-cache/.
 export const calendarSuggestionDismissals = sqliteTable('calendar_suggestion_dismissals', {
   city: text('city').notNull(),
   uid:  text('uid').notNull(),

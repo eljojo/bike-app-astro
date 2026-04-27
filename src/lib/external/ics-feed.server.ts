@@ -33,22 +33,27 @@ function ext(v: VEvent): VEventExtensions {
 }
 
 /**
- * Parse an ICS document.
+ * Parse an ICS document and project every timed datetime into `siteTz`'s local
+ * clock time, emitting naive `YYYY-MM-DDTHH:MM:SS` strings (no offset, no Z).
  *
- * `fallbackTz` is the IANA TZ to render timed events in when the source VEVENT
- * has no TZID (bare `DTSTART:…Z` literals or floating times). Without a fallback
- * those events serialize as UTC ISO strings, which the admin sees as a 4-5h
- * skew when the calendar is for a city outside UTC. Pass `cityConfig.timezone`
- * for the city-local feeds the admin-suggestions feature consumes.
+ * The downstream pipeline stores naive site-local clock times in YAML
+ * (`start_time: "18:15"`) — that's the storage spec, not an oversight. The
+ * parser's job is to deliver data in the shape the storage expects. `siteTz`
+ * is the destination we project *into*; it isn't a "fallback when the feed
+ * is silent." Whether the source had `TZID=America/Toronto`, a bare `Z`
+ * literal, or a TZID for a different city, we always project to the same
+ * site-local clock — so an Ottawa instance importing a Vancouver feed sees
+ * those events at the equivalent Toronto-clock time. This is consistent with
+ * how the rest of the platform treats event times.
  */
-export function parseIcs(text: string, sourceUrl: string, fallbackTz?: string): ParsedFeed {
+export function parseIcs(text: string, sourceUrl: string, siteTz: string): ParsedFeed {
   const parsed = ical.parseICS(text);
   const events: ParsedVEvent[] = [];
   for (const key of Object.keys(parsed)) {
     const v = parsed[key];
     if (!v || v.type !== 'VEVENT') continue;
     const ve = v as VEvent;
-    const event = ext(ve).rrule ? mapSeries(ve, fallbackTz) : mapOneOff(ve, fallbackTz);
+    const event = ext(ve).rrule ? mapSeries(ve, siteTz) : mapOneOff(ve, siteTz);
     if (event) events.push(event);
   }
   return {
@@ -58,7 +63,21 @@ export function parseIcs(text: string, sourceUrl: string, fallbackTz?: string): 
   };
 }
 
-function mapSeries(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
+function mapOneOff(v: VEvent, siteTz: string): ParsedVEvent | null {
+  if (!v.uid || !v.summary || !v.start) return null;
+  const isAllDay = ext(v).datetype === 'date';
+  return {
+    uid: String(v.uid),
+    summary: String(v.summary),
+    start: renderDateTime(v.start, isAllDay, siteTz),
+    end: v.end ? renderDateTime(v.end, isAllDay, siteTz) : undefined,
+    location: v.location ? String(v.location) : undefined,
+    description: v.description ? String(v.description) : undefined,
+    url: v.url ? String(v.url) : undefined,
+  };
+}
+
+function mapSeries(v: VEvent, siteTz: string): ParsedVEvent | null {
   const xv = ext(v);
   if (!v.uid || !v.summary || !v.start || !xv.rrule) return null;
   const opts = xv.rrule.options ?? {};
@@ -66,23 +85,21 @@ function mapSeries(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
   const interval = opts.interval ?? 1;
   const byweekday = opts.byweekday ?? [];
 
-  const base = mapOneOff(v, fallbackTz);
+  const base = mapOneOff(v, siteTz);
   if (!base) return null;
-
-  const tz = getTz(v.start) ?? fallbackTz;
 
   const isCleanWeekly =
     freq === 'WEEKLY' &&
     (interval === 1 || interval === 2) &&
     byweekday.length === 1;
 
-  if (!isCleanWeekly) return { ...base, series: buildScheduleFallback(v, tz) };
+  if (!isCleanWeekly) return { ...base, series: buildScheduleFallback(v, siteTz) };
 
   const recurrence_day = DAY_FROM_RRULE[byweekday[0]];
   const recurrence = interval === 2 ? 'biweekly' : 'weekly';
 
-  const season_start = formatDateOnly(v.start as Date, tz);
-  const season_end = computeSeasonEnd(opts, v.start as Date, interval, tz);
+  const season_start = formatDateOnly(v.start as Date, siteTz);
+  const season_end = computeSeasonEnd(opts, v.start as Date, interval, siteTz);
 
   // Deduplicate exdate values: the object has both date-only and full ISO keys pointing to
   // the same Date objects, so we collect unique ISO strings first.
@@ -94,11 +111,7 @@ function mapSeries(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
     const iso = d.toISOString();
     if (!seenIso.has(iso)) {
       seenIso.add(iso);
-      // EXDATE inherits DTSTART's TZID per RFC 5545, but if node-ical attached a
-      // different `tz` to this Date (e.g. UTC for an EXDATE:Z literal with no TZID
-      // even when DTSTART had one), prefer DTSTART's so the calendar date matches
-      // what the recurrence rule produced.
-      exdates.push(formatDateOnly(d, tz ?? getTz(d)));
+      exdates.push(formatDateOnly(d, siteTz));
     }
   }
   exdates.sort();
@@ -114,12 +127,9 @@ function mapSeries(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
     const iso = start.toISOString();
     if (seenOverrideIso.has(iso)) continue;
     seenOverrideIso.add(iso);
-    // The override's own TZID wins (a rescheduled occurrence may move zones);
-    // fall back to DTSTART's tz so we don't accidentally render in UTC.
-    const overrideTz = getTz(start) ?? tz;
     overrides.push({
-      date: formatDateOnly(start, overrideTz),
-      start_time: formatTime(start, overrideTz),
+      date: formatDateOnly(start, siteTz),
+      start_time: formatTime(start, siteTz),
       location: recur.location ? String(recur.location) : undefined,
       cancelled: String(recur.status ?? '').toUpperCase() === 'CANCELLED',
     });
@@ -139,51 +149,28 @@ function mapSeries(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
   };
 }
 
-function computeSeasonEnd(opts: RRuleOptions, dtstart: Date, interval: number, tz?: string): string {
+function computeSeasonEnd(opts: RRuleOptions, dtstart: Date, interval: number, siteTz: string): string {
   if (opts.until) {
-    // UNTIL in RFC 5545 is a UTC instant (must end with Z). Project it into DTSTART's
-    // TZ so the user-facing season_end is the local calendar date of the last allowed
-    // occurrence, not the UTC date (which can drift by one near midnight).
+    // UNTIL in RFC 5545 is a UTC instant. Project into siteTz so the user-facing
+    // season_end is the local calendar date of the last allowed occurrence, not
+    // the UTC date (which can drift by one near midnight).
     const u = opts.until instanceof Date ? opts.until : new Date(opts.until);
-    return formatDateOnly(u, tz);
+    return formatDateOnly(u, siteTz);
   }
   if (opts.count) {
     const last = new Date(dtstart.getTime());
     last.setUTCDate(last.getUTCDate() + (opts.count - 1) * interval * 7);
-    return formatDateOnly(last, tz);
+    return formatDateOnly(last, siteTz);
   }
   // Unbounded — cap at DTSTART + 1 year.
   const cap = new Date(dtstart.getTime());
   cap.setUTCFullYear(cap.getUTCFullYear() + 1);
-  return formatDateOnly(cap, tz);
-}
-
-/** Format `YYYY-MM-DD` for d in the given TZ if known, else UTC. */
-function formatDateOnly(d: Date, tz?: string): string {
-  if (tz) {
-    const p = getLocalParts(d, tz);
-    return `${p.year}-${p.month}-${p.day}`;
-  }
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-}
-
-/** Format `HH:MM` for d in the given TZ if known, else UTC. */
-function formatTime(d: Date, tz?: string): string {
-  if (tz) {
-    const p = getLocalParts(d, tz);
-    return `${p.hour}:${p.minute}`;
-  }
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const mm = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  return formatDateOnly(cap, siteTz);
 }
 
 const SCHEDULE_HORIZON_DAYS = 365;
 
-function buildScheduleFallback(v: VEvent, tz?: string): ParsedSeries {
+function buildScheduleFallback(v: VEvent, siteTz: string): ParsedSeries {
   const rule = ext(v).rrule;
   if (!rule || !v.start) return { kind: 'schedule', schedule: [] };
   const from = v.start as Date;
@@ -193,54 +180,26 @@ function buildScheduleFallback(v: VEvent, tz?: string): ParsedSeries {
     ? rule.between(from, to, true)
     : [];
   const schedule = occurrences.map(d => ({
-    date: formatDateOnly(d, tz),
-    start_time: formatTime(d, tz),
+    date: formatDateOnly(d, siteTz),
+    start_time: formatTime(d, siteTz),
     location: v.location ? String(v.location) : undefined,
   }));
   return { kind: 'schedule', schedule };
 }
 
-function mapOneOff(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
-  if (!v.uid || !v.summary || !v.start) return null;
-  const isAllDay = ext(v).datetype === 'date';
-  const tz = getTz(v.start) ?? fallbackTz;
-  return {
-    uid: String(v.uid),
-    summary: String(v.summary),
-    start: renderDateTime(v.start, isAllDay, tz),
-    end: v.end ? renderDateTime(v.end, isAllDay, getTz(v.end) ?? tz) : undefined,
-    location: v.location ? String(v.location) : undefined,
-    description: v.description ? String(v.description) : undefined,
-    url: v.url ? String(v.url) : undefined,
-  };
-}
-
-/** node-ical attaches a `tz` IANA name to Date objects parsed from a TZID property. */
-function getTz(d: Date | string | undefined): string | undefined {
-  if (!(d instanceof Date)) return undefined;
-  const tz = (d as Date & { tz?: string }).tz;
-  if (!tz) return undefined;
-  // 'Etc/Unknown' is node-ical's sentinel when VTIMEZONE can't be resolved.
-  // 'UTC' / 'Etc/UTC' come from `Z`-literal DTSTART values — for these the source
-  // had no human-meaningful zone, so preserve the existing `…Z` ISO form.
-  if (tz === 'Etc/Unknown' || tz === 'UTC' || tz === 'Etc/UTC') return undefined;
-  return tz;
-}
-
 /**
- * Render a VEvent start/end as a string downstream code can compare lexicographically.
+ * Render a VEvent start/end as a string downstream code slices into naive
+ * `YYYY-MM-DD` and `HH:MM` parts.
  *
  * - All-day events → `YYYY-MM-DD` via local-time getters. node-ical constructs
- *   VALUE=DATE events as `new Date(year, monthIndex, day)` which is local-midnight,
- *   so UTC getters would shift the calendar day east of UTC (Tokyo: `2026-06-12` → `2026-06-11`).
- * - Timed events with a TZID → `YYYY-MM-DDTHH:MM:SS±HH:MM` in the original TZ. This makes
- *   `slice(0,10)` and `slice(11,16)` produce the local clock date/time the user authored
- *   (so prefill into a YAML frontmatter editor doesn't reinterpret UTC as local), while
- *   the offset preserves the unambiguous UTC instant for `new Date(...)` consumers.
- * - Timed events without a TZID (DTSTART:…Z literal, or floating time) → UTC ISO string
- *   as before — there's no source-of-truth zone to honour.
+ *   VALUE=DATE Dates as `new Date(year, monthIndex, day)` (server-local-midnight),
+ *   so local getters round-trip the authored calendar date. Workers runs in UTC,
+ *   so this matches the source date directly.
+ * - Timed events → `YYYY-MM-DDTHH:MM:SS` projected into siteTz, no offset, no Z.
+ *   The downstream YAML stores naive site-local clock times; we hand it that
+ *   shape directly.
  */
-function renderDateTime(d: Date | string, isAllDay: boolean, tz?: string): string {
+function renderDateTime(d: Date | string, isAllDay: boolean, siteTz: string): string {
   if (!(d instanceof Date)) d = new Date(d);
   if (isAllDay) {
     const y = d.getFullYear();
@@ -248,8 +207,18 @@ function renderDateTime(d: Date | string, isAllDay: boolean, tz?: string): strin
     const dd = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${dd}`;
   }
-  if (!tz) return d.toISOString();
-  return formatLocalIsoWithOffset(d, tz);
+  const p = getLocalParts(d, siteTz);
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
+}
+
+function formatDateOnly(d: Date, siteTz: string): string {
+  const p = getLocalParts(d, siteTz);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+function formatTime(d: Date, siteTz: string): string {
+  const p = getLocalParts(d, siteTz);
+  return `${p.hour}:${p.minute}`;
 }
 
 interface LocalParts {
@@ -279,30 +248,11 @@ function getLocalParts(d: Date, tz: string): LocalParts {
   };
 }
 
-/**
- * Project a UTC instant into `tz`'s local clock time, returning an ISO string with
- * explicit offset (e.g. `2026-04-29T18:15:00-04:00`). The offset is derived by
- * comparing local-clock-as-UTC against the original instant.
- */
-function formatLocalIsoWithOffset(d: Date, tz: string): string {
-  const p = getLocalParts(d, tz);
-  const local = `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
-  const offsetMin = Math.round((Date.UTC(
-    Number(p.year), Number(p.month) - 1, Number(p.day),
-    Number(p.hour), Number(p.minute), Number(p.second),
-  ) - d.getTime()) / 60000);
-  const sign = offsetMin >= 0 ? '+' : '-';
-  const abs = Math.abs(offsetMin);
-  const offH = String(Math.floor(abs / 60)).padStart(2, '0');
-  const offM = String(abs % 60).padStart(2, '0');
-  return `${local}${sign}${offH}:${offM}`;
-}
-
 const FETCH_TIMEOUT_MS = 5_000;
 
-export async function fetchIcsFeed(url: string, fallbackTz?: string): Promise<ParsedFeed> {
+export async function fetchIcsFeed(url: string, siteTz: string): Promise<ParsedFeed> {
   const resp = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!resp.ok) throw new Error(`ICS fetch failed: ${resp.status} ${resp.statusText} (${url})`);
   const text = await resp.text();
-  return parseIcs(text, url, fallbackTz);
+  return parseIcs(text, url, siteTz);
 }
