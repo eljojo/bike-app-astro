@@ -7,8 +7,9 @@ export interface ParsedFeed {
 
 /**
  * A surfaced suggestion ready for the admin sidebar — the post-filter shape
- * built by `buildSuggestions`. Lives here (not in build.server.ts) so the
- * browser sidebar can `import type` it without crossing the .server boundary.
+ * built by `buildSuggestions`. Server-internal: the calendar endpoint maps it
+ * onto the generic `SuggestionItem` shape (defined in
+ * src/components/admin/Suggestions.tsx) before returning JSON.
  */
 export interface Suggestion {
   uid: string;

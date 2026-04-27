@@ -1,11 +1,6 @@
+import type { ComponentChildren } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { useHydrated } from '../../lib/hooks';
-import type { Suggestion } from '../../lib/calendar-suggestions/types';
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 interface OverlookedItem {
   slug: string;
@@ -38,20 +33,24 @@ interface Props {
     overlooked: string;
     stillVisiting?: string;
     popularTags?: string;
-    suggestions?: string;
   };
   /** Past event slugs — used to filter "still visiting" API data (events only).
    *  Passed as string[] because Astro serializes Preact props via JSON (Set is lost). */
   pastEventSlugs?: string[];
+  /**
+   * Page-supplied content rendered above the stats sections — typically a
+   * <Suggestions client:idle ... /> or any future widget. The sidebar treats
+   * this as opaque markup and does not introspect it.
+   */
+  children?: ComponentChildren;
 }
 
 export default function AdminListSidebar({
-  contentType, incomplete, nameMap, editPrefix, labels, pastEventSlugs,
+  contentType, incomplete, nameMap, editPrefix, labels, pastEventSlugs, children,
 }: Props) {
   const rootRef = useHydrated<HTMLElement>();
   const [stats, setStats] = useState<SidebarStatsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,30 +60,6 @@ export default function AdminListSidebar({
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [contentType]);
-
-  useEffect(() => {
-    if (contentType !== 'events') return;
-    let cancelled = false;
-    fetch('/api/admin/calendar-suggestions')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { suggestions: Suggestion[] } | null) => { if (!cancelled) setSuggestions(data?.suggestions ?? []); })
-      .catch((err) => { console.error('Failed to load suggestions', err); });
-    return () => { cancelled = true; };
-  }, [contentType]);
-
-  async function dismiss(s: Suggestion) {
-    const prev = suggestions;
-    setSuggestions((suggestions ?? []).filter(x => x.uid !== s.uid));
-    const res = await fetch('/api/admin/calendar-suggestions/dismiss', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: s.uid }),
-    });
-    if (!res.ok) {
-      console.error('Dismiss failed', res.status);
-      setSuggestions(prev);
-    }
-  }
 
   const resolveName = (slug: string) => nameMap[slug] || slug;
   const editUrl = (slug: string) => `${editPrefix}/${slug}`;
@@ -102,27 +77,9 @@ export default function AdminListSidebar({
 
   return (
     <aside class="admin-sidebar" ref={rootRef}>
-      {loading && <p class="admin-sidebar-loading">Loading stats...</p>}
+      {children}
 
-      {suggestions && suggestions.length > 0 && labels.suggestions && (
-        <div class="admin-sidebar-section">
-          <h4 class="admin-sidebar-heading">{labels.suggestions}</h4>
-          <div class="admin-sidebar-list">
-            {suggestions.map(s => (
-              <div class="admin-sidebar-item suggestion-item" key={s.uid}>
-                <a href={`/admin/events/new?from_feed=${encodeURIComponent(s.organizer_slug)}&uid=${encodeURIComponent(s.uid)}${s.kind === 'series' ? '&full=1' : ''}`}>
-                  <span class="suggestion-name">{s.name}</span>
-                  <span class="suggestion-meta">
-                    {s.kind === 'series' ? s.series_label : formatShortDate(s.start)}
-                    {' · '}{s.organizer_name}
-                  </span>
-                </a>
-                <button type="button" class="suggestion-dismiss" aria-label="Dismiss suggestion" onClick={() => dismiss(s)}>×</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {loading && <p class="admin-sidebar-loading">Loading stats...</p>}
 
       {stats?.mostViewed && stats.mostViewed.length > 0 && (
         <div class="admin-sidebar-section">

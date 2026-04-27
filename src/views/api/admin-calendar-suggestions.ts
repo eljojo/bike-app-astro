@@ -10,6 +10,8 @@ import adminEventsVirtual from 'virtual:bike-app/admin-events';
 import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
 import { buildSuggestions } from '../../lib/calendar-suggestions/build.server';
 import { fetchIcsFeed } from '../../lib/external/ics-feed.server';
+import type { Suggestion } from '../../lib/calendar-suggestions/types';
+import type { SuggestionItem } from '../../components/admin/Suggestions';
 
 export const prerender = false;
 
@@ -23,22 +25,57 @@ export async function GET({ locals }: APIContext) {
     // the overlay, ics_uid writes are invisible until redeploy and the matching suggestion
     // keeps reappearing in the sidebar.
     const { events: repoEvents } = await loadAdminEventList(adminEventsVirtual);
-    // City TZ is the fallback for VEVENTs without TZID (Google Calendar emits
-    // bare DTSTART:…Z literals for some events even when the calendar itself is
-    // local). Without this, those events serialize as UTC and admins see a
-    // 4–5h skew on prefill.
-    const cityTz = getCityConfig().timezone;
+    const cityConfig = getCityConfig();
     const suggestions = await buildSuggestions({
       db: db(),
       city: CITY,
       organizers: adminOrganizers,
       repoEvents,
       feedCache: calendarFeedCache,
-      fetcher: (url) => fetchIcsFeed(url, cityTz),
+      // City TZ is the fallback for VEVENTs without TZID (Google Calendar emits
+      // bare DTSTART:…Z literals for some events even when the calendar itself is
+      // local) AND the projection target for filter comparisons.
+      fetcher: (url) => fetchIcsFeed(url, cityConfig.timezone),
+      siteTz: cityConfig.timezone,
     });
-    return jsonResponse({ suggestions, meta: {} });
+    // Map server-internal Suggestion → the generic SuggestionItem shape that
+    // the <Suggestions> component renders. All formatting (dates, hrefs,
+    // dismiss payload) lives here, next to the data.
+    const items = suggestions.map(s => toSuggestionItem(s, cityConfig.timezone, cityConfig.locale));
+    return jsonResponse({ suggestions: items, meta: {} });
   } catch (err: unknown) {
     console.error('calendar suggestions error:', err);
     return jsonError('Failed to build suggestions', 500);
   }
+}
+
+function toSuggestionItem(s: Suggestion, siteTz: string, locale: string): SuggestionItem {
+  const meta = s.kind === 'series'
+    ? (s.series_label ?? 'Series')
+    : `${formatShortDate(s.start, siteTz, locale)} · ${s.organizer_name}`;
+  const fullParam = s.kind === 'series' ? '&full=1' : '';
+  return {
+    id:    `${s.organizer_slug}:${s.uid}`,
+    title: s.name,
+    // For one-offs we already include the organizer in `meta`; keeping it out
+    // of `title` matches the spacing the design calls for.
+    meta:  s.kind === 'series' ? `${meta} · ${s.organizer_name}` : meta,
+    href:  `/admin/events/new?from_feed=${encodeURIComponent(s.organizer_slug)}&uid=${encodeURIComponent(s.uid)}${fullParam}`,
+    dismissPayload: { organizer_slug: s.organizer_slug, uid: s.uid },
+  };
+}
+
+function formatShortDate(naiveSiteLocal: string, siteTz: string, locale: string): string {
+  // `naiveSiteLocal` is like '2026-04-27T18:00:00' — already projected into
+  // siteTz by the parser. Treat its date prefix as the abstract calendar date
+  // and format with Intl using the city's tz; this avoids any browser-locale
+  // parsing and renders the same string regardless of where the admin is.
+  const [year, month, day] = naiveSiteLocal.slice(0, 10).split('-').map(Number);
+  // Construct the UTC instant whose siteTz projection equals (year, month, day).
+  // For "month name + day of month" formatting, anchoring at noon UTC is safe —
+  // it can't slip across a calendar boundary in any IANA tz.
+  const anchor = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0));
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: siteTz, month: 'short', day: 'numeric',
+  }).format(anchor);
 }

@@ -4,6 +4,7 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import AdminHeader from '../../components/AdminHeader.astro';
 import AdminListSidebar from '../../components/admin/AdminListSidebar.tsx';
+import Suggestions from '../../components/admin/Suggestions.tsx';
 import { env } from '../../lib/env/env.service';
 import { loadAdminEventList, fetchJson } from '../../lib/content/load-admin-content.server';
 import { getCityConfig } from '../../lib/config/city-config';
@@ -70,8 +71,9 @@ const sidebarLabels = {
   trending: t('admin.sidebar.trending', locale),
   overlooked: t('admin.sidebar.overlooked', locale),
   stillVisiting: t('admin.sidebar.still_visiting', locale),
-  suggestions: t('admin.sidebar.suggestions', locale),
 };
+
+const suggestionsHeading = t('admin.sidebar.suggestions', locale);
 ---
 
 <Base title="Events - Admin" admin>
@@ -129,7 +131,14 @@ const sidebarLabels = {
         editPrefix="/admin/events"
         labels={sidebarLabels}
         pastEventSlugs={pastEventSlugs}
-      />
+      >
+        <Suggestions
+          client:idle
+          loadUrl="/api/admin/calendar-suggestions"
+          dismissUrl="/api/admin/calendar-suggestions/dismiss"
+          heading={suggestionsHeading}
+        />
+      </AdminListSidebar>
     </div>
   </div>
 </Base>
