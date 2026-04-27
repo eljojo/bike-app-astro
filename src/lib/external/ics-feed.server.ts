@@ -32,14 +32,23 @@ function ext(v: VEvent): VEventExtensions {
   return v as unknown as VEventExtensions;
 }
 
-export function parseIcs(text: string, sourceUrl: string): ParsedFeed {
+/**
+ * Parse an ICS document.
+ *
+ * `fallbackTz` is the IANA TZ to render timed events in when the source VEVENT
+ * has no TZID (bare `DTSTART:…Z` literals or floating times). Without a fallback
+ * those events serialize as UTC ISO strings, which the admin sees as a 4-5h
+ * skew when the calendar is for a city outside UTC. Pass `cityConfig.timezone`
+ * for the city-local feeds the admin-suggestions feature consumes.
+ */
+export function parseIcs(text: string, sourceUrl: string, fallbackTz?: string): ParsedFeed {
   const parsed = ical.parseICS(text);
   const events: ParsedVEvent[] = [];
   for (const key of Object.keys(parsed)) {
     const v = parsed[key];
     if (!v || v.type !== 'VEVENT') continue;
     const ve = v as VEvent;
-    const event = ext(ve).rrule ? mapSeries(ve) : mapOneOff(ve);
+    const event = ext(ve).rrule ? mapSeries(ve, fallbackTz) : mapOneOff(ve, fallbackTz);
     if (event) events.push(event);
   }
   return {
@@ -49,7 +58,7 @@ export function parseIcs(text: string, sourceUrl: string): ParsedFeed {
   };
 }
 
-function mapSeries(v: VEvent): ParsedVEvent | null {
+function mapSeries(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
   const xv = ext(v);
   if (!v.uid || !v.summary || !v.start || !xv.rrule) return null;
   const opts = xv.rrule.options ?? {};
@@ -57,10 +66,10 @@ function mapSeries(v: VEvent): ParsedVEvent | null {
   const interval = opts.interval ?? 1;
   const byweekday = opts.byweekday ?? [];
 
-  const base = mapOneOff(v);
+  const base = mapOneOff(v, fallbackTz);
   if (!base) return null;
 
-  const tz = getTz(v.start);
+  const tz = getTz(v.start) ?? fallbackTz;
 
   const isCleanWeekly =
     freq === 'WEEKLY' &&
@@ -191,10 +200,10 @@ function buildScheduleFallback(v: VEvent, tz?: string): ParsedSeries {
   return { kind: 'schedule', schedule };
 }
 
-function mapOneOff(v: VEvent): ParsedVEvent | null {
+function mapOneOff(v: VEvent, fallbackTz?: string): ParsedVEvent | null {
   if (!v.uid || !v.summary || !v.start) return null;
   const isAllDay = ext(v).datetype === 'date';
-  const tz = getTz(v.start);
+  const tz = getTz(v.start) ?? fallbackTz;
   return {
     uid: String(v.uid),
     summary: String(v.summary),
@@ -291,9 +300,9 @@ function formatLocalIsoWithOffset(d: Date, tz: string): string {
 
 const FETCH_TIMEOUT_MS = 5_000;
 
-export async function fetchIcsFeed(url: string): Promise<ParsedFeed> {
+export async function fetchIcsFeed(url: string, fallbackTz?: string): Promise<ParsedFeed> {
   const resp = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!resp.ok) throw new Error(`ICS fetch failed: ${resp.status} ${resp.statusText} (${url})`);
   const text = await resp.text();
-  return parseIcs(text, url);
+  return parseIcs(text, url, fallbackTz);
 }

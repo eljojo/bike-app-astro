@@ -79,7 +79,9 @@ if (fromFeed && icsUid && !copyFromId) {
     try {
       let feed = await calendarFeedCache.get(fromFeed, org.ics_url);
       if (!feed) {
-        feed = await fetchIcsFeed(org.ics_url);
+        // Pass city TZ as fallback so VEVENTs without TZID still render in local
+        // time — matches the suggestions endpoint so cache reads are consistent.
+        feed = await fetchIcsFeed(org.ics_url, cityConfig.timezone);
         try {
           await calendarFeedCache.put(fromFeed, org.ics_url, feed, FEED_TTL_SECONDS);
         } catch (err) {
