@@ -31,7 +31,10 @@ export function parseIcs(text: string, sourceUrl: string, siteTz: string): Parse
 
   // Register VTIMEZONE blocks before reading any TZID-bearing properties.
   // ical.js holds a process-global TimezoneService; the `has()` guard avoids
-  // redundant re-registration when the same feed is parsed repeatedly.
+  // redundant re-registration when the same feed is parsed repeatedly. As a
+  // consequence, the first feed to register a given TZID wins for the lifetime
+  // of the Workers isolate — fine in practice because feeds use IANA TZIDs
+  // and IANA's published rules don't disagree with each other.
   for (const vtz of vcal.getAllSubcomponents('vtimezone')) {
     const tz = new ICAL.Timezone({ component: vtz });
     if (!ICAL.TimezoneService.has(tz.tzid)) {
@@ -123,12 +126,16 @@ function mapSeries(
   const season_end = computeSeasonEnd(rrule, startUtc, interval, siteTz);
 
   // EXDATE values: ical.js exposes them as separate properties (one per
-  // EXDATE line in the source). Each property's first value is an ICAL.Time.
+  // EXDATE line) and each property may carry multiple comma-separated values
+  // — RFC 5545 allows `EXDATE:20260518T180000Z,20260601T180000Z` on a single
+  // line, and Google Calendar emits this form. Iterate every value, not just
+  // the first.
   const exdateValues: Date[] = [];
   for (const prop of master.component.getAllProperties('exdate')) {
-    const val = prop.getFirstValue();
-    if (val && typeof (val as ICAL.Time).toJSDate === 'function') {
-      exdateValues.push(timeToUtcInstant(val as ICAL.Time, siteTz));
+    for (const val of prop.getValues()) {
+      if (val && typeof (val as ICAL.Time).toJSDate === 'function') {
+        exdateValues.push(timeToUtcInstant(val as ICAL.Time, siteTz));
+      }
     }
   }
   const seenIso = new Set<string>();

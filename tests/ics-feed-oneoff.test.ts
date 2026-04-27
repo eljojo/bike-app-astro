@@ -34,9 +34,9 @@ describe('parseIcs — one-off events', () => {
     expect(e.summary).toBe('Community Bike Day');
     // Exact date string — not .slice(0,10), which would mask timezone drift bugs where
     // all-day Dates parse as the wrong calendar day in non-UTC environments.
-    // All-day events are timezone-less by construction; we extract the authored
-    // calendar date directly via local-time getters (Workers runs UTC; the
-    // node-ical local-midnight construction round-trips correctly there).
+    // All-day events are timezone-less by construction; the parser constructs a
+    // Date at server-local midnight from the ICAL.Time Y/M/D, and on Workers
+    // (UTC) local getters round-trip the authored calendar date.
     expect(e.start).toBe('2026-06-12');
     expect(e.start.length).toBe(10);
     expect(e.end).toBe('2026-06-13');

@@ -34,10 +34,9 @@ describe.skipIf(!distExists)('built ics-feed chunk loads on a Node-like runtime'
     const mod = await import(chunkPath);
     expect(typeof mod.parseIcs, 'bundle must export parseIcs').toBe('function');
 
-    // A weekly RRULE with UNTIL is enough to drive the requireDist$1 path
-    // (rrule-temporal → @js-temporal/polyfill → jsbi static methods).
-    // If the bundle wrapper drops static methods we throw at module init,
-    // before this line; if it returns successfully, the wrapper survived.
+    // Any RRULE-bearing fixture exercises the parse path end-to-end. If the
+    // bundled chunk had a module-init failure we'd have thrown at the import
+    // above; reaching this point means the build is loadable.
     const text = readFileSync(path.join(projectRoot, 'tests/fixtures/ics/series-weekly-until.ics'), 'utf-8');
     const feed = mod.parseIcs(text, 'https://example.test/', 'America/Toronto');
     expect(feed.events.length).toBeGreaterThan(0);

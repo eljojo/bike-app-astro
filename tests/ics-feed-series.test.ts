@@ -44,6 +44,15 @@ describe('parseIcs — series with clean RRULE', () => {
     const e = feed.events[0];
     expect(e.series!.skip_dates).toEqual(['2026-05-18', '2026-06-01']);
   });
+
+  test('comma-separated EXDATE values on a single line all become skip_dates', () => {
+    // RFC 5545 allows multi-value EXDATE: `EXDATE:20260518T180000Z,20260601T180000Z,...`
+    // Google Calendar emits this form. The parser must iterate every value, not
+    // just the first. (Regression guard: ical.js's getFirstValue() returns only one.)
+    const feed = parseIcs(fixture('series-weekly-exdate-multi.ics'), 'https://example.com/feed.ics', TORONTO);
+    const e = feed.events[0];
+    expect(e.series!.skip_dates).toEqual(['2026-05-18', '2026-06-01', '2026-06-15']);
+  });
 });
 
 describe('parseIcs — series with TZID', () => {
