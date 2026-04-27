@@ -4,31 +4,21 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Regression test for production crash:
+ * Build smoke test: load the bundled `ics-feed.server_*.mjs` chunk and
+ * exercise parseIcs against a fixture.
  *
- *   TypeError: e.BigInt is not a function
- *     at requireDist$1 (chunks/ics-feed.server_*.mjs)
- *     at requireDist (… node-ical → rrule-temporal → @js-temporal/polyfill)
+ * History: this test was added when `node-ical` pulled in jsbi via
+ * `@js-temporal/polyfill@0.5.x`; Astro/Rollup's CJS namespace wrapping
+ * stripped jsbi's static methods, so `e.BigInt(0)` threw at module init
+ * in the production bundle while every source-level test passed on Node.
  *
- * `node-ical` pulls in `@js-temporal/polyfill@0.5.x` (its in-package
- * `overrides` to redirect to `temporal-polyfill` is silently ignored —
- * `overrides` only takes effect in the root `package.json`). That polyfill
- * depends on `jsbi`, whose source does `module.exports = JSBI` (a class with
- * static methods). On the Workers runtime the bundled CJS does
- * `var e = require('jsbi'); e.BigInt(0)` — but Astro/Rollup wraps the
- * imported namespace via `getAugmentedNamespace`, which exposes only
- * `default` and `__esModule`, NOT static methods on the default-exported
- * class. Result: `e.BigInt` is undefined and module init throws.
- *
- * The Node CJS loader normally avoids this wrapper, so the source-level
- * tests in `tests/ics-feed-*.test.ts` all pass even when the production
- * bundle is broken. To catch the regression we must load the actual
- * bundled chunk and run `parseIcs` against it.
+ * That bug class is gone — ical.js is pure-JS and ships no jsbi dependency.
+ * The test stays because "the build produced a loadable chunk that can run
+ * parseIcs end-to-end" is still worth verifying after any bundling change.
  *
  * Test runs only when `dist/server/chunks/` exists (i.e. after a build).
  * Wire it into CI by running `npm run build` (or `make build`) before
- * `vitest`. Without dist the `describe` block reports as skipped — visible
- * in vitest output, doesn't fail the suite.
+ * `vitest`. Without dist the `describe` block reports as skipped.
  */
 
 const projectRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');

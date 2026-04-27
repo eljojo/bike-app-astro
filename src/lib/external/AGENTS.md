@@ -17,7 +17,7 @@ Vendor-isolated wrappers for third-party integrations. Each file encapsulates al
 | `routing.server.ts` | `createRoutingService()` factory (server-only) |
 | `routing.adapter-google.server.ts` | Google Directions API adapter (server-only) |
 | `open-meteo.server.ts` | Open-Meteo weather API (server-only) |
-| `ics-feed.server.ts` | ICS/iCal feed fetch (5s timeout) + `parseIcs` via `node-ical`, mapping to `ParsedFeed`/`ParsedVEvent`/`ParsedSeries` (server-only) |
+| `ics-feed.server.ts` | ICS/iCal feed fetch (5s timeout) + `parseIcs` via `ical.js`, mapping to `ParsedFeed`/`ParsedVEvent`/`ParsedSeries` (server-only) |
 
 ## Gotchas
 
