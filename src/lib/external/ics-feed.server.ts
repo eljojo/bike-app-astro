@@ -10,15 +10,20 @@ const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
  * Parse an ICS document and project every timed datetime into `siteTz`'s local
  * clock, emitting naive `YYYY-MM-DDTHH:MM:SS` strings (no offset, no Z).
  *
+ * The downstream pipeline stores naive site-local clock times in YAML
+ * (`start_time: "18:15"`) — that's the storage spec, not an oversight. The
+ * parser's job is to deliver data in the shape the storage expects. `siteTz`
+ * is the destination we project *into*; it isn't a "fallback when the feed
+ * is silent." Whether the source has `TZID=America/Toronto`, a bare `Z`
+ * literal, or a TZID for a different city, we always project to the same
+ * site-local clock — so an Ottawa instance importing a Vancouver feed sees
+ * those events at the equivalent Toronto-clock time.
+ *
  * Implementation notes (vs. node-ical):
  * - VTIMEZONE blocks are registered with `ICAL.TimezoneService` so that
  *   TZID-bearing times resolve to correct UTC instants via `time.toJSDate()`.
  * - RECURRENCE-ID overrides are NOT auto-bucketed; we group VEVENTs by UID
  *   ourselves and split master vs. exception via `event.isRecurrenceException()`.
- * - `siteTz` is the destination wall clock, not a fallback. We always project
- *   the UTC instant into siteTz — so an Ottawa instance importing a Vancouver feed sees
- *   those events at the equivalent Toronto-clock time. This is consistent with
- *   how the rest of the platform treats event times.
  */
 export function parseIcs(text: string, sourceUrl: string, siteTz: string): ParsedFeed {
   const jcal = ICAL.parse(text);
@@ -222,14 +227,9 @@ function buildScheduleFallback(master: ICAL.Event, siteTz: string): ParsedSeries
 }
 
 function rruleByDay(rrule: ICAL.Recur): string[] {
-  const parts = (rrule as unknown as { parts?: Record<string, unknown> }).parts;
-  const byday = parts?.BYDAY;
-  if (Array.isArray(byday)) {
-    // BYDAY values may be like "MO", "1MO" (first Monday), "-1FR" — for the
-    // clean-weekly check we only care about the day suffix.
-    return byday.map(v => String(v).replace(/^[+-]?\d+/, ''));
-  }
-  return [];
+  // BYDAY values may be like "MO", "1MO" (first Monday), "-1FR" — for the
+  // clean-weekly check we only care about the day suffix.
+  return (rrule.parts?.BYDAY ?? []).map(v => v.replace(/^[+-]?\d+/, ''));
 }
 
 function stringPropOrUndefined(comp: ICAL.Component, name: string): string | undefined {
@@ -335,6 +335,7 @@ function getLocalParts(d: Date, tz: string): LocalParts {
   }, {});
   return {
     year: formatted.year, month: formatted.month, day: formatted.day,
+    // Intl can render 24h hour as '24' for midnight in some locales; normalize.
     hour: formatted.hour === '24' ? '00' : formatted.hour,
     minute: formatted.minute, second: formatted.second,
   };
