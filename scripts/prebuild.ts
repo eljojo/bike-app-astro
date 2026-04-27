@@ -48,6 +48,23 @@ async function run(name: string, script: string): Promise<void> {
   }
 }
 
+// Synchronous precondition: Playwright npm version must match the flake's
+// pinned playwright-web-flake tag, or E2E will fail with a missing Chromium
+// binary in the nix-provided PLAYWRIGHT_BROWSERS_PATH. Fail fast before any
+// real work so the error message is visible.
+async function checkPlaywrightSync(): Promise<void> {
+  try {
+    const { stdout } = await execFile('node', [path.join(scripts, 'check-playwright-sync.mjs')]);
+    if (stdout) process.stdout.write(stdout);
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string };
+    if (e.stdout) process.stdout.write(e.stdout);
+    if (e.stderr) process.stderr.write(e.stderr);
+    process.exit(1);
+  }
+}
+await checkPlaywrightSync();
+
 // Dependency graph — each task awaits only its actual inputs.
 const mapStyle     = run('map-style',      'build-map-style.ts');
 const iconPaths    = run('icon-paths',     'build-icon-paths.ts');

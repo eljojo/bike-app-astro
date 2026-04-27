@@ -91,6 +91,8 @@ const routes = [
   { pattern: '/api/admin/event-draft', entrypoint: view('api/event-draft.ts') },
   { pattern: '/api/admin/fetch-image', entrypoint: view('api/fetch-image.ts') },
   { pattern: '/api/admin/deploy-status', entrypoint: view('api/admin-deploy-status.ts') },
+  { pattern: '/api/admin/calendar-suggestions', entrypoint: view('api/admin-calendar-suggestions.ts') },
+  { pattern: '/api/admin/calendar-suggestions/dismiss', entrypoint: view('api/admin-calendar-suggestions-dismiss.ts') },
   // Stats page drill-downs (wiki-only, gated at page level)
   { pattern: '/admin/stats/route/[...slug]', entrypoint: view('admin/stats-route-detail.astro') },
   { pattern: '/admin/stats/event/[...slug]', entrypoint: view('admin/stats-event-detail.astro') },

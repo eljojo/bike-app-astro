@@ -40,6 +40,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>(
     initialData.social_links?.length ? initialData.social_links : [],
   );
+  const [icsUrl, setIcsUrl] = useState(initialData.ics_url || '');
 
   const { validate } = useFormValidation([
     { field: 'community-name', check: () => !name.trim(), message: 'Name is required' },
@@ -52,7 +53,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     userRole,
     validate,
     initialBody: initialData.body || '',
-    deps: [name, tagline, body, tags, featured, hidden, photoKey, socialLinks],
+    deps: [name, tagline, body, tags, featured, hidden, photoKey, socialLinks, icsUrl],
     buildPayload: () => {
       const payload: OrganizerUpdate = {
         frontmatter: {
@@ -69,6 +70,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
           ...(socialLinks.length > 0 && {
             social_links: socialLinks.filter(l => l.url.trim()),
           }),
+          ...(icsUrl && { ics_url: icsUrl }),
         },
         body,
       };
@@ -206,6 +208,16 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
             + Add social link
           </button>
         </div>
+
+        {userRole === 'admin' && (
+          <div class="form-field">
+            <label for="community-ics-url">ICS calendar URL</label>
+            <input id="community-ics-url" type="text"
+              placeholder="https://..."
+              {...bindText(icsUrl, setIcsUrl)} />
+            <p class="field-hint-block">Public ICS/iCal feed URL for this community's calendar. Admin-only: the value is used to generate event suggestions for admins.</p>
+          </div>
+        )}
 
         {tags.includes('bike-shop') && locations && (
           <div class="form-field">

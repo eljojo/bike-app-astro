@@ -13,6 +13,7 @@ export function parseOrganizerFile(slug: string, content: string): OrganizerDeta
     featured: data.featured || false,
     website: data.website,
     instagram: data.instagram,
+    ics_url: data.ics_url,
     social_links: data.social_links || [],
     photo_key: data.photo_key,
     photo_content_type: data.photo_content_type,

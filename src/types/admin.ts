@@ -27,6 +27,7 @@ export interface AdminEvent {
   tags?: string[];
   previous_event?: string;
   edition?: string;
+  ics_uid?: string;
   event_url?: string;
   map_url?: string;
   is_series?: boolean;
@@ -59,6 +60,7 @@ export interface AdminOrganizer {
   featured: boolean;
   website?: string;
   instagram?: string;
+  ics_url?: string;
   photo_key?: string;
   photo_content_type?: string;
   photo_width?: number;

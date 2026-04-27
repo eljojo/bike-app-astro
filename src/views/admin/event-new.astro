@@ -59,12 +59,84 @@ if (copyFromId) {
     };
   }
 }
+
+// Branch: ?from_feed=<slug>&uid=<ics_uid> — prefill from an organizer's ICS feed
+const fromFeed = Astro.url.searchParams.get('from_feed');
+const icsUid = Astro.url.searchParams.get('uid');
+let icsCopyData: Record<string, unknown> | undefined;
+let icsMissing = false;
+
+if (fromFeed && icsUid && !copyFromId) {
+  const { calendarFeedCache } = await import('../../lib/env/env.service');
+  const { fetchIcsFeed } = await import('../../lib/external/ics-feed.server');
+  const { buildCopyDataFromVevent } = await import('../../lib/calendar-suggestions/prefill');
+
+  const FEED_TTL_SECONDS = 60 * 60;
+  const org = adminOrganizers.find(o => o.slug === fromFeed);
+  if (!org?.ics_url) {
+    icsMissing = true;
+  } else {
+    try {
+      let feed = await calendarFeedCache.get(fromFeed, org.ics_url);
+      if (!feed) {
+        // Pass city TZ as fallback so VEVENTs without TZID still render in local
+        // time — matches the suggestions endpoint so cache reads are consistent.
+        feed = await fetchIcsFeed(org.ics_url, cityConfig.timezone);
+        try {
+          await calendarFeedCache.put(fromFeed, org.ics_url, feed, FEED_TTL_SECONDS);
+        } catch (err) {
+          // Cache write is best-effort — don't lose the parsed feed over a KV hiccup.
+          console.warn(`calendar feed cache write failed for ${fromFeed}:`, err);
+        }
+      }
+      const vevent = feed.events.find(e => e.uid === icsUid);
+      if (!vevent) {
+        icsMissing = true;
+      } else {
+        icsCopyData = buildCopyDataFromVevent(vevent, fromFeed);
+      }
+    } catch (err) {
+      console.error('ICS prefill failed:', err);
+      icsMissing = true;
+    }
+  }
+  if (icsMissing) {
+    console.warn(`ICS prefill missing: feed=${fromFeed} uid=${icsUid}`);
+  }
+}
+
+// Route ICS prefills through the full editor.
+// Spec says wizard for one-offs and full editor for series, but EventWizard doesn't
+// currently accept a copyData prop (its flow starts with a poster upload + extraction).
+// Threading copyData through EventWizard is a separate follow-up; for now both one-off
+// and series ICS imports land in EventCreator where the prefill works.
+const hasSeries = !!icsCopyData && 'series' in icsCopyData;
+const useFullEditor = fullEditor || hasSeries || !!icsCopyData;
+const effectiveCopyData = icsCopyData ?? copyData;
 ---
 
-<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events" hideTitle={!fullEditor}>
-  {fullEditor ? (
-    <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={copyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
+<AdminEditorLayout title="New Event" user={Astro.locals.user} currentTab="events" hideTitle={!useFullEditor}>
+  {icsMissing && (
+    <p class="ics-missing-notice">
+      This suggestion is no longer in the source calendar. You can still create the event manually.
+    </p>
+  )}
+  {useFullEditor ? (
+    <EventCreator client:load cdnUrl={cdnUrl} organizers={organizers} copyData={effectiveCopyData} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
   ) : (
     <EventWizard client:load cdnUrl={cdnUrl} organizers={organizers} eventOptions={eventOptions} tagTranslations={tagTranslations} knownTags={knownTags} defaultLocale={defaultLocale()} userRole={Astro.locals.user?.role} showLicenseNotice={getInstanceFeatures().showsLicenseNotice} guestLabel={t('editor.guest_label', Astro.currentLocale)} siteName={cityConfig.display_name} cityCenter={[cityConfig.center.lat, cityConfig.center.lng]} cityBounds={cityConfig.bounds} cityName={cityConfig.name} countryCode={countryCode} />
   )}
 </AdminEditorLayout>
+
+<style>
+  .ics-missing-notice {
+    background: rgba(255, 200, 120, 0.12);
+    border: 1px solid rgba(255, 200, 120, 0.4);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 1rem;
+    font-size: 0.95em;
+    color: inherit;
+    opacity: 0.85;
+  }
+</style>

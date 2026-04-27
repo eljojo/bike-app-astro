@@ -15,6 +15,7 @@ export const organizerDetailSchema = z.object({
   hidden: z.boolean().default(false),
   website: z.string().optional(),
   instagram: z.string().optional(),
+  ics_url: z.string().optional(),
   social_links: z.array(socialLinkSchema).default([]),
   photo_key: z.string().optional(),
   photo_content_type: z.string().optional(),

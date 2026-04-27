@@ -8,7 +8,8 @@ export type Action =
   | 'sync-staging' | 'view-history' | 'upload-media'
   | 'import-gpx' | 'update-settings' | 'add-reaction'
   | 'event-draft' | 'strava-connect'
-  | 'view-stats' | 'sync-stats';
+  | 'view-stats' | 'sync-stats'
+  | 'manage-calendar-suggestions';
 
 type Policy = (user: SessionUser) => boolean;
 
@@ -30,6 +31,7 @@ const policies: Record<Action, Policy> = {
   'strava-connect':  (user) => user.role === 'admin',
   'view-stats':      (user) => user.role === 'admin',
   'sync-stats':      (user) => user.role === 'admin',
+  'manage-calendar-suggestions': (user) => user.role === 'admin',
 };
 
 /**

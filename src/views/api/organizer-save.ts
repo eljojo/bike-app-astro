@@ -43,6 +43,7 @@ const organizerUpdateSchema = z.object({
     hidden: z.boolean().optional(),
     website: z.string().optional(),
     instagram: z.string().optional(),
+    ics_url: z.string().optional(),
     social_links: z.array(socialLinkSchema).optional(),
     photo_key: z.string().optional(),
     photo_width: z.number().optional(),
@@ -64,6 +65,7 @@ export interface OrganizerUpdate {
     hidden?: boolean;
     website?: string;
     instagram?: string;
+    ics_url?: string;
     social_links?: Array<{ platform: string; url: string }>;
     photo_key?: string;
     photo_width?: number;
@@ -165,6 +167,7 @@ export function createOrganizerHandlers(sharedKeysData: Record<string, Array<{ t
         { instagram: legacyInstagram, website: legacyWebsite },
       );
       if (normalized.length) fm.social_links = normalized;
+      if (update.frontmatter.ics_url) fm.ics_url = update.frontmatter.ics_url;
       if (update.frontmatter.photo_key) {
         fm.photo_key = update.frontmatter.photo_key;
         if (update.frontmatter.photo_width) fm.photo_width = update.frontmatter.photo_width;

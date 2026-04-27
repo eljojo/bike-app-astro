@@ -43,12 +43,20 @@ export function initSchema(db: InstanceType<typeof Database>) {
       try {
         db.exec(stmt);
       } catch (err: unknown) {
-        // ALTER TABLE migrations may fail on re-run (e.g. column already exists).
-        // This is expected when 0000_init.sql already includes the final schema.
+        // ALTER TABLE migrations may fail on re-run (e.g. column already exists,
+        // or column was dropped by a later migration and we're re-applying from
+        // scratch). This is expected when 0000_init.sql already includes the
+        // final schema.
         const msg = err instanceof Error ? err.message : '';
         const stmtTrimmed = stmt.replace(/^--.*\n/gm, '').trim();
         if (stmtTrimmed.match(/^ALTER TABLE/i) && msg.includes('duplicate column')) continue;
+        if (stmtTrimmed.match(/^ALTER TABLE/i) && msg.includes('no such column')) continue;
+        // A later migration may DROP+RECREATE a table to re-add a column into
+        // the PK that an earlier ALTER dropped. Replaying the earlier ALTER
+        // against the new shape hits "cannot drop PRIMARY KEY column".
+        if (stmtTrimmed.match(/^ALTER TABLE/i) && msg.includes('cannot drop PRIMARY KEY column')) continue;
         if (msg.includes('no such table')) continue;
+        if (msg.includes('no such index')) continue;
         throw err;
       }
     }

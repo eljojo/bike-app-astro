@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { useHydrated } from '../../lib/hooks';
 
@@ -36,10 +37,16 @@ interface Props {
   /** Past event slugs — used to filter "still visiting" API data (events only).
    *  Passed as string[] because Astro serializes Preact props via JSON (Set is lost). */
   pastEventSlugs?: string[];
+  /**
+   * Page-supplied content rendered above the stats sections — typically a
+   * <Suggestions client:idle ... /> or any future widget. The sidebar treats
+   * this as opaque markup and does not introspect it.
+   */
+  children?: ComponentChildren;
 }
 
 export default function AdminListSidebar({
-  contentType, incomplete, nameMap, editPrefix, labels, pastEventSlugs,
+  contentType, incomplete, nameMap, editPrefix, labels, pastEventSlugs, children,
 }: Props) {
   const rootRef = useHydrated<HTMLElement>();
   const [stats, setStats] = useState<SidebarStatsData | null>(null);
@@ -70,6 +77,8 @@ export default function AdminListSidebar({
 
   return (
     <aside class="admin-sidebar" ref={rootRef}>
+      {children}
+
       {loading && <p class="admin-sidebar-loading">Loading stats...</p>}
 
       {stats?.mostViewed && stats.mostViewed.length > 0 && (

@@ -164,6 +164,18 @@ async function authenticateAndParse<T, R extends BuildResult>(
     }
   }
 
+  // Organizer `ics_url` drives admin-only calendar suggestion fetching and
+  // would let a non-admin point the server at an arbitrary URL. Gate it
+  // alongside the other admin-only capabilities. Existing values survive a
+  // non-admin save because mergeFrontmatter preserves fields the payload
+  // doesn't include.
+  if (!can(user, 'manage-calendar-suggestions')) {
+    const u = update as Record<string, unknown>;
+    if (u.frontmatter && typeof u.frontmatter === 'object') {
+      delete (u.frontmatter as Record<string, unknown>).ics_url;
+    }
+  }
+
   if (!can(user, 'edit-slug')) {
     delete (update as Record<string, unknown>).newSlug;
   }
