@@ -73,6 +73,7 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [{ id: '2026/a', slug: 'a', year: '2026', name: 'Existing', start_date: '2026-05-01', ics_uid: 'already-in-repo@x', organizer: 'qbc' }],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['new@x']);
@@ -83,12 +84,13 @@ describe('admin calendar suggestions — build logic', () => {
       oneOff('dismissed@x', '2026-05-01T18:00:00.000Z'),
       oneOff('keep@x', '2026-05-08T18:00:00.000Z'),
     ]);
-    await dismissSuggestion(db, 'ottawa', 'dismissed@x');
+    await dismissSuggestion(db, 'ottawa', 'qbc', 'dismissed@x');
     const suggestions = await buildSuggestions({
       db, city: 'ottawa', feedCache,
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['keep@x']);
@@ -104,6 +106,7 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [{ id: '2026/manual', slug: 'manual', year: '2026', name: 'Manually Added', start_date: '2026-05-10', organizer: 'qbc' }],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['keep@x']);
@@ -116,6 +119,7 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [{ id: '2026/other', slug: 'other', year: '2026', name: 'Other', start_date: '2026-05-10', organizer: 'obmc' }],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['keep@x']);
@@ -131,6 +135,7 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [{ id: '2026/manual', slug: 'manual', year: '2026', name: 'Coincidental', start_date: '2026-05-10', organizer: 'qbc' }],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['series@x']);
@@ -146,9 +151,35 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['soon@x']);
+  });
+
+  test('long-running series sorts by NEXT occurrence, not master DTSTART', async () => {
+    // The series started in 2024; its next occurrence (Monday 2026-04-27) is
+    // AFTER a one-off on Wednesday 2026-04-22. Sorting by master DTSTART would
+    // place the series at position 0 (because '2024-...' < '2026-...') and let
+    // a long-running series crowd out near-term one-offs. The fix sorts by the
+    // next upcoming occurrence.
+    seedFeed('qbc', [
+      {
+        uid: 'old-series@x', summary: 'Established Mondays', start: '2024-04-01T18:00:00',
+        series: { kind: 'recurrence', recurrence: 'weekly', recurrence_day: 'monday',
+                  season_start: '2024-04-01', season_end: '2026-09-28' },
+      },
+      oneOff('this-wed@x', '2026-04-22T18:00:00'),  // Wed, before next Monday
+    ]);
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa', feedCache,
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [],
+      fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
+      now: new Date('2026-04-21T00:00:00Z'),  // Tuesday — next Monday is 2026-04-27
+    });
+    expect(suggestions.map(s => s.uid)).toEqual(['this-wed@x', 'old-series@x']);
   });
 
   test('caps at 10 items sorted by start', async () => {
@@ -159,6 +190,7 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions).toHaveLength(10);
@@ -180,6 +212,7 @@ describe('admin calendar suggestions — build logic', () => {
         if (url.includes('bad')) throw new Error('network error');
         throw new Error('good feed should hit cache');
       },
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['good@x']);
@@ -195,9 +228,63 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['future@x']);
+  });
+
+  test('westward TZ: keeps an event still going in city-local time even past UTC end', async () => {
+    // Event in America/Vancouver on 2026-12-15, 18:00-20:00 PST (= 02:00-04:00Z+1).
+    // Real `now` = 2026-12-16T02:30:00Z = 18:30 PST, event still going for 90 min.
+    // The naive parser output is `2026-12-15T20:00:00` (no Z); Date(naive) parsed
+    // as system-local — on UTC (Workers) it's 20:00Z = 2026-12-15T20:00:00Z,
+    // which is < now (2026-12-16T02:30Z) → filtered out (BUG).
+    // The fix projects `now` into siteTz and string-compares against the naive
+    // site-local clock, never going through Date.
+    seedFeed('qbc', [
+      {
+        uid: 'still-going@x',
+        summary: 'Just started',
+        start: '2026-12-15T18:00:00',
+        end: '2026-12-15T20:00:00',
+      },
+    ]);
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa', feedCache,
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [],
+      fetcher: cacheOnlyFetcher,
+      siteTz: 'America/Vancouver',
+      now: new Date('2026-12-16T02:30:00Z'),
+    });
+    expect(suggestions.map(s => s.uid)).toEqual(['still-going@x']);
+  });
+
+  test('TZ-correct season_end: a series ending today site-local stays visible past UTC midnight', async () => {
+    // Site=America/Vancouver, season_end='2026-12-15' (today PST).
+    // Real now = 2026-12-16T07:30:00Z = 23:30 PST on 2026-12-15 (still today locally).
+    // Old code: now.toISOString().slice(0,10) = '2026-12-16'. season_end '2026-12-15'
+    // < '2026-12-16' → filtered (the series 'expires' a day early).
+    // The fix projects nowDate into siteTz: '2026-12-15'. Comparison stays correct.
+    seedFeed('qbc', [
+      {
+        uid: 'last-day@x',
+        summary: 'Final week',
+        start: '2026-12-15T18:00:00',
+        series: { kind: 'recurrence', recurrence: 'weekly', recurrence_day: 'monday',
+                  season_start: '2026-12-15', season_end: '2026-12-15' },
+      },
+    ]);
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa', feedCache,
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [],
+      fetcher: cacheOnlyFetcher,
+      siteTz: 'America/Vancouver',
+      now: new Date('2026-12-16T07:30:00Z'),
+    });
+    expect(suggestions.map(s => s.uid)).toEqual(['last-day@x']);
   });
 
   test('excludes recurrence series whose season_end has already passed', async () => {
@@ -218,6 +305,7 @@ describe('admin calendar suggestions — build logic', () => {
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents: [],
       fetcher: cacheOnlyFetcher,
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(suggestions.map(s => s.uid)).toEqual(['ongoing@x']);
@@ -239,6 +327,7 @@ describe('admin calendar suggestions — build logic', () => {
           events: [{ uid: 'new-feed@x', summary: 'From new feed', start: '2026-05-02T18:00:00.000Z' }],
         };
       },
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     expect(fetchCount).toBe(1);
@@ -258,6 +347,7 @@ describe('admin calendar suggestions — build logic', () => {
         source_url: url,
         events: [{ uid: 'new@x', summary: 'New ride', start: '2026-05-02T18:00:00.000Z' }],
       }),
+      siteTz: 'UTC',
       now: new Date('2026-04-21T00:00:00Z'),
     });
     // The feed was parsed successfully — the cache-put failure should not discard it.

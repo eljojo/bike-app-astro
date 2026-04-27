@@ -1,5 +1,6 @@
-import { listDismissedUids } from './dismissals.server';
-import type { ParsedFeed, ParsedSeries, ParsedVEvent, Suggestion } from './types';
+import { listDismissedKeys } from './dismissals.server';
+import type { DismissalKey } from './dismissals.server';
+import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay, Suggestion } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
 import type { CalendarFeedCache } from '../calendar-feed-cache/feed-cache.service';
@@ -22,6 +23,15 @@ export interface BuildArgs {
    * from `fetchIcsFeed`'s evolving signature.
    */
   fetcher: (url: string) => Promise<ParsedFeed>;
+  /**
+   * Site IANA timezone. Used to project `now` into the same naive site-local
+   * clock as the parser's output, so window/season comparisons can be string
+   * comparisons against the naive datetimes the parser emits. Without this,
+   * `new Date(e.start)` on Workers (UTC) reads naive site-local strings as
+   * UTC and shifts events by the city offset, dropping currently-happening
+   * events in westward cities.
+   */
+  siteTz: string;
   now?: Date;
 }
 
@@ -31,7 +41,9 @@ export interface BuildArgs {
  * previously dismissed.
  *
  * Feed data is read/written via the injected `feedCache` (KV in prod, filesystem
- * in local dev). Dismissals are read from D1 via `listDismissedUids`.
+ * in local dev). Dismissals are read from D1 via `listDismissedKeys` — a single
+ * SELECT scoped to the post-filter candidate set, so per-request cost is bounded
+ * by the candidates rather than the cumulative dismissal history.
  *
  * Planned: extend to surface UID-matched repo events whose fields differ from
  * the upstream VEVENT ("updated suggestions"). See
@@ -39,8 +51,14 @@ export interface BuildArgs {
  * Future work.
  */
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
-  const { db, city, organizers, repoEvents, feedCache, fetcher } = args;
+  const { db, city, organizers, repoEvents, feedCache, fetcher, siteTz } = args;
   const now = args.now ?? new Date();
+  const nowLocal = formatSiteLocal(now, siteTz);                // 'YYYY-MM-DDTHH:MM:SS'
+  const nowLocalDate = nowLocal.slice(0, 10);                   // 'YYYY-MM-DD'
+  const horizonLocal = formatSiteLocal(
+    new Date(now.getTime() + HORIZON_DAYS * 24 * 3600 * 1000),
+    siteTz,
+  );
 
   const withFeed = organizers.filter(o => o.ics_url);
 
@@ -52,8 +70,6 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
       return slug && e.start_date ? [`${slug}:${e.start_date}`] : [];
     }),
   );
-
-  const dismissedUids = await listDismissedUids(db, city);
 
   const feeds = await Promise.allSettled(withFeed.map(async o => {
     const cached = await feedCache.get(o.slug, o.ics_url!);
@@ -69,9 +85,6 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
     return { slug: o.slug, name: o.name, feed };
   }));
 
-  const horizon = new Date(now.getTime() + HORIZON_DAYS * 24 * 3600 * 1000);
-  const nowDate = now.toISOString().slice(0, 10);  // 'YYYY-MM-DD' for date-only comparisons
-
   function isAlreadyInRepo(slug: string, e: ParsedVEvent): boolean {
     if (repoUids.has(e.uid)) return true;
     if (e.series) return false;                       // series: UID-only, no org+date fallback
@@ -80,40 +93,119 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   }
 
   function isInWindow(e: ParsedVEvent): boolean {
-    if (new Date(e.start) > horizon) return false;   // too far out — always applies
+    // Lex comparison against naive site-local clock strings. The parser emits
+    // `start`/`end` as `YYYY-MM-DDTHH:MM:SS` already projected into siteTz, so
+    // string ordering matches chronological ordering. Avoids `new Date(naive)`,
+    // which interprets in the *server*'s TZ (UTC on Workers) and shifts the
+    // comparison by the city's offset.
+    if (e.start > horizonLocal) return false;        // too far out
     if (!e.series) {
-      // One-off: include if it hasn't ended yet.
-      const endOrStart = new Date(e.end ?? e.start);
-      return endOrStart >= now;
+      const endOrStart = e.end ?? e.start;
+      return endOrStart >= nowLocal;                  // one-off: include while not ended
     }
     if (e.series.kind === 'recurrence') {
-      // Recurrence series: active if season_end hasn't passed.
-      return !e.series.season_end || e.series.season_end >= nowDate;
+      return !e.series.season_end || e.series.season_end >= nowLocalDate;
     }
-    // Schedule series: active if any scheduled date is still upcoming.
-    return (e.series.schedule ?? []).some(s => s.date >= nowDate);
+    return (e.series.schedule ?? []).some(s => s.date >= nowLocalDate);
   }
 
-  const suggestions: Suggestion[] = feeds.flatMap(r => {
+  // Pre-filter feeds to the candidate set BEFORE querying dismissals, so the
+  // dismissals query is scoped to the few items we might display. This keeps
+  // the read O(visible candidates) rather than O(cumulative dismissals for the city).
+  type Candidate = { sortKey: string; suggestion: Suggestion };
+  const candidates: Candidate[] = feeds.flatMap(r => {
     if (r.status !== 'fulfilled') return [];
     return r.value.feed.events
       .filter(e => !isAlreadyInRepo(r.value.slug, e))
-      .filter(e => !dismissedUids.has(e.uid))
       .filter(isInWindow)
-      .map((e): Suggestion => ({
-        uid: e.uid,
-        kind: e.series ? 'series' : 'one-off',
-        organizer_slug: r.value.slug,
-        organizer_name: r.value.name,
-        name: e.summary,
-        start: e.start,
-        location: e.location,
-        series_label: e.series ? formatSeriesLabel(e.series) : undefined,
+      .map((e): Candidate => ({
+        sortKey: nextOccurrenceSortKey(e, nowLocalDate),
+        suggestion: {
+          uid: e.uid,
+          kind: e.series ? 'series' : 'one-off',
+          organizer_slug: r.value.slug,
+          organizer_name: r.value.name,
+          name: e.summary,
+          start: e.start,
+          location: e.location,
+          series_label: e.series ? formatSeriesLabel(e.series) : undefined,
+        },
       }));
   });
 
-  suggestions.sort((a, b) => a.start.localeCompare(b.start));
-  return suggestions.slice(0, MAX_ITEMS);
+  const dismissalKeys: DismissalKey[] = candidates.map(c => ({
+    organizer_slug: c.suggestion.organizer_slug,
+    uid:            c.suggestion.uid,
+  }));
+  const dismissed = await listDismissedKeys(db, city, dismissalKeys);
+
+  const visible = candidates.filter(c =>
+    !dismissed.has(`${c.suggestion.organizer_slug}:${c.suggestion.uid}`),
+  );
+  visible.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  return visible.slice(0, MAX_ITEMS).map(c => c.suggestion);
+}
+
+const WEEKDAY_INDEX: Record<RecurrenceDay, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+  thursday: 4, friday: 5, saturday: 6,
+};
+
+/**
+ * Return a string that sorts an event by its next upcoming instance:
+ *   - one-offs sort by their `start`
+ *   - recurrence series sort by the next instance of `recurrence_day` on or
+ *     after `nowLocalDate` (clamped to season_start when the series is still
+ *     in the future)
+ *   - schedule series sort by the first scheduled date >= nowLocalDate
+ */
+function nextOccurrenceSortKey(e: ParsedVEvent, nowLocalDate: string): string {
+  if (!e.series) return e.start;
+  if (e.series.kind === 'recurrence') {
+    const startTime = e.start.length > 10 ? e.start.slice(11) : '';
+    const seasonStart = e.series.season_start ?? e.start.slice(0, 10);
+    const day = e.series.recurrence_day;
+    const fromDate = seasonStart > nowLocalDate ? seasonStart : nowLocalDate;
+    const nextDate = day ? nextWeekdayOnOrAfter(fromDate, day) : fromDate;
+    return startTime ? `${nextDate}T${startTime}` : nextDate;
+  }
+  const sched = e.series.schedule ?? [];
+  for (const s of sched) {
+    if (s.date >= nowLocalDate) {
+      return s.start_time ? `${s.date}T${s.start_time}` : s.date;
+    }
+  }
+  return e.start;
+}
+
+function nextWeekdayOnOrAfter(date: string, day: RecurrenceDay): string {
+  const targetIdx = WEEKDAY_INDEX[day];
+  if (targetIdx === undefined) return date;
+  // YYYY-MM-DD parses as UTC midnight; calendar-day arithmetic is tz-agnostic.
+  const d = new Date(`${date}T00:00:00Z`);
+  const offset = (targetIdx - d.getUTCDay() + 7) % 7;
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Project a real UTC instant into the naive site-local clock the parser emits:
+ * `YYYY-MM-DDTHH:MM:SS` (no offset, no Z). Intl handles DST and historical
+ * tz changes; any-locale formatting is normalized to en-US 24h.
+ */
+function formatSiteLocal(d: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(d).reduce<Record<string, string>>((acc, p) => {
+    if (p.type !== 'literal') acc[p.type] = p.value;
+    return acc;
+  }, {});
+  // Intl can render midnight as '24' in some locales — normalize.
+  const hh = parts.hour === '24' ? '00' : parts.hour;
+  return `${parts.year}-${parts.month}-${parts.day}T${hh}:${parts.minute}:${parts.second}`;
 }
 
 export function formatSeriesLabel(s: ParsedSeries): string {

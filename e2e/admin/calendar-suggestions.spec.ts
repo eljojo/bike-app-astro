@@ -86,14 +86,14 @@ function clearFeedCache() {
   try { fs.unlinkSync(feedDataPath(ORG_SLUG)); } catch { /* ignore — fresh run */ }
   try { fs.unlinkSync(feedMetaPath(ORG_SLUG)); } catch { /* ignore */ }
 
-  // Clear dismissals for this test's UIDs. The table is now `(city, uid)` with a
-  // composite PK — no more `organizer_slug` column. Delete by UID across all cities
-  // since our test UIDs are unique to this spec.
+  // Clear dismissals for this test's organizer + UIDs. The PK is
+  // `(city, organizer_slug, uid)`; we scope deletes by organizer to avoid
+  // wiping unrelated dismissals from other suites that may share the file.
   const db = openDb();
   try {
-    const stmt = db.prepare('DELETE FROM calendar_suggestion_dismissals WHERE uid = ?');
-    stmt.run(ONEOFF_UID);
-    stmt.run(SERIES_UID);
+    const stmt = db.prepare('DELETE FROM calendar_suggestion_dismissals WHERE organizer_slug = ? AND uid = ?');
+    stmt.run(ORG_SLUG, ONEOFF_UID);
+    stmt.run(ORG_SLUG, SERIES_UID);
   } finally {
     db.close();
   }

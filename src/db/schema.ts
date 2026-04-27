@@ -221,15 +221,20 @@ export const statsCache = sqliteTable('stats_cache', {
 // --- Calendar Suggestion Dismissals ---
 //
 // Stores the set of ICS event UIDs an admin has explicitly dismissed for a given city.
-// The only access patterns are "list dismissed UIDs for this city" and "mark UID as
-// dismissed". Set-membership semantics — no metadata (who/when/snapshot) because the
-// current feature doesn't surface any of it. Add columns when a feature demands them.
+// PK is (city, organizer_slug, uid): two organizer feeds can emit the same UID string
+// (e.g. a generic 'weekly-ride'), so the organizer is part of identity. Set-membership
+// semantics — no metadata (who/when/snapshot) until a feature demands one.
+//
+// The dismissals query is bounded by the current candidate set (single SELECT WITH
+// city = ? AND uid IN (...)), so the table can grow without affecting per-request cost.
+// See src/lib/calendar-suggestions/dismissals.server.ts.
 //
 // The feed cache (parsed upstream ICS) lives in KV under the TILE_CACHE binding, with
 // `calfeed:feed:v3:` key prefix — see src/lib/calendar-feed-cache/.
 export const calendarSuggestionDismissals = sqliteTable('calendar_suggestion_dismissals', {
-  city: text('city').notNull(),
-  uid:  text('uid').notNull(),
+  city:           text('city').notNull(),
+  organizerSlug:  text('organizer_slug').notNull(),
+  uid:            text('uid').notNull(),
 }, (table) => [
-  primaryKey({ columns: [table.city, table.uid] }),
+  primaryKey({ columns: [table.city, table.organizerSlug, table.uid] }),
 ]);
