@@ -1,3 +1,4 @@
+import { Temporal } from '@js-temporal/polyfill';
 import { listDismissedKeys } from './dismissals.server';
 import type { DismissalKey } from './dismissals.server';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay, Suggestion } from './types';
@@ -53,12 +54,11 @@ export interface BuildArgs {
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   const { db, city, organizers, repoEvents, feedCache, fetcher, siteTz } = args;
   const now = args.now ?? new Date();
-  const nowLocal = formatSiteLocal(now, siteTz);                // 'YYYY-MM-DDTHH:MM:SS'
-  const nowLocalDate = nowLocal.slice(0, 10);                   // 'YYYY-MM-DD'
-  const horizonLocal = formatSiteLocal(
-    new Date(now.getTime() + HORIZON_DAYS * 24 * 3600 * 1000),
-    siteTz,
-  );
+  const nowZdt = Temporal.Instant.fromEpochMilliseconds(now.getTime()).toZonedDateTimeISO(siteTz);
+  const nowLocal = nowZdt.toPlainDateTime().toString({ smallestUnit: 'second' });
+  const nowLocalDate = nowZdt.toPlainDate().toString();
+  const horizonLocal = nowZdt.add({ days: HORIZON_DAYS })
+    .toPlainDateTime().toString({ smallestUnit: 'second' });
 
   const withFeed = organizers.filter(o => o.ics_url);
 
@@ -181,31 +181,10 @@ function nextOccurrenceSortKey(e: ParsedVEvent, nowLocalDate: string): string {
 function nextWeekdayOnOrAfter(date: string, day: RecurrenceDay): string {
   const targetIdx = WEEKDAY_INDEX[day];
   if (targetIdx === undefined) return date;
-  // YYYY-MM-DD parses as UTC midnight; calendar-day arithmetic is tz-agnostic.
-  const d = new Date(`${date}T00:00:00Z`);
-  const offset = (targetIdx - d.getUTCDay() + 7) % 7;
-  d.setUTCDate(d.getUTCDate() + offset);
-  return d.toISOString().slice(0, 10);
-}
-
-/**
- * Project a real UTC instant into the naive site-local clock the parser emits:
- * `YYYY-MM-DDTHH:MM:SS` (no offset, no Z). Intl handles DST and historical
- * tz changes; any-locale formatting is normalized to en-US 24h.
- */
-function formatSiteLocal(d: Date, tz: string): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  }).formatToParts(d).reduce<Record<string, string>>((acc, p) => {
-    if (p.type !== 'literal') acc[p.type] = p.value;
-    return acc;
-  }, {});
-  // Intl can render midnight as '24' in some locales — normalize.
-  const hh = parts.hour === '24' ? '00' : parts.hour;
-  return `${parts.year}-${parts.month}-${parts.day}T${hh}:${parts.minute}:${parts.second}`;
+  const pd = Temporal.PlainDate.from(date);
+  // Temporal: dayOfWeek is 1=Monday..7=Sunday. WEEKDAY_INDEX uses 0=Sunday..6=Saturday.
+  const currentIdx = pd.dayOfWeek === 7 ? 0 : pd.dayOfWeek;
+  return pd.add({ days: (targetIdx - currentIdx + 7) % 7 }).toString();
 }
 
 export function formatSeriesLabel(s: ParsedSeries): string {

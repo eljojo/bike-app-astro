@@ -52,6 +52,7 @@
     "@astrojs/cloudflare": "^13.0.0-beta.11",
     "@astrojs/node": "^10.0.0-beta.6",
     "@astrojs/preact": "^5.0.0",
+    "@js-temporal/polyfill": "^0.5.1",
     "@mapbox/polyline": "^1.2.1",
     "@plausible-analytics/tracker": "^0.4.4",
     "@simplewebauthn/browser": "^13.2.2",

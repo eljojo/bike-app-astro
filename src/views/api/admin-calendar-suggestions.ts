@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { Temporal } from '@js-temporal/polyfill';
 import { authorize } from '../../lib/auth/authorize';
 import { jsonResponse, jsonError } from '../../lib/api-response';
 import { db } from '../../lib/get-db';
@@ -67,15 +68,12 @@ function toSuggestionItem(s: Suggestion, siteTz: string, locale: string): Sugges
 
 function formatShortDate(naiveSiteLocal: string, siteTz: string, locale: string): string {
   // `naiveSiteLocal` is like '2026-04-27T18:00:00' — already projected into
-  // siteTz by the parser. Treat its date prefix as the abstract calendar date
-  // and format with Intl using the city's tz; this avoids any browser-locale
-  // parsing and renders the same string regardless of where the admin is.
-  const [year, month, day] = naiveSiteLocal.slice(0, 10).split('-').map(Number);
-  // Construct the UTC instant whose siteTz projection equals (year, month, day).
-  // For "month name + day of month" formatting, anchoring at noon UTC is safe —
-  // it can't slip across a calendar boundary in any IANA tz.
-  const anchor = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0));
+  // siteTz by the parser. Render the date with Intl in the site's tz so the
+  // output is identical for any admin regardless of their browser locale.
+  const epochMs = Temporal.PlainDate.from(naiveSiteLocal.slice(0, 10))
+    .toZonedDateTime({ timeZone: siteTz, plainTime: '12:00' })
+    .epochMilliseconds;
   return new Intl.DateTimeFormat(locale, {
     timeZone: siteTz, month: 'short', day: 'numeric',
-  }).format(anchor);
+  }).format(epochMs);
 }

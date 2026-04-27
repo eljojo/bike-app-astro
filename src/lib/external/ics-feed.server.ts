@@ -1,4 +1,5 @@
 import ICAL from 'ical.js';
+import { Temporal } from '@js-temporal/polyfill';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay } from '../calendar-suggestions/types';
 
 const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
@@ -74,13 +75,11 @@ export function parseIcs(text: string, sourceUrl: string, siteTz: string, now?: 
 function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
   if (!ev.uid || !ev.summary || !ev.startDate) return null;
   const isAllDay = ev.startDate.isDate;
-  const startUtc = timeToUtcInstant(ev.startDate, siteTz);
-  const endUtc = ev.endDate ? timeToUtcInstant(ev.endDate, siteTz) : null;
   return {
     uid: ev.uid,
     summary: ev.summary,
-    start: renderDateTime(startUtc, isAllDay, siteTz),
-    end: endUtc ? renderDateTime(endUtc, isAllDay, siteTz) : undefined,
+    start: renderEventStart(ev.startDate, siteTz, isAllDay),
+    end: ev.endDate ? renderEventStart(ev.endDate, siteTz, isAllDay) : undefined,
     location: ev.location || undefined,
     description: ev.description || undefined,
     url: stringPropOrUndefined(ev.component, 'url'),
@@ -116,47 +115,38 @@ function mapSeries(
   const recurrence_day = DAY_FROM_RRULE[byday[0]];
   const recurrence = interval === 2 ? 'biweekly' : 'weekly';
 
-  const startUtc = timeToUtcInstant(master.startDate, siteTz);
-  const season_start = formatDateOnly(startUtc, siteTz);
-  const season_end = computeSeasonEnd(rrule, startUtc, interval, siteTz);
+  const masterZdt = icalTimeToSiteZdt(master.startDate, siteTz);
+  const season_start = masterZdt.toPlainDate().toString();
+  const season_end = computeSeasonEnd(rrule, masterZdt, interval);
 
   // EXDATE values: ical.js exposes them as separate properties (one per
   // EXDATE line) and each property may carry multiple comma-separated values
   // — RFC 5545 allows `EXDATE:20260518T180000Z,20260601T180000Z` on a single
   // line, and Google Calendar emits this form. Iterate every value, not just
   // the first.
-  const exdateValues: Date[] = [];
+  const exdates = new Set<string>();
   for (const prop of master.component.getAllProperties('exdate')) {
     for (const val of prop.getValues()) {
       if (val && typeof (val as ICAL.Time).toJSDate === 'function') {
-        exdateValues.push(timeToUtcInstant(val as ICAL.Time, siteTz));
+        exdates.add(icalTimeToSiteZdt(val as ICAL.Time, siteTz).toPlainDate().toString());
       }
     }
   }
-  const seenIso = new Set<string>();
-  const exdates: string[] = [];
-  for (const d of exdateValues) {
-    const iso = d.toISOString();
-    if (!seenIso.has(iso)) {
-      seenIso.add(iso);
-      exdates.push(formatDateOnly(d, siteTz));
-    }
-  }
-  exdates.sort();
+  const exdatesSorted = [...exdates].sort();
 
   // RECURRENCE-ID overrides — already grouped by UID in parseIcs.
   const overrideOut: NonNullable<ParsedSeries['overrides']> = [];
-  const seenOverrideIso = new Set<string>();
+  const seenOverrideKey = new Set<string>();
   for (const ovr of overrides) {
     if (!ovr.startDate) continue;
-    const start = timeToUtcInstant(ovr.startDate, siteTz);
-    const iso = start.toISOString();
-    if (seenOverrideIso.has(iso)) continue;
-    seenOverrideIso.add(iso);
+    const ovrZdt = icalTimeToSiteZdt(ovr.startDate, siteTz);
+    const key = ovrZdt.toString();
+    if (seenOverrideKey.has(key)) continue;
+    seenOverrideKey.add(key);
     const status = stringPropOrUndefined(ovr.component, 'status');
     overrideOut.push({
-      date: formatDateOnly(start, siteTz),
-      start_time: formatTime(start, siteTz),
+      date: ovrZdt.toPlainDate().toString(),
+      start_time: ovrZdt.toPlainTime().toString({ smallestUnit: 'minute' }),
       location: ovr.location || undefined,
       cancelled: (status ?? '').toUpperCase() === 'CANCELLED',
     });
@@ -170,7 +160,7 @@ function mapSeries(
       recurrence_day,
       season_start,
       season_end,
-      skip_dates: exdates.length ? exdates : undefined,
+      skip_dates: exdatesSorted.length ? exdatesSorted : undefined,
       overrides: overrideOut.length ? overrideOut : undefined,
     },
   };
@@ -178,22 +168,17 @@ function mapSeries(
 
 function computeSeasonEnd(
   rrule: ICAL.Recur,
-  dtstart: Date,
+  masterZdt: Temporal.ZonedDateTime,
   interval: number,
-  siteTz: string,
 ): string {
   if (rrule.until) {
-    return formatDateOnly(timeToUtcInstant(rrule.until, siteTz), siteTz);
+    return icalTimeToSiteZdt(rrule.until, masterZdt.timeZoneId).toPlainDate().toString();
   }
   if (rrule.count) {
-    const last = new Date(dtstart.getTime());
-    last.setUTCDate(last.getUTCDate() + (rrule.count - 1) * interval * 7);
-    return formatDateOnly(last, siteTz);
+    return masterZdt.add({ weeks: (rrule.count - 1) * interval }).toPlainDate().toString();
   }
   // Unbounded — cap at DTSTART + 1 year (matches the prior behavior).
-  const cap = new Date(dtstart.getTime());
-  cap.setUTCFullYear(cap.getUTCFullYear() + 1);
-  return formatDateOnly(cap, siteTz);
+  return masterZdt.add({ years: 1 }).toPlainDate().toString();
 }
 
 const SCHEDULE_HORIZON_DAYS = 365;
@@ -216,8 +201,8 @@ function buildScheduleFallback(
   // the iterator's dtstart can change anchoring for rules like FREQ=MONTHLY
   // BYDAY=1SU); we just skip past entries earlier than `now` and stop after
   // `now + 365d`.
-  const fromInstant = now;
-  const toInstant = new Date(fromInstant.getTime() + SCHEDULE_HORIZON_DAYS * 24 * 3600 * 1000);
+  const fromMs = now.getTime();
+  const toMs = fromMs + SCHEDULE_HORIZON_DAYS * 24 * 3600 * 1000;
 
   // Index RECURRENCE-ID overrides by their original (ICAL) occurrence date in
   // siteTz YYYY-MM-DD. ical.js's master.iterator() honors EXDATE automatically
@@ -234,23 +219,24 @@ function buildScheduleFallback(
   while ((next = iter.next())) {
     safety += 1;
     if (safety > SCHEDULE_ITER_CAP) break;
-    const inst = timeToUtcInstant(next, siteTz);
-    if (inst.getTime() > toInstant.getTime()) break;
-    if (inst.getTime() < fromInstant.getTime()) continue;
-    const originalDate = formatDateOnly(inst, siteTz);
+    const occMs = next.toJSDate().getTime();
+    if (occMs > toMs) break;
+    if (occMs < fromMs) continue;
+    const zdt = icalTimeToSiteZdt(next, siteTz);
+    const originalDate = zdt.toPlainDate().toString();
     const override = overridesByOriginalDate.get(originalDate);
     if (override?.cancelled) continue;
     if (override) {
       schedule.push({
         date: override.date,
-        start_time: override.start_time ?? formatTime(inst, siteTz),
+        start_time: override.start_time ?? zdt.toPlainTime().toString({ smallestUnit: 'minute' }),
         location: override.location ?? master.location ?? undefined,
       });
       continue;
     }
     schedule.push({
       date: originalDate,
-      start_time: formatTime(inst, siteTz),
+      start_time: zdt.toPlainTime().toString({ smallestUnit: 'minute' }),
       location: master.location || undefined,
     });
   }
@@ -266,18 +252,17 @@ function indexOverridesByOriginalDate(
   for (const ovr of overrides) {
     const recurId = ovr.component.getFirstPropertyValue('recurrence-id') as ICAL.Time | null;
     if (!recurId) continue;
-    const originalInst = timeToUtcInstant(recurId, siteTz);
-    const originalDate = formatDateOnly(originalInst, siteTz);
+    const originalDate = icalTimeToSiteZdt(recurId, siteTz).toPlainDate().toString();
     const status = stringPropOrUndefined(ovr.component, 'status');
     if ((status ?? '').toUpperCase() === 'CANCELLED') {
       out.set(originalDate, { date: originalDate, cancelled: true });
       continue;
     }
     if (!ovr.startDate) continue;
-    const newInst = timeToUtcInstant(ovr.startDate, siteTz);
+    const newZdt = icalTimeToSiteZdt(ovr.startDate, siteTz);
     out.set(originalDate, {
-      date: formatDateOnly(newInst, siteTz),
-      start_time: formatTime(newInst, siteTz),
+      date: newZdt.toPlainDate().toString(),
+      start_time: newZdt.toPlainTime().toString({ smallestUnit: 'minute' }),
       location: ovr.location || undefined,
     });
   }
@@ -297,106 +282,42 @@ function stringPropOrUndefined(comp: ICAL.Component, name: string): string | und
 }
 
 /**
- * Convert an ICAL.Time to a UTC Date instant.
+ * Project an `ICAL.Time` into a `Temporal.ZonedDateTime` anchored at `siteTz`.
  *
- * - VALUE=DATE (all-day): return a Date constructed at server-local midnight
- *   for the calendar Y/M/D. On Workers (UTC) this yields a UTC midnight Date
- *   whose local-time getters round-trip to the authored Y/M/D. Matches the
- *   behavior the existing renderDateTime helper expects.
- * - Floating times (no Z, no TZID): treat the wall-clock as siteTz local
- *   time and compute the UTC instant whose siteTz projection matches.
- * - UTC and TZID-resolved times: trust ICAL.Time.toJSDate().
+ * - VALUE=DATE (all-day): there's no time component; anchor at midnight in
+ *   siteTz so callers can extract the calendar date.
+ * - Floating (no Z, no TZID): the wall-clock fields are interpreted in siteTz.
+ * - TZID-resolved or UTC: trust ical.js's instant via toJSDate(); project that
+ *   instant into siteTz for callers that want naive site-local fields.
  */
-function timeToUtcInstant(t: ICAL.Time, siteTz: string): Date {
+function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
   if (t.isDate) {
-    return new Date(t.year, t.month - 1, t.day);
+    return Temporal.PlainDate.from({ year: t.year, month: t.month, day: t.day })
+      .toZonedDateTime(siteTz);
   }
   const zone = t.zone;
   const isFloating =
     zone == null ||
     (zone === ICAL.Timezone.localTimezone) ||
     (typeof zone.tzid === 'string' && zone.tzid === 'floating');
-  if (!isFloating) {
-    return t.toJSDate();
+  if (isFloating) {
+    return Temporal.PlainDateTime.from({
+      year: t.year, month: t.month, day: t.day,
+      hour: t.hour, minute: t.minute, second: t.second,
+    }).toZonedDateTime(siteTz);
   }
-  // Floating: interpret wall-clock in siteTz.
-  return wallClockToUtc(
-    { year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute, second: t.second },
-    siteTz,
-  );
-}
-
-interface WallClock {
-  year: number; month: number; day: number;
-  hour: number; minute: number; second: number;
+  return Temporal.Instant.fromEpochMilliseconds(t.toJSDate().getTime())
+    .toZonedDateTimeISO(siteTz);
 }
 
 /**
- * Given a wall clock and an IANA TZ, return the UTC instant whose projection
- * into that TZ equals the given wall clock. Works around the lack of a tzdata
- * library by sampling the offset of a candidate UTC instant via Intl.
+ * Render an event start/end as the naive string the downstream YAML expects:
+ * `YYYY-MM-DD` for all-day, `YYYY-MM-DDTHH:MM:SS` for timed.
  */
-function wallClockToUtc(wc: WallClock, tz: string): Date {
-  const candidate = Date.UTC(wc.year, wc.month - 1, wc.day, wc.hour, wc.minute, wc.second);
-  const projected = getLocalParts(new Date(candidate), tz);
-  const projectedMs = Date.UTC(
-    Number(projected.year), Number(projected.month) - 1, Number(projected.day),
-    Number(projected.hour), Number(projected.minute), Number(projected.second),
-  );
-  const offsetMs = projectedMs - candidate;
-  return new Date(candidate - offsetMs);
-}
-
-/**
- * Render a UTC Date as the naive string downstream YAML expects.
- *
- * - All-day events → `YYYY-MM-DD` from local-time getters. Construction in
- *   timeToUtcInstant uses local midnight; on Workers (UTC) local getters
- *   yield the authored calendar date.
- * - Timed events → `YYYY-MM-DDTHH:MM:SS` projected into siteTz, no offset.
- */
-function renderDateTime(d: Date, isAllDay: boolean, siteTz: string): string {
-  if (isAllDay) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${dd}`;
-  }
-  const p = getLocalParts(d, siteTz);
-  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}`;
-}
-
-function formatDateOnly(d: Date, siteTz: string): string {
-  const p = getLocalParts(d, siteTz);
-  return `${p.year}-${p.month}-${p.day}`;
-}
-
-function formatTime(d: Date, siteTz: string): string {
-  const p = getLocalParts(d, siteTz);
-  return `${p.hour}:${p.minute}`;
-}
-
-interface LocalParts {
-  year: string; month: string; day: string;
-  hour: string; minute: string; second: string;
-}
-
-function getLocalParts(d: Date, tz: string): LocalParts {
-  const formatted = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  }).formatToParts(d).reduce<Record<string, string>>((acc, p) => {
-    if (p.type !== 'literal') acc[p.type] = p.value;
-    return acc;
-  }, {});
-  return {
-    year: formatted.year, month: formatted.month, day: formatted.day,
-    // Intl can render 24h hour as '24' for midnight in some locales; normalize.
-    hour: formatted.hour === '24' ? '00' : formatted.hour,
-    minute: formatted.minute, second: formatted.second,
-  };
+function renderEventStart(t: ICAL.Time, siteTz: string, isAllDay: boolean): string {
+  const zdt = icalTimeToSiteZdt(t, siteTz);
+  if (isAllDay) return zdt.toPlainDate().toString();
+  return zdt.toPlainDateTime().toString({ smallestUnit: 'second' });
 }
 
 const FETCH_TIMEOUT_MS = 5_000;
