@@ -68,6 +68,7 @@
     "fflate": "^0.8.2",
     "gray-matter": "^4.0.3",
     "hls.js": "^1.6.15",
+    "ical.js": "^2.2.1",
     "js-yaml": "^4.1.1",
     "maplibre-gl": "^5.19.0",
     "marked": "^18.0.0",

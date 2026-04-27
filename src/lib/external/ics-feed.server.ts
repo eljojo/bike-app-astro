@@ -1,5 +1,4 @@
-import ical from 'node-ical';
-import type { VEvent } from 'node-ical';
+import ICAL from 'ical.js';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay } from '../calendar-suggestions/types';
 
 const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
@@ -7,55 +6,62 @@ const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
   FR: 'friday', SA: 'saturday', SU: 'sunday',
 };
 
-// Minimal structural types for the parts of node-ical's outputs we actually read.
-// node-ical wraps rrule.js but only loosely types the result, so we narrow here.
-interface RRuleOptions {
-  freq?: string;              // "WEEKLY" | "MONTHLY" | ...
-  interval?: number;
-  byweekday?: string[];       // ["MO"], ["MO","WE","FR"], etc.
-  until?: Date | string | null;
-  count?: number | null;
-}
-interface RRuleLike {
-  options?: RRuleOptions;
-  between?: (after: Date, before: Date, inclusive?: boolean) => Date[];
-}
-interface VEventExtensions {
-  rrule?: RRuleLike;
-  exdate?: Record<string, Date | string>;
-  recurrences?: Record<string, VEvent & { status?: string }>;
-  status?: string;
-  // node-ical sets this to 'date' for VALUE=DATE (all-day) events and 'date-time' otherwise.
-  datetype?: string;
-}
-function ext(v: VEvent): VEventExtensions {
-  return v as unknown as VEventExtensions;
-}
-
 /**
  * Parse an ICS document and project every timed datetime into `siteTz`'s local
- * clock time, emitting naive `YYYY-MM-DDTHH:MM:SS` strings (no offset, no Z).
+ * clock, emitting naive `YYYY-MM-DDTHH:MM:SS` strings (no offset, no Z).
  *
- * The downstream pipeline stores naive site-local clock times in YAML
- * (`start_time: "18:15"`) — that's the storage spec, not an oversight. The
- * parser's job is to deliver data in the shape the storage expects. `siteTz`
- * is the destination we project *into*; it isn't a "fallback when the feed
- * is silent." Whether the source had `TZID=America/Toronto`, a bare `Z`
- * literal, or a TZID for a different city, we always project to the same
- * site-local clock — so an Ottawa instance importing a Vancouver feed sees
- * those events at the equivalent Toronto-clock time. This is consistent with
- * how the rest of the platform treats event times.
+ * Implementation notes (vs. node-ical):
+ * - VTIMEZONE blocks are registered with `ICAL.TimezoneService` so that
+ *   TZID-bearing times resolve to correct UTC instants via `time.toJSDate()`.
+ * - RECURRENCE-ID overrides are NOT auto-bucketed; we group VEVENTs by UID
+ *   ourselves and split master vs. exception via `event.isRecurrenceException()`.
+ * - `siteTz` is the destination wall clock, not a fallback. We always project
+ *   the UTC instant into siteTz — so an Ottawa instance importing a Vancouver feed sees
+ *   those events at the equivalent Toronto-clock time. This is consistent with
+ *   how the rest of the platform treats event times.
  */
 export function parseIcs(text: string, sourceUrl: string, siteTz: string): ParsedFeed {
-  const parsed = ical.parseICS(text);
-  const events: ParsedVEvent[] = [];
-  for (const key of Object.keys(parsed)) {
-    const v = parsed[key];
-    if (!v || v.type !== 'VEVENT') continue;
-    const ve = v as VEvent;
-    const event = ext(ve).rrule ? mapSeries(ve, siteTz) : mapOneOff(ve, siteTz);
-    if (event) events.push(event);
+  const jcal = ICAL.parse(text);
+  const vcal = new ICAL.Component(jcal);
+
+  // Register VTIMEZONE blocks before reading any TZID-bearing properties.
+  // ical.js holds a process-global TimezoneService; the `has()` guard avoids
+  // redundant re-registration when the same feed is parsed repeatedly.
+  for (const vtz of vcal.getAllSubcomponents('vtimezone')) {
+    const tz = new ICAL.Timezone({ component: vtz });
+    if (!ICAL.TimezoneService.has(tz.tzid)) {
+      ICAL.TimezoneService.register(tz);
+    }
   }
+
+  // Group VEVENTs by UID. Masters carry the RRULE; RECURRENCE-ID exceptions
+  // are collected separately and attached to the master in mapSeries.
+  const masters = new Map<string, ICAL.Event>();
+  const overridesByUid = new Map<string, ICAL.Event[]>();
+  for (const ve of vcal.getAllSubcomponents('vevent')) {
+    const ev = new ICAL.Event(ve);
+    if (!ev.uid) continue;
+    if (ev.isRecurrenceException()) {
+      const list = overridesByUid.get(ev.uid) ?? [];
+      list.push(ev);
+      overridesByUid.set(ev.uid, list);
+    } else {
+      // If two VEVENTs share a UID without RECURRENCE-ID, last-write-wins
+      // (matches node-ical's flat keying behavior on duplicate UIDs).
+      masters.set(ev.uid, ev);
+    }
+  }
+
+  const events: ParsedVEvent[] = [];
+  for (const [uid, master] of masters) {
+    const eventOverrides = overridesByUid.get(uid) ?? [];
+    const isRecurring = master.component.hasProperty('rrule');
+    const out = isRecurring
+      ? mapSeries(master, eventOverrides, siteTz)
+      : mapOneOff(master, siteTz);
+    if (out) events.push(out);
+  }
+
   return {
     fetched_at: new Date().toISOString(),
     source_url: sourceUrl,
@@ -63,51 +69,66 @@ export function parseIcs(text: string, sourceUrl: string, siteTz: string): Parse
   };
 }
 
-function mapOneOff(v: VEvent, siteTz: string): ParsedVEvent | null {
-  if (!v.uid || !v.summary || !v.start) return null;
-  const isAllDay = ext(v).datetype === 'date';
+function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
+  if (!ev.uid || !ev.summary || !ev.startDate) return null;
+  const isAllDay = ev.startDate.isDate;
+  const startUtc = timeToUtcInstant(ev.startDate, siteTz);
+  const endUtc = ev.endDate ? timeToUtcInstant(ev.endDate, siteTz) : null;
   return {
-    uid: String(v.uid),
-    summary: String(v.summary),
-    start: renderDateTime(v.start, isAllDay, siteTz),
-    end: v.end ? renderDateTime(v.end, isAllDay, siteTz) : undefined,
-    location: v.location ? String(v.location) : undefined,
-    description: v.description ? String(v.description) : undefined,
-    url: v.url ? String(v.url) : undefined,
+    uid: ev.uid,
+    summary: ev.summary,
+    start: renderDateTime(startUtc, isAllDay, siteTz),
+    end: endUtc ? renderDateTime(endUtc, isAllDay, siteTz) : undefined,
+    location: ev.location || undefined,
+    description: ev.description || undefined,
+    url: stringPropOrUndefined(ev.component, 'url'),
   };
 }
 
-function mapSeries(v: VEvent, siteTz: string): ParsedVEvent | null {
-  const xv = ext(v);
-  if (!v.uid || !v.summary || !v.start || !xv.rrule) return null;
-  const opts = xv.rrule.options ?? {};
-  const freq = opts.freq ?? '';
-  const interval = opts.interval ?? 1;
-  const byweekday = opts.byweekday ?? [];
+function mapSeries(
+  master: ICAL.Event,
+  overrides: ICAL.Event[],
+  siteTz: string,
+): ParsedVEvent | null {
+  if (!master.uid || !master.summary || !master.startDate) return null;
+  const rrule = master.component.getFirstPropertyValue('rrule') as ICAL.Recur | null;
+  if (!rrule) return null;
 
-  const base = mapOneOff(v, siteTz);
+  const base = mapOneOff(master, siteTz);
   if (!base) return null;
+
+  const freq = rrule.freq ?? '';
+  const interval = rrule.interval ?? 1;
+  const byday = rruleByDay(rrule);
 
   const isCleanWeekly =
     freq === 'WEEKLY' &&
     (interval === 1 || interval === 2) &&
-    byweekday.length === 1;
+    byday.length === 1;
 
-  if (!isCleanWeekly) return { ...base, series: buildScheduleFallback(v, siteTz) };
+  if (!isCleanWeekly) {
+    return { ...base, series: buildScheduleFallback(master, siteTz) };
+  }
 
-  const recurrence_day = DAY_FROM_RRULE[byweekday[0]];
+  const recurrence_day = DAY_FROM_RRULE[byday[0]];
   const recurrence = interval === 2 ? 'biweekly' : 'weekly';
 
-  const season_start = formatDateOnly(v.start as Date, siteTz);
-  const season_end = computeSeasonEnd(opts, v.start as Date, interval, siteTz);
+  const startUtc = timeToUtcInstant(master.startDate, siteTz);
+  const season_start = formatDateOnly(startUtc, siteTz);
+  const season_end = computeSeasonEnd(rrule, startUtc, interval, siteTz);
 
-  // Deduplicate exdate values: the object has both date-only and full ISO keys pointing to
-  // the same Date objects, so we collect unique ISO strings first.
-  const exdateValues = Object.values(xv.exdate ?? {});
+  // EXDATE values: ical.js exposes them as separate properties (one per
+  // EXDATE line in the source). Each property's first value is an ICAL.Time.
+  const exdateValues: Date[] = [];
+  for (const prop of master.component.getAllProperties('exdate')) {
+    const val = prop.getFirstValue();
+    if (val && typeof (val as ICAL.Time).toJSDate === 'function') {
+      exdateValues.push(timeToUtcInstant(val as ICAL.Time, siteTz));
+    }
+  }
   const seenIso = new Set<string>();
   const exdates: string[] = [];
-  for (const raw of exdateValues) {
-    const d = raw instanceof Date ? raw : new Date(raw);
+  for (const d of exdateValues) {
     const iso = d.toISOString();
     if (!seenIso.has(iso)) {
       seenIso.add(iso);
@@ -116,22 +137,21 @@ function mapSeries(v: VEvent, siteTz: string): ParsedVEvent | null {
   }
   exdates.sort();
 
-  // RECURRENCE-ID overrides. node-ical keys this object by both the date-only form
-  // and the full ISO form pointing at the same override object — dedupe by the
-  // override's resolved instant so we emit each rescheduled occurrence once.
-  const overrides: NonNullable<ParsedSeries['overrides']> = [];
+  // RECURRENCE-ID overrides — already grouped by UID in parseIcs.
+  const overrideOut: NonNullable<ParsedSeries['overrides']> = [];
   const seenOverrideIso = new Set<string>();
-  for (const recur of Object.values(xv.recurrences ?? {})) {
-    if (!recur.start) continue;
-    const start = recur.start as Date;
+  for (const ovr of overrides) {
+    if (!ovr.startDate) continue;
+    const start = timeToUtcInstant(ovr.startDate, siteTz);
     const iso = start.toISOString();
     if (seenOverrideIso.has(iso)) continue;
     seenOverrideIso.add(iso);
-    overrides.push({
+    const status = stringPropOrUndefined(ovr.component, 'status');
+    overrideOut.push({
       date: formatDateOnly(start, siteTz),
       start_time: formatTime(start, siteTz),
-      location: recur.location ? String(recur.location) : undefined,
-      cancelled: String(recur.status ?? '').toUpperCase() === 'CANCELLED',
+      location: ovr.location || undefined,
+      cancelled: (status ?? '').toUpperCase() === 'CANCELLED',
     });
   }
 
@@ -144,25 +164,26 @@ function mapSeries(v: VEvent, siteTz: string): ParsedVEvent | null {
       season_start,
       season_end,
       skip_dates: exdates.length ? exdates : undefined,
-      overrides: overrides.length ? overrides : undefined,
+      overrides: overrideOut.length ? overrideOut : undefined,
     },
   };
 }
 
-function computeSeasonEnd(opts: RRuleOptions, dtstart: Date, interval: number, siteTz: string): string {
-  if (opts.until) {
-    // UNTIL in RFC 5545 is a UTC instant. Project into siteTz so the user-facing
-    // season_end is the local calendar date of the last allowed occurrence, not
-    // the UTC date (which can drift by one near midnight).
-    const u = opts.until instanceof Date ? opts.until : new Date(opts.until);
-    return formatDateOnly(u, siteTz);
+function computeSeasonEnd(
+  rrule: ICAL.Recur,
+  dtstart: Date,
+  interval: number,
+  siteTz: string,
+): string {
+  if (rrule.until) {
+    return formatDateOnly(timeToUtcInstant(rrule.until, siteTz), siteTz);
   }
-  if (opts.count) {
+  if (rrule.count) {
     const last = new Date(dtstart.getTime());
-    last.setUTCDate(last.getUTCDate() + (opts.count - 1) * interval * 7);
+    last.setUTCDate(last.getUTCDate() + (rrule.count - 1) * interval * 7);
     return formatDateOnly(last, siteTz);
   }
-  // Unbounded — cap at DTSTART + 1 year.
+  // Unbounded — cap at DTSTART + 1 year (matches the prior behavior).
   const cap = new Date(dtstart.getTime());
   cap.setUTCFullYear(cap.getUTCFullYear() + 1);
   return formatDateOnly(cap, siteTz);
@@ -170,37 +191,113 @@ function computeSeasonEnd(opts: RRuleOptions, dtstart: Date, interval: number, s
 
 const SCHEDULE_HORIZON_DAYS = 365;
 
-function buildScheduleFallback(v: VEvent, siteTz: string): ParsedSeries {
-  const rule = ext(v).rrule;
-  if (!rule || !v.start) return { kind: 'schedule', schedule: [] };
-  const from = v.start as Date;
-  const to = new Date(from.getTime() + SCHEDULE_HORIZON_DAYS * 24 * 3600 * 1000);
-  // rrule.js between(after, before, inclusive)
-  const occurrences = typeof rule.between === 'function'
-    ? rule.between(from, to, true)
-    : [];
-  const schedule = occurrences.map(d => ({
-    date: formatDateOnly(d, siteTz),
-    start_time: formatTime(d, siteTz),
-    location: v.location ? String(v.location) : undefined,
-  }));
+type ScheduleEntry = { date: string; start_time: string; location?: string };
+
+function buildScheduleFallback(master: ICAL.Event, siteTz: string): ParsedSeries {
+  if (!master.startDate) return { kind: 'schedule', schedule: [] };
+  const fromInstant = timeToUtcInstant(master.startDate, siteTz);
+  const toInstant = new Date(fromInstant.getTime() + SCHEDULE_HORIZON_DAYS * 24 * 3600 * 1000);
+
+  const schedule: ScheduleEntry[] = [];
+
+  // ICAL.Event.iterator() drives the RRULE expansion; each call to next()
+  // returns the next ICAL.Time occurrence (or null when exhausted).
+  const iter = master.iterator();
+  let next: ICAL.Time | null;
+  let safety = 0;
+  while ((next = iter.next())) {
+    safety += 1;
+    if (safety > 1000) break; // hard cap to prevent runaway RRULEs
+    const inst = timeToUtcInstant(next, siteTz);
+    if (inst.getTime() < fromInstant.getTime()) continue;
+    if (inst.getTime() > toInstant.getTime()) break;
+    schedule.push({
+      date: formatDateOnly(inst, siteTz),
+      start_time: formatTime(inst, siteTz),
+      location: master.location || undefined,
+    });
+  }
+
   return { kind: 'schedule', schedule };
 }
 
+function rruleByDay(rrule: ICAL.Recur): string[] {
+  const parts = (rrule as unknown as { parts?: Record<string, unknown> }).parts;
+  const byday = parts?.BYDAY;
+  if (Array.isArray(byday)) {
+    // BYDAY values may be like "MO", "1MO" (first Monday), "-1FR" — for the
+    // clean-weekly check we only care about the day suffix.
+    return byday.map(v => String(v).replace(/^[+-]?\d+/, ''));
+  }
+  return [];
+}
+
+function stringPropOrUndefined(comp: ICAL.Component, name: string): string | undefined {
+  const v = comp.getFirstPropertyValue(name);
+  if (v == null) return undefined;
+  return String(v);
+}
+
 /**
- * Render a VEvent start/end as a string downstream code slices into naive
- * `YYYY-MM-DD` and `HH:MM` parts.
+ * Convert an ICAL.Time to a UTC Date instant.
  *
- * - All-day events → `YYYY-MM-DD` via local-time getters. node-ical constructs
- *   VALUE=DATE Dates as `new Date(year, monthIndex, day)` (server-local-midnight),
- *   so local getters round-trip the authored calendar date. Workers runs in UTC,
- *   so this matches the source date directly.
- * - Timed events → `YYYY-MM-DDTHH:MM:SS` projected into siteTz, no offset, no Z.
- *   The downstream YAML stores naive site-local clock times; we hand it that
- *   shape directly.
+ * - VALUE=DATE (all-day): return a Date constructed at server-local midnight
+ *   for the calendar Y/M/D. On Workers (UTC) this yields a UTC midnight Date
+ *   whose local-time getters round-trip to the authored Y/M/D. Matches the
+ *   behavior the existing renderDateTime helper expects.
+ * - Floating times (no Z, no TZID): treat the wall-clock as siteTz local
+ *   time and compute the UTC instant whose siteTz projection matches.
+ * - UTC and TZID-resolved times: trust ICAL.Time.toJSDate().
  */
-function renderDateTime(d: Date | string, isAllDay: boolean, siteTz: string): string {
-  if (!(d instanceof Date)) d = new Date(d);
+function timeToUtcInstant(t: ICAL.Time, siteTz: string): Date {
+  if (t.isDate) {
+    return new Date(t.year, t.month - 1, t.day);
+  }
+  const zone = t.zone;
+  const isFloating =
+    zone == null ||
+    (zone === ICAL.Timezone.localTimezone) ||
+    (typeof zone.tzid === 'string' && zone.tzid === 'floating');
+  if (!isFloating) {
+    return t.toJSDate();
+  }
+  // Floating: interpret wall-clock in siteTz.
+  return wallClockToUtc(
+    { year: t.year, month: t.month, day: t.day, hour: t.hour, minute: t.minute, second: t.second },
+    siteTz,
+  );
+}
+
+interface WallClock {
+  year: number; month: number; day: number;
+  hour: number; minute: number; second: number;
+}
+
+/**
+ * Given a wall clock and an IANA TZ, return the UTC instant whose projection
+ * into that TZ equals the given wall clock. Works around the lack of a tzdata
+ * library by sampling the offset of a candidate UTC instant via Intl.
+ */
+function wallClockToUtc(wc: WallClock, tz: string): Date {
+  const candidate = Date.UTC(wc.year, wc.month - 1, wc.day, wc.hour, wc.minute, wc.second);
+  const projected = getLocalParts(new Date(candidate), tz);
+  const projectedMs = Date.UTC(
+    Number(projected.year), Number(projected.month) - 1, Number(projected.day),
+    Number(projected.hour), Number(projected.minute), Number(projected.second),
+  );
+  const offsetMs = projectedMs - candidate;
+  return new Date(candidate - offsetMs);
+}
+
+/**
+ * Render a UTC Date as the naive string downstream YAML expects.
+ *
+ * - All-day events → `YYYY-MM-DD` from local-time getters. Construction in
+ *   timeToUtcInstant uses local midnight; on Workers (UTC) local getters
+ *   yield the authored calendar date.
+ * - Timed events → `YYYY-MM-DDTHH:MM:SS` projected into siteTz, no offset.
+ */
+function renderDateTime(d: Date, isAllDay: boolean, siteTz: string): string {
   if (isAllDay) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -226,10 +323,6 @@ interface LocalParts {
   hour: string; minute: string; second: string;
 }
 
-/**
- * Extract clock parts in the given IANA TZ via Intl.DateTimeFormat (Workers-compatible).
- * Single source of truth for "what does this UTC instant look like on a wall clock in tz?".
- */
 function getLocalParts(d: Date, tz: string): LocalParts {
   const formatted = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -242,7 +335,6 @@ function getLocalParts(d: Date, tz: string): LocalParts {
   }, {});
   return {
     year: formatted.year, month: formatted.month, day: formatted.day,
-    // Intl can render 24h hour as '24' for midnight in some locales; normalize.
     hour: formatted.hour === '24' ? '00' : formatted.hour,
     minute: formatted.minute, second: formatted.second,
   };
