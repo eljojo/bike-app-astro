@@ -91,6 +91,67 @@ describe('buildCopyDataFromVevent', () => {
     expect(seriesKeys.sort()).toEqual(['recurrence', 'recurrence_day', 'season_end', 'season_start']);
   });
 
+  test('HTML descriptions are converted to markdown for the body', () => {
+    // Real-world Google-Calendar-flavored HTML — <br>, <a href>, <u>, and the
+    // ridewithgps URL appears both as href and as the anchor's visible text.
+    const v: ParsedVEvent = {
+      uid: 'html-desc@x',
+      summary: 'Sunday club ride',
+      start: '2026-05-10T10:00:00',
+      description:
+        '<br><a href="https://ridewithgps.com/routes/35268576"><u>https://ridewithgps.com/routes/35268576</u></a><br><br>' +
+        'We&#39;ll do a 43 km loop. Aim for &gt; 20 km/h.<br>Bring: lights.',
+    };
+    const cd = buildCopyDataFromVevent(v, 'qbc');
+    const body = cd.body as string;
+    // No HTML tags survive (matches `<br>`, `</u>`, `<a href=...>`; allows
+    // markdown autolinks `<https://...>` because they contain `:` after the
+    // host scheme — not a valid HTML tag-name shape).
+    expect(body).not.toMatch(/<\/?[a-zA-Z]\w*(?:\s[^>]*)?\/?>/);
+    // HTML entities decoded.
+    expect(body).toContain("We'll do");
+    expect(body).toContain('> 20 km/h');
+    // RidewithGPS URL still present (likely as a markdown autolink).
+    expect(body).toContain('https://ridewithgps.com/routes/35268576');
+    // map_url is extracted from the same source.
+    expect(cd.map_url).toBe('https://ridewithgps.com/routes/35268576');
+  });
+
+  test('extracts a RidewithGPS URL from the description into map_url', () => {
+    const v: ParsedVEvent = {
+      uid: 'with-rwgps@x',
+      summary: 'Sunday club ride',
+      start: '2026-05-10T10:00:00',
+      description: 'Join us! Route: https://ridewithgps.com/routes/35268576 — bring lights.',
+    };
+    const cd = buildCopyDataFromVevent(v, 'qbc');
+    expect(cd.map_url).toBe('https://ridewithgps.com/routes/35268576');
+    // Description is preserved verbatim — admin can edit if they want it gone.
+    expect(cd.body).toBe('Join us! Route: https://ridewithgps.com/routes/35268576 — bring lights.');
+  });
+
+  test('does not set map_url when the description has no RidewithGPS link', () => {
+    const v: ParsedVEvent = {
+      uid: 'no-link@x',
+      summary: 'Sunday club ride',
+      start: '2026-05-10T10:00:00',
+      description: 'Easy 30km. Meet at the cafe.',
+    };
+    const cd = buildCopyDataFromVevent(v, 'qbc');
+    expect(cd.map_url).toBeUndefined();
+  });
+
+  test('picks the first RidewithGPS URL when multiple are present', () => {
+    const v: ParsedVEvent = {
+      uid: 'multi-rwgps@x',
+      summary: 'Choose your distance',
+      start: '2026-05-10T10:00:00',
+      description: '50km: https://ridewithgps.com/routes/111 / 80km: https://ridewithgps.com/routes/222',
+    };
+    const cd = buildCopyDataFromVevent(v, 'qbc');
+    expect(cd.map_url).toBe('https://ridewithgps.com/routes/111');
+  });
+
   test('series with schedule fallback — includes schedule list', () => {
     const v: ParsedVEvent = {
       uid: 'sched@x',

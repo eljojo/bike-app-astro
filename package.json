@@ -73,6 +73,7 @@
     "js-yaml": "^4.1.1",
     "maplibre-gl": "^5.19.0",
     "marked": "^18.0.0",
+    "node-html-markdown": "^2.0.0",
     "photoswipe": "^5.4.4",
     "photoswipe-dynamic-caption-plugin": "^1.2.7",
     "preact": "^10.28.4",
