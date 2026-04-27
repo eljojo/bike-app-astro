@@ -72,7 +72,6 @@
     "js-yaml": "^4.1.1",
     "maplibre-gl": "^5.19.0",
     "marked": "^18.0.0",
-    "node-ical": "^0.26.0",
     "photoswipe": "^5.4.4",
     "photoswipe-dynamic-caption-plugin": "^1.2.7",
     "preact": "^10.28.4",
@@ -94,8 +93,5 @@
     "tsx": "^4.21.0",
     "typescript-eslint": "^8.57.0",
     "vitest": "^4.0.18"
-  },
-  "overrides": {
-    "@js-temporal/polyfill": "npm:temporal-polyfill@^0.3.0"
   }
 }
