@@ -40,6 +40,46 @@ describe('parseIcs — series with clean RRULE', () => {
   });
 });
 
+describe('parseIcs — series with TZID', () => {
+  test('weekly TZID series renders season, EXDATE, and RECURRENCE-ID overrides in local time', () => {
+    // Regression: every formatter inside mapSeries used UTC getters, so a Toronto
+    // series authored at 19:30 EDT was reported with UTC dates/times. Near midnight
+    // or at DST boundaries the calendar date itself drifted by a day. Fix: extract
+    // local clock parts via Intl in DTSTART's TZID for all of season_start/season_end/
+    // skip_dates/overrides + the schedule fallback.
+    const feed = parseIcs(fixture('series-weekly-tzid.ics'), 'https://example.com/feed.ics');
+    const e = feed.events[0];
+    expect(e.uid).toBe('test-weekly-tzid@example.com');
+
+    // start/end on the base event: local clock + EDT offset
+    expect(e.start).toBe('2026-05-05T19:30:00-04:00');
+    expect(e.end).toBe('2026-05-05T21:30:00-04:00');
+
+    // season_start: from DTSTART, in local TZ (would be 2026-05-05 in either UTC
+    // or local for this case — but the regression is documented for the EXDATEs below).
+    expect(e.series!.season_start).toBe('2026-05-05');
+    // season_end: UNTIL=20260929T035959Z is 2026-09-28T23:59:59 EDT — UTC formatting
+    // would have given '2026-09-29' (the day after); local formatting gives the
+    // calendar date the user actually meant.
+    expect(e.series!.season_end).toBe('2026-09-28');
+
+    // skip_dates: EXDATEs were authored as TZID=America/Toronto:…T193000.
+    // Both fall on Tuesdays in their local TZ; UTC would have shifted to Wednesday.
+    expect(e.series!.skip_dates).toEqual(['2026-05-19', '2026-06-02']);
+
+    // RECURRENCE-ID override: the second VEVENT reschedules the 2026-05-26 occurrence
+    // to 20:30 instead of 19:30, location moved to Riverside. Date and time both
+    // expressed in DTSTART's TZ — UTC formatting would lose this for late-evening
+    // events that wrap past midnight UTC.
+    expect(e.series!.overrides).toHaveLength(1);
+    expect(e.series!.overrides![0]).toMatchObject({
+      date: '2026-05-26',
+      start_time: '20:30',
+      location: 'Riverside',
+    });
+  });
+});
+
 describe('parseIcs — schedule fallback', () => {
   test('monthly RRULE falls back to explicit schedule', () => {
     const feed = parseIcs(fixture('series-monthly.ics'), 'https://example.com/feed.ics');
