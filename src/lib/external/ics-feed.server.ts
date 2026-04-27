@@ -25,22 +25,15 @@ const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
  * - RECURRENCE-ID overrides are NOT auto-bucketed; we group VEVENTs by UID
  *   ourselves and split master vs. exception via `event.isRecurrenceException()`.
  */
-export function parseIcs(text: string, sourceUrl: string, siteTz: string): ParsedFeed {
+export function parseIcs(text: string, sourceUrl: string, siteTz: string, now?: Date): ParsedFeed {
   const jcal = ICAL.parse(text);
   const vcal = new ICAL.Component(jcal);
 
-  // Register VTIMEZONE blocks before reading any TZID-bearing properties.
-  // ical.js holds a process-global TimezoneService; the `has()` guard avoids
-  // redundant re-registration when the same feed is parsed repeatedly. As a
-  // consequence, the first feed to register a given TZID wins for the lifetime
-  // of the Workers isolate — fine in practice because feeds use IANA TZIDs
-  // and IANA's published rules don't disagree with each other.
-  for (const vtz of vcal.getAllSubcomponents('vtimezone')) {
-    const tz = new ICAL.Timezone({ component: vtz });
-    if (!ICAL.TimezoneService.has(tz.tzid)) {
-      ICAL.TimezoneService.register(tz);
-    }
-  }
+  // VTIMEZONE blocks are NOT registered globally. ical.js's Time parser walks
+  // the component tree (Component#getTimeZoneByID) and resolves TZID-bearing
+  // properties against the file's own VTIMEZONE definitions per parse. A
+  // process-global TimezoneService.register would let one malformed feed
+  // poison the TZID for every later feed in the same Workers isolate.
 
   // Group VEVENTs by UID. Masters carry the RRULE; RECURRENCE-ID exceptions
   // are collected separately and attached to the master in mapSeries.
@@ -60,18 +53,19 @@ export function parseIcs(text: string, sourceUrl: string, siteTz: string): Parse
     }
   }
 
+  const nowInstant = now ?? new Date();
   const events: ParsedVEvent[] = [];
   for (const [uid, master] of masters) {
     const eventOverrides = overridesByUid.get(uid) ?? [];
     const isRecurring = master.component.hasProperty('rrule');
     const out = isRecurring
-      ? mapSeries(master, eventOverrides, siteTz)
+      ? mapSeries(master, eventOverrides, siteTz, nowInstant)
       : mapOneOff(master, siteTz);
     if (out) events.push(out);
   }
 
   return {
-    fetched_at: new Date().toISOString(),
+    fetched_at: nowInstant.toISOString(),
     source_url: sourceUrl,
     events,
   };
@@ -97,6 +91,7 @@ function mapSeries(
   master: ICAL.Event,
   overrides: ICAL.Event[],
   siteTz: string,
+  now: Date,
 ): ParsedVEvent | null {
   if (!master.uid || !master.summary || !master.startDate) return null;
   const rrule = master.component.getFirstPropertyValue('rrule') as ICAL.Recur | null;
@@ -115,7 +110,7 @@ function mapSeries(
     byday.length === 1;
 
   if (!isCleanWeekly) {
-    return { ...base, series: buildScheduleFallback(master, siteTz) };
+    return { ...base, series: buildScheduleFallback(master, overrides, siteTz, now) };
   }
 
   const recurrence_day = DAY_FROM_RRULE[byday[0]];
@@ -202,35 +197,91 @@ function computeSeasonEnd(
 }
 
 const SCHEDULE_HORIZON_DAYS = 365;
+const SCHEDULE_ITER_CAP = 10_000;
 
 type ScheduleEntry = { date: string; start_time: string; location?: string };
+type ScheduleOverride = { date: string; start_time?: string; location?: string; cancelled?: boolean };
 
-function buildScheduleFallback(master: ICAL.Event, siteTz: string): ParsedSeries {
+function buildScheduleFallback(
+  master: ICAL.Event,
+  overrides: ICAL.Event[],
+  siteTz: string,
+  now: Date,
+): ParsedSeries {
   if (!master.startDate) return { kind: 'schedule', schedule: [] };
-  const fromInstant = timeToUtcInstant(master.startDate, siteTz);
+  // Anchor the schedule to `now`, not master.startDate. A monthly series with
+  // DTSTART years in the past would otherwise emit only stale dates and
+  // disappear from suggestions (`some(s => s.date >= nowDate)` returns false).
+  // Per ical.js semantics we keep iterating from the true DTSTART (overriding
+  // the iterator's dtstart can change anchoring for rules like FREQ=MONTHLY
+  // BYDAY=1SU); we just skip past entries earlier than `now` and stop after
+  // `now + 365d`.
+  const fromInstant = now;
   const toInstant = new Date(fromInstant.getTime() + SCHEDULE_HORIZON_DAYS * 24 * 3600 * 1000);
+
+  // Index RECURRENCE-ID overrides by their original (ICAL) occurrence date in
+  // siteTz YYYY-MM-DD. ical.js's master.iterator() honors EXDATE automatically
+  // but does NOT apply RECURRENCE-ID; we reconcile manually so cancelled
+  // occurrences disappear from the schedule and moved ones reflect the new
+  // time/location.
+  const overridesByOriginalDate = indexOverridesByOriginalDate(overrides, siteTz);
 
   const schedule: ScheduleEntry[] = [];
 
-  // ICAL.Event.iterator() drives the RRULE expansion; each call to next()
-  // returns the next ICAL.Time occurrence (or null when exhausted).
   const iter = master.iterator();
   let next: ICAL.Time | null;
   let safety = 0;
   while ((next = iter.next())) {
     safety += 1;
-    if (safety > 1000) break; // hard cap to prevent runaway RRULEs
+    if (safety > SCHEDULE_ITER_CAP) break;
     const inst = timeToUtcInstant(next, siteTz);
-    if (inst.getTime() < fromInstant.getTime()) continue;
     if (inst.getTime() > toInstant.getTime()) break;
+    if (inst.getTime() < fromInstant.getTime()) continue;
+    const originalDate = formatDateOnly(inst, siteTz);
+    const override = overridesByOriginalDate.get(originalDate);
+    if (override?.cancelled) continue;
+    if (override) {
+      schedule.push({
+        date: override.date,
+        start_time: override.start_time ?? formatTime(inst, siteTz),
+        location: override.location ?? master.location ?? undefined,
+      });
+      continue;
+    }
     schedule.push({
-      date: formatDateOnly(inst, siteTz),
+      date: originalDate,
       start_time: formatTime(inst, siteTz),
       location: master.location || undefined,
     });
   }
 
   return { kind: 'schedule', schedule };
+}
+
+function indexOverridesByOriginalDate(
+  overrides: ICAL.Event[],
+  siteTz: string,
+): Map<string, ScheduleOverride> {
+  const out = new Map<string, ScheduleOverride>();
+  for (const ovr of overrides) {
+    const recurId = ovr.component.getFirstPropertyValue('recurrence-id') as ICAL.Time | null;
+    if (!recurId) continue;
+    const originalInst = timeToUtcInstant(recurId, siteTz);
+    const originalDate = formatDateOnly(originalInst, siteTz);
+    const status = stringPropOrUndefined(ovr.component, 'status');
+    if ((status ?? '').toUpperCase() === 'CANCELLED') {
+      out.set(originalDate, { date: originalDate, cancelled: true });
+      continue;
+    }
+    if (!ovr.startDate) continue;
+    const newInst = timeToUtcInstant(ovr.startDate, siteTz);
+    out.set(originalDate, {
+      date: formatDateOnly(newInst, siteTz),
+      start_time: formatTime(newInst, siteTz),
+      location: ovr.location || undefined,
+    });
+  }
+  return out;
 }
 
 function rruleByDay(rrule: ICAL.Recur): string[] {

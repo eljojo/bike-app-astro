@@ -107,4 +107,94 @@ describe('parseIcs — schedule fallback', () => {
     // 8 weeks × 3 days/week = 24 occurrences between 2026-05-04 and 2026-06-30 inclusive
     expect(e.series!.schedule!.length).toBeGreaterThan(20);
   });
+
+  test('schedule fallback applies RECURRENCE-ID overrides (cancelled + moved)', () => {
+    // ical.js's master.iterator() honors EXDATE but NOT RECURRENCE-ID
+    // overrides. The fallback must reconcile cancelled and moved instances.
+    const text = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Test//EN',
+      'BEGIN:VEVENT',
+      'UID:monthly-with-overrides@example.com',
+      'DTSTAMP:20260101T120000Z',
+      'DTSTART:20260105T140000Z',
+      'DTEND:20260105T160000Z',
+      'SUMMARY:First Sunday',
+      'RRULE:FREQ=MONTHLY;BYDAY=1SU',
+      'LOCATION:Park',
+      'END:VEVENT',
+      // Cancel the 2026-06-07 occurrence.
+      'BEGIN:VEVENT',
+      'UID:monthly-with-overrides@example.com',
+      'DTSTAMP:20260101T120000Z',
+      'DTSTART:20260607T140000Z',
+      'DTEND:20260607T160000Z',
+      'SUMMARY:First Sunday',
+      'RECURRENCE-ID:20260607T140000Z',
+      'STATUS:CANCELLED',
+      'END:VEVENT',
+      // Move the 2026-08-02 occurrence to 2026-08-09 with a different time and location.
+      'BEGIN:VEVENT',
+      'UID:monthly-with-overrides@example.com',
+      'DTSTAMP:20260101T120000Z',
+      'DTSTART:20260809T160000Z',
+      'DTEND:20260809T180000Z',
+      'SUMMARY:First Sunday — moved',
+      'RECURRENCE-ID:20260802T140000Z',
+      'LOCATION:Library',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const now = new Date('2026-04-21T00:00:00Z');
+    const feed = parseIcs(text, 'https://example.com/feed.ics', TORONTO, now);
+    const sched = feed.events[0].series!.schedule!;
+    const dates = sched.map(s => s.date);
+    // 2026-06-07 cancelled — should not appear.
+    expect(dates).not.toContain('2026-06-07');
+    // 2026-08-02 moved to 2026-08-09 — original date gone, new date present.
+    expect(dates).not.toContain('2026-08-02');
+    expect(dates).toContain('2026-08-09');
+    const moved = sched.find(s => s.date === '2026-08-09')!;
+    expect(moved.location).toBe('Library');
+    // 16:00 UTC on 2026-08-09 = 12:00 EDT
+    expect(moved.start_time).toBe('12:00');
+  });
+
+  test('schedule for a long-running series anchors near `now`, not master DTSTART', () => {
+    // A monthly group ride that has been running since 2020. Iterating from
+    // master.startDate and stopping after 365 days would yield only 2020-2021
+    // dates; the suggestion would silently disappear once `nowDate` passed
+    // 2021. The schedule must be anchored to `now`.
+    const text = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Test//EN',
+      'BEGIN:VEVENT',
+      'UID:long-running-monthly@example.com',
+      'DTSTAMP:20200103T120000Z',
+      'DTSTART:20200105T140000Z',
+      'DTEND:20200105T160000Z',
+      'SUMMARY:First Sunday since 2020',
+      'RRULE:FREQ=MONTHLY;BYDAY=1SU',
+      'LOCATION:Park',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const now = new Date('2026-04-21T00:00:00Z');
+    const feed = parseIcs(text, 'https://example.com/feed.ics', TORONTO, now);
+    const e = feed.events[0];
+    expect(e.series!.kind).toBe('schedule');
+    const sched = e.series!.schedule!;
+    expect(sched.length).toBeGreaterThanOrEqual(11);  // ~12 monthly occurrences in a year
+    // Every entry must be on or after `now` and no later than now+365d.
+    expect(sched[0].date >= '2026-04-21').toBe(true);
+    expect(sched[sched.length - 1].date <= '2027-04-22').toBe(true);
+    // Anchored monthly rule: every entry is the first Sunday of its month.
+    for (const s of sched) {
+      const d = new Date(`${s.date}T12:00:00Z`);
+      expect(d.getUTCDay()).toBe(0);                  // Sunday
+      expect(d.getUTCDate()).toBeLessThanOrEqual(7);  // first week of the month
+    }
+  });
 });
