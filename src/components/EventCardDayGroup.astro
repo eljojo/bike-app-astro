@@ -1,0 +1,146 @@
+---
+// Renders one or more events that share the same day-cell. The day column
+// (weekday + day number / range) appears once on the left and spans the full
+// height; each event is its own row beneath the same column. Hovering a row
+// highlights only that row, not the whole stack — like the press-each-arrow
+// volume keys on a phone.
+import './EventCardDayGroup.scss';
+import ResponsiveImage from './ResponsiveImage.astro';
+import { parseLocalDate } from '../lib/date-utils';
+import { tagPillColor } from '../lib/event-tags';
+import { tTag } from '../lib/i18n/tag-translations.server';
+import { paths } from '../lib/paths';
+import { eventCoverKey } from '../lib/models/event-model';
+
+// Event shape matches CalendarEntry.event so calendar.astro can pass through
+// without coercion. Field access inside this component does its own casting.
+export interface DayGroupEntry {
+  event: { id: string; data: Record<string, unknown> };
+  occurrenceDate?: string;
+  occurrenceLocation?: string;
+  seriesBadge?: string;
+  organizerName?: string;
+  muted?: boolean;
+}
+
+interface EventData {
+  name: string;
+  start_date: string;
+  end_date?: string;
+  poster_key?: string;
+  poster_width?: number;
+  poster_height?: number;
+  poster_content_type?: string;
+  organizer?: string | { name: string };
+  tags?: string[];
+  distance?: number;
+  media?: Array<{ key: string; type?: string }>;
+}
+
+interface Props {
+  entries: DayGroupEntry[];
+  locale?: string;
+}
+
+const { entries, locale } = Astro.props;
+
+// Day label is computed from the first entry — by construction (see calendar
+// grouping) every entry in the group shares the same start/end day.
+const first = entries[0];
+const firstData = first.event.data as unknown as EventData;
+const displayStartDate = first.occurrenceDate || firstData.start_date;
+const displayEndDate = first.occurrenceDate ? undefined : firstData.end_date;
+
+const dayStart = parseLocalDate(displayStartDate);
+const dayNum = dayStart.getDate();
+let dayDisplay = `${dayNum}`;
+if (displayEndDate && displayEndDate !== displayStartDate) {
+  const dayEnd = parseLocalDate(displayEndDate);
+  if (dayEnd.getMonth() === dayStart.getMonth() && dayEnd.getDate() !== dayNum) {
+    dayDisplay = `${dayNum}–${dayEnd.getDate()}`;
+  }
+}
+const weekday = dayStart.toLocaleString(locale || 'en-CA', { weekday: 'short' }).replace(/\.$/, '');
+
+interface RenderRow {
+  href: string;
+  name: string;
+  meta: string;
+  seriesBadge?: string;
+  tagLabel?: string;
+  tagColor?: ReturnType<typeof tagPillColor>;
+  coverKey?: string;
+  muted: boolean;
+  eventId: string;
+  startDate: string;
+}
+
+const rows: RenderRow[] = entries.map(entry => {
+  const data = entry.event.data as unknown as EventData;
+  const muted = entry.muted ?? false;
+  const firstTag = data.tags?.[0];
+  const tagColor = firstTag ? tagPillColor(firstTag) : undefined;
+  const tagLabel = firstTag ? tTag(firstTag, locale) : undefined;
+  const distanceDisplay = data.distance ? `${data.distance} km` : null;
+  const meta = [entry.organizerName ?? '', distanceDisplay].filter(Boolean).join(' · ');
+  return {
+    href: paths.event(entry.event.id, locale),
+    name: data.name,
+    meta,
+    seriesBadge: entry.seriesBadge,
+    tagLabel: muted ? undefined : tagLabel ?? undefined,
+    tagColor: muted ? undefined : tagColor,
+    coverKey: muted ? undefined : eventCoverKey(data),
+    muted,
+    eventId: entry.event.id,
+    startDate: entry.occurrenceDate || data.start_date,
+  };
+});
+---
+
+<article class="event-day-group">
+  <div class="event-day-group-day" aria-hidden="true">
+    <span class="event-day-group-weekday">{weekday}</span>
+    <span class="event-day-group-daynum">{dayDisplay}</span>
+  </div>
+  <div class="event-day-group-rows">
+    {rows.map(row => (
+      <a
+        href={row.href}
+        class:list={['event-day-group-row', { 'event-day-group-row--muted': row.muted }]}
+        data-event-slug={row.eventId}
+        data-start-date={row.startDate}
+      >
+        <div class="event-day-group-row-body">
+          <div class="event-day-group-row-line1">
+            <span class="event-day-group-row-name">{row.name}</span>
+            {row.seriesBadge && (
+              <span class="event-day-group-row-series">{row.seriesBadge}</span>
+            )}
+            {row.tagLabel && row.tagColor && (
+              <span
+                class="event-day-group-row-tag"
+                style={`--pill-bg: ${row.tagColor.lightBg}; --pill-text: ${row.tagColor.lightText}; --pill-bg-dark: ${row.tagColor.darkBg}; --pill-text-dark: ${row.tagColor.darkText}`}
+              >
+                {row.tagLabel}
+              </span>
+            )}
+          </div>
+          {!row.muted && row.meta && <span class="event-day-group-row-meta">{row.meta}</span>}
+        </div>
+        {row.coverKey && (
+          <div class="event-day-group-row-thumb">
+            <ResponsiveImage
+              blobKey={row.coverKey}
+              alt={row.name}
+              widths={[56, 112]}
+              width={56}
+              height={56}
+              fit="cover"
+            />
+          </div>
+        )}
+      </a>
+    ))}
+  </div>
+</article>

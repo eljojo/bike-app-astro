@@ -2,7 +2,7 @@
 export const prerender = true;
 // src/views/calendar.astro
 import Base from '@/layouts/Base.astro';
-import EventCardCompact from '@/components/EventCardCompact.astro';
+import EventCardDayGroup, { type DayGroupEntry } from '@/components/EventCardDayGroup.astro';
 import EventCardFeatured from '@/components/EventCardFeatured.astro';
 import SeasonalBanner from '@/components/SeasonalBanner.astro';
 import OrganizerSpotlight from '@/components/OrganizerSpotlight.astro';
@@ -140,6 +140,47 @@ function getTagLabel(entry: CalendarEntry): string | undefined {
 const nonSeasonalUpcoming = upcoming.filter(e => classifyEvent(e.event.data.tags ?? []) !== 'seasonal');
 
 const upcomingByMonth = groupByMonth(nonSeasonalUpcoming, fmtLocale);
+
+// Group consecutive entries inside a month by the day-cell they'd render in,
+// so multiple events on the same day collapse into a single stacked card with
+// one shared date column. Multi-day events (start_date != end_date) get their
+// own group so the "FRI 22–24" range stays intact and doesn't merge with
+// single-day FRI 22 events.
+function dayKey(entry: CalendarEntry): string {
+  const start = entry.occurrenceDate || (entry.event.data.start_date as string);
+  // A series occurrence is always single-day for that date. A one-off is
+  // single-day if end_date is missing or equals start_date — normalize both
+  // to "" so a one-off on a date merges with a series occurrence on the same
+  // date.
+  let end = '';
+  if (!entry.occurrenceDate) {
+    const endDate = entry.event.data.end_date as string | undefined;
+    if (endDate && endDate !== start) end = endDate;
+  }
+  return `${start}|${end}`;
+}
+
+function toDayGroupEntry(e: CalendarEntry): DayGroupEntry {
+  return {
+    event: e.event,
+    occurrenceDate: e.occurrenceDate,
+    occurrenceLocation: e.occurrenceLocation,
+    seriesBadge: getSeriesBadge(e),
+    organizerName: resolveOrganizerName(e),
+    muted: isEntryMuted(e),
+  };
+}
+
+function groupByDay(entries: CalendarEntry[]): DayGroupEntry[][] {
+  const groups: Record<string, DayGroupEntry[]> = {};
+  const order: string[] = [];
+  for (const e of entries) {
+    const k = dayKey(e);
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(toDayGroupEntry(e));
+  }
+  return order.map(k => groups[k]);
+}
 
 // Month display names: drop year when same as page heading year
 const monthDisplayNames = new Map<string, string>();
@@ -308,8 +349,8 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
           <div class="calendar-month-card">
             <h3 class="month-header">{monthDisplayNames.get(month)}</h3>
             <div class="events-list">
-              {evts.map(e => (
-                <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} seriesBadge={getSeriesBadge(e)} organizerName={resolveOrganizerName(e)} muted={isEntryMuted(e)} locale={locale} />
+              {groupByDay(evts).map(group => (
+                <EventCardDayGroup entries={group} locale={locale} />
               ))}
             </div>
           </div>
@@ -328,8 +369,8 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
       </button>
       <div class="past-events" style="display: none;">
         <div class="events-list">
-          {past.map(e => (
-            <EventCardCompact event={e.event} occurrenceDate={e.occurrenceDate} occurrenceLocation={e.occurrenceLocation} organizerName={resolveOrganizerName(e)} locale={locale} />
+          {groupByDay(past).map(group => (
+            <EventCardDayGroup entries={group} locale={locale} />
           ))}
         </div>
       </div>
@@ -360,19 +401,28 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
           if (slug) featuredSlugs.add(slug);
         });
 
-        // Find matching compact cards in the full calendar grid
-        const compactCards = document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-card-compact[data-event-slug]');
+        // Find matching event rows in the full calendar grid. Each row sits
+        // inside an .event-day-group; clone the surrounding day-group and trim
+        // it down to just the bookmarked row so the cloned card keeps its
+        // date column.
+        const rows = document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-day-group-row[data-event-slug]');
         let shown = 0;
 
-        for (const card of compactCards) {
-          const slug = card.dataset.eventSlug || '';
-          const startDate = card.dataset.startDate || '';
+        for (const row of rows) {
+          const slug = row.dataset.eventSlug || '';
+          const startDate = row.dataset.startDate || '';
           if (!starredSet.has(slug)) continue;
           if (startDate < today) continue;
           if (featuredSlugs.has(slug)) continue;
 
-          const clone = card.cloneNode(true) as HTMLElement;
-          clone.classList.add('event-card-compact--bookmarked');
+          const dayGroup = row.closest('.event-day-group');
+          if (!dayGroup) continue;
+          const clone = dayGroup.cloneNode(true) as HTMLElement;
+          clone.classList.add('event-day-group--bookmarked');
+          // Remove sibling rows so only the bookmarked one renders
+          clone.querySelectorAll('.event-day-group-row').forEach(r => {
+            if ((r as HTMLElement).dataset.eventSlug !== slug) r.remove();
+          });
           container.appendChild(clone);
           shown++;
         }
