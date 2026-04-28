@@ -2,14 +2,23 @@
 import './TagFilter.scss';
 import { t } from '../i18n';
 import { tTag } from '../lib/i18n/tag-translations.server';
+
 interface Props {
+  /** Root element id — consumers listen on this for `tagfilter:change`. */
+  id: string;
+  /** Pills to render. */
   tags: string[];
+  /** Slug → tags map. The component computes enabled slugs from this AND the active pill set. */
+  items: Record<string, string[]>;
+  /** When set, syncs active tags to `?<urlParam>=…` (e.g. `tags`). Omit to keep state in-memory. */
+  urlParam?: string;
 }
-const { tags } = Astro.props;
+
+const { id, tags, items, urlParam } = Astro.props;
 const locale = Astro.currentLocale;
 ---
 
-<ul class="tag-filter">
+<ul class="tag-filter" id={id}>
   <li>
     <button class="tag-filter--btn tag-filter--all active" data-tag="all">{t('filter.all', locale)}</button>
   </li>
@@ -20,109 +29,113 @@ const locale = Astro.currentLocale;
   ))}
 </ul>
 
-<script>
-  function setupTagFiltering() {
-    const tagList = document.querySelector('.tag-filter');
-    const routeCards = document.querySelectorAll('.route-card');
-    if (!tagList || !routeCards.length) return;
+<script is:inline define:vars={{ rootId: id, items, urlParam }}>
+  (() => {
+    const root = document.getElementById(rootId);
+    if (!root) return;
+    const allBtn = root.querySelector('.tag-filter--all');
+    const tagButtons = Array.from(root.querySelectorAll('.tag-filter--btn:not(.tag-filter--all)'));
+    const slugs = Object.keys(items);
 
-    const allBtn = tagList.querySelector('.tag-filter--all') as HTMLElement;
-
-    // Restore filters from URL
-    const params = new URL(window.location.href).searchParams;
-    const initialTags = params.get('tags')?.split(',').filter(Boolean) || [];
-    initialTags.forEach(tagName => {
-      const btn = tagList.querySelector(`[data-tag="${tagName}"]`);
-      if (btn) btn.classList.add('active');
-    });
+    // Restore filters from URL if `urlParam` was set. The component owns the
+    // URL contract so consumers don't need to coordinate.
+    const initialTags = urlParam
+      ? (new URL(window.location.href).searchParams.get(urlParam)?.split(',').filter(Boolean) ?? [])
+      : [];
     if (initialTags.length) {
       allBtn?.classList.remove('active');
-      filterRoutes();
+      for (const tagName of initialTags) {
+        const btn = root.querySelector(`.tag-filter--btn[data-tag="${tagName}"]`);
+        if (btn) btn.classList.add('active');
+      }
     }
 
-    tagList.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest('.tag-filter--btn') as HTMLElement;
+    function getActiveTags() {
+      return tagButtons.filter(b => b.classList.contains('active')).map(b => b.dataset.tag);
+    }
+
+    function computeEnabledSlugs(activeTags) {
+      if (activeTags.length === 0) return slugs.slice();
+      // AND-match: a slug is enabled iff its tags include every active tag.
+      return slugs.filter(slug => {
+        const tags = items[slug] ?? [];
+        for (const t of activeTags) {
+          if (!tags.includes(t)) return false;
+        }
+        return true;
+      });
+    }
+
+    function applyDimming(activeTags, enabledSlugs) {
+      // Smart visibility: when any tag is active, hide pills that wouldn't
+      // narrow further (no enabled slug carries the tag) and dim pills
+      // present on every enabled slug (no information value to clicking).
+      if (activeTags.length === 0) {
+        for (const btn of tagButtons) {
+          btn.style.display = '';
+          btn.style.opacity = '';
+        }
+        return;
+      }
+      const tagFreq = new Map();
+      for (const slug of enabledSlugs) {
+        for (const t of items[slug] ?? []) tagFreq.set(t, (tagFreq.get(t) ?? 0) + 1);
+      }
+      for (const btn of tagButtons) {
+        const tag = btn.dataset.tag;
+        const freq = tagFreq.get(tag) ?? 0;
+        if (freq === 0) {
+          btn.style.display = 'none';
+        } else {
+          btn.style.display = '';
+          btn.style.opacity = (freq === enabledSlugs.length && !btn.classList.contains('active')) ? '0.5' : '';
+        }
+      }
+    }
+
+    function syncUrl(activeTags) {
+      if (!urlParam) return;
+      const url = new URL(window.location.href);
+      if (activeTags.length > 0) {
+        url.searchParams.set(urlParam, activeTags.join(','));
+        window.history.pushState({}, '', url);
+      } else {
+        url.searchParams.delete(urlParam);
+        window.history.replaceState({}, '', url);
+      }
+    }
+
+    function emit() {
+      const activeTags = getActiveTags();
+      const enabledSlugs = computeEnabledSlugs(activeTags);
+      applyDimming(activeTags, enabledSlugs);
+      root.dispatchEvent(new CustomEvent('tagfilter:change', {
+        detail: { enabledSlugs, activeTags },
+        bubbles: false,
+      }));
+    }
+
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tag-filter--btn');
       if (!btn) return;
 
       if (btn.classList.contains('tag-filter--all')) {
-        // "All" clears every other filter
-        tagList!.querySelectorAll('.tag-filter--btn').forEach(b => b.classList.remove('active'));
+        // "All" clears every other filter.
+        for (const b of root.querySelectorAll('.tag-filter--btn')) b.classList.remove('active');
         btn.classList.add('active');
       } else {
         btn.classList.toggle('active');
-        // Deactivate "All" when a tag is selected
         allBtn?.classList.remove('active');
-        // If nothing is active, reactivate "All"
-        if (getActiveTags().length === 0) {
-          allBtn?.classList.add('active');
-        }
+        if (getActiveTags().length === 0) allBtn?.classList.add('active');
       }
-
-      if (btn.classList.contains('active') && !btn.classList.contains('tag-filter--all')) {
-        window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: btn.getAttribute('data-tag') || '' } });
-      }
-      filterRoutes();
-
-      // Update URL
-      const activeTags = getActiveTags();
-      const url = window.location.pathname;
-      if (activeTags.length > 0) {
-        window.history.pushState({}, '', `${url}?tags=${activeTags.join(',')}`);
-      } else {
-        window.history.replaceState({}, '', url);
-      }
+      syncUrl(getActiveTags());
+      emit();
     });
 
-    function getActiveTags(): string[] {
-      return Array.from(tagList!.querySelectorAll('.tag-filter--btn.active:not(.tag-filter--all)'))
-        .map(b => b.getAttribute('data-tag')!);
-    }
-
-    function filterRoutes() {
-      const activeTags = getActiveTags();
-
-      // Show/hide route cards (AND logic)
-      routeCards.forEach(card => {
-        const cardTags = JSON.parse(card.getAttribute('data-tags') || '[]');
-        if (activeTags.length === 0 || activeTags.every(t => cardTags.includes(t))) {
-          (card as HTMLElement).style.display = '';
-        } else {
-          (card as HTMLElement).style.display = 'none';
-        }
-      });
-
-      // Collect tags from visible routes
-      const visibleCards = document.querySelectorAll('.route-card:not([style*="display: none"])');
-      const availableTags = new Set<string>();
-      visibleCards.forEach(card => {
-        JSON.parse(card.getAttribute('data-tags') || '[]').forEach((t: string) => availableTags.add(t));
-      });
-
-      // Tags common to ALL visible routes
-      const commonTags = new Set(
-        [...availableTags].filter(tag =>
-          Array.from(visibleCards).every(card =>
-            JSON.parse(card.getAttribute('data-tags') || '[]').includes(tag)
-          )
-        )
-      );
-
-      // Show/hide/dim tag buttons (skip "All" — it's always visible)
-      tagList!.querySelectorAll('.tag-filter--btn:not(.tag-filter--all)').forEach(btn => {
-        const tag = btn.getAttribute('data-tag')!;
-        const el = btn as HTMLElement;
-        if (activeTags.length === 0) {
-          el.style.display = '';
-          el.style.opacity = '';
-        } else if (availableTags.has(tag)) {
-          el.style.display = '';
-          el.style.opacity = (commonTags.has(tag) && !btn.classList.contains('active')) ? '0.5' : '';
-        } else {
-          el.style.display = 'none';
-        }
-      });
-    }
-  }
-
-  setupTagFiltering();
+    // Initial paint: consumers attach their listener in <script> tags later
+    // in the document. Microtasks drain between synchronous script blocks
+    // (so they'd fire too early); defer to a macrotask via setTimeout so we
+    // emit AFTER the rest of the page's inline scripts have run.
+    setTimeout(emit, 0);
+  })();
 </script>

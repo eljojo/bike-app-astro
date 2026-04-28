@@ -16,6 +16,13 @@ const locale = Astro.currentLocale;
 const config = getCityConfig();
 const { published, filterTags, routeTagsMap } = await loadHomepageData();
 
+// TagFilter takes a flat object — convert the per-route Map to plain JSON
+// so it can be embedded as the component's `items` prop.
+const routeTagsBySlug: Record<string, string[]> = {};
+for (const route of published) {
+  routeTagsBySlug[route.id] = routeTagsMap.get(route.id)!;
+}
+
 const suggestKey = published.length < 5
   ? 'home.suggest_route_few'
   : published.length >= 50
@@ -31,7 +38,7 @@ const suggestKey = published.length < 5
     ]} />
   )}
 
-  <TagFilter tags={filterTags} />
+  <TagFilter id="routes-filter" tags={filterTags} items={routeTagsBySlug} urlParam="tags" />
   <ul class="routes-grid">
     {published.map((route, i) => {
       const cover = route.data.media.find(m => m.cover);
@@ -59,6 +66,25 @@ const suggestKey = published.length < 5
     </a>
   </div>
 </Base>
+
+<script>
+  // TagFilter owns pill state, URL sync, and the AND-match that decides
+  // which slugs are enabled. We own the DOM-wiring — hide the cards whose
+  // slug isn't in the enabled set.
+  const filterRoot = document.getElementById('routes-filter');
+  filterRoot?.addEventListener('tagfilter:change', (e: Event) => {
+    const detail = (e as CustomEvent<{ enabledSlugs: string[]; activeTags: string[] }>).detail;
+    const enabled = new Set(detail.enabledSlugs);
+    document.querySelectorAll<HTMLElement>('.route-card').forEach(card => {
+      card.style.display = enabled.has(card.dataset.slug ?? '') ? '' : 'none';
+    });
+    if (detail.activeTags.length > 0) {
+      // Last-clicked tag isn't carried in the event detail; report the most
+      // recent active tag for analytics. Empty string when nothing's active.
+      window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: detail.activeTags[detail.activeTags.length - 1] } });
+    }
+  });
+</script>
 
 <script>
   // Reorder starred routes to top of the grid

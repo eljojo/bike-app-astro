@@ -6,6 +6,7 @@ import EventCardDayGroup, { type DayGroupEntry } from '@/components/EventCardDay
 import EventCardFeatured from '@/components/EventCardFeatured.astro';
 import SeasonalBanner from '@/components/SeasonalBanner.astro';
 import OrganizerSpotlight from '@/components/OrganizerSpotlight.astro';
+import TagFilter from '@/components/TagFilter.astro';
 import { getCollection } from 'astro:content';
 import { parseLocalDate } from '@/lib/date-utils';
 import { getCityConfig } from '@/lib/config/city-config';
@@ -264,6 +265,35 @@ function isEntryMuted(entry: CalendarEntry): boolean {
 
 const hasUpcoming = upcoming.length > 0 || seasonal.length > 0;
 
+// Tag filter for the full calendar section. Tag pool = tags appearing on
+// non-seasonal upcoming events; seasonal banners drive the hero section so
+// their tags stay out of the filter bar. Pure popularity, same shape as
+// the routes filter — top N by frequency, with an avoid list for tags
+// that don't help a reader narrow what's on (operational labels).
+const EVENT_FILTER_TAGS_TO_AVOID = ['seasonal', 'always-on'];
+const eventTagCounts = new Map<string, number>();
+for (const entry of nonSeasonalUpcoming) {
+  for (const tag of entry.event.data.tags ?? []) {
+    eventTagCounts.set(tag, (eventTagCounts.get(tag) ?? 0) + 1);
+  }
+}
+const eventFilterTags = [...eventTagCounts.entries()]
+  .sort((a, b) => a[1] - b[1])
+  .map(([tag]) => tag)
+  .filter(tag => !EVENT_FILTER_TAGS_TO_AVOID.includes(tag))
+  .slice(-14)
+  .sort();
+
+// items map for TagFilter: event-slug → tags. Series events show up as
+// many .event-day-group-row elements (one per occurrence) but they share
+// the event id, so a single entry per event id is enough — the consumer's
+// listener hides every matching row by data-event-slug.
+const eventTagsBySlug: Record<string, string[]> = {};
+for (const entry of nonSeasonalUpcoming) {
+  if (eventTagsBySlug[entry.event.id]) continue;
+  eventTagsBySlug[entry.event.id] = entry.event.data.tags ?? [];
+}
+
 const ogImage = config.page_posters?.calendar ? imageUrl(config.page_posters.calendar, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 const calendarDescription = t('calendar.description', locale, { city: config.name });
 ---
@@ -344,6 +374,9 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
         <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer"><Icon name="calendar-blank" size={18} /> {t('calendar.google', locale)}</a>
         <a href={webcalUrl} class="action-button"><Icon name="calendar-blank" size={18} /> {t('calendar.subscribe', locale)}</a>
       </div>
+      {eventFilterTags.length > 0 && (
+        <TagFilter id="calendar-filter" tags={eventFilterTags} items={eventTagsBySlug} urlParam="tags" />
+      )}
       <div class="calendar-months-grid">
         {Object.entries(upcomingByMonth).map(([month, evts]) => (
           <div class="calendar-month-card">
@@ -434,6 +467,41 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
         // Silently fail — bookmarking is progressive enhancement
       }
     })();
+  </script>
+
+  <script>
+    // Calendar's TagFilter wiring: hide event rows whose slug isn't enabled,
+    // then collapse empty day-groups and month cards so a filter that
+    // narrows to a single tag doesn't leave stranded date columns or
+    // empty month headings on the page.
+    const calendarFilterRoot = document.getElementById('calendar-filter');
+    calendarFilterRoot?.addEventListener('tagfilter:change', (e: Event) => {
+      const detail = (e as CustomEvent<{ enabledSlugs: string[]; activeTags: string[] }>).detail;
+      const enabled = new Set(detail.enabledSlugs);
+
+      document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-day-group-row').forEach(row => {
+        const slug = row.dataset.eventSlug ?? '';
+        row.style.display = enabled.has(slug) ? '' : 'none';
+      });
+
+      // A day-group with zero visible rows is a stranded date column; hide it.
+      document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-day-group').forEach(group => {
+        const anyVisible = Array.from(group.querySelectorAll<HTMLElement>('.event-day-group-row'))
+          .some(r => r.style.display !== 'none');
+        group.style.display = anyVisible ? '' : 'none';
+      });
+
+      // A month card with no visible day-groups becomes a useless header.
+      document.querySelectorAll<HTMLElement>('.calendar-month-card').forEach(card => {
+        const anyVisible = Array.from(card.querySelectorAll<HTMLElement>('.event-day-group'))
+          .some(g => g.style.display !== 'none');
+        card.style.display = anyVisible ? '' : 'none';
+      });
+
+      if (detail.activeTags.length > 0) {
+        window.BikeApp?.tE?.('Calendar: Tag Filter', { props: { tagName: detail.activeTags[detail.activeTags.length - 1] } });
+      }
+    });
   </script>
 
   <script>
