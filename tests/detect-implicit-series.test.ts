@@ -756,6 +756,37 @@ describe('BUG REPRO: biweekly classification', () => {
     expect(cancelled.map(o => o.date)).toEqual(['2026-06-02']);
   });
 
+  it('biweekly with one off-cycle extra session: gaps [14, 14, 7] → biweekly cluster + 5/16 as off-cycle override', () => {
+    // Real shape from OBC's "Group Riding Clinic": 4 Saturday sessions at
+    //   4/11, 4/25, 5/9, 5/16
+    // The first three are biweekly; 5/16 is an extra session one week after
+    // 5/9 (a make-up class or graduation). Today the strict
+    // multiples-of-modal rule rejects because the 7-day gap is not a
+    // multiple of 14, so all 4 events become 4 separate one-offs.
+    //
+    // Expected: cluster forms biweekly. Each event lands as an override
+    // row (3 cycle-aligned + 1 off-cycle extra for 5/16). No phantom
+    // cancelled-skip rows. expandSeriesOccurrences walks the cycle for
+    // the aligned three, then iterates the off-cycle 5/16 as a "specific
+    // date" extra — recurring + specific dates.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Group Riding Clinic', dtstart: '20260411T140000Z' },
+      { uid: 'b', summary: 'Group Riding Clinic', dtstart: '20260425T140000Z' },
+      { uid: 'c', summary: 'Group Riding Clinic', dtstart: '20260509T140000Z' },
+      { uid: 'd', summary: 'Group Riding Clinic', dtstart: '20260516T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.recurrence).toBe('biweekly');
+    const overrides = cluster.series?.overrides ?? [];
+    // All four events should be in overrides; no phantom cancelled.
+    expect(overrides.map(o => o.date).sort()).toEqual([
+      '2026-04-11', '2026-04-25', '2026-05-09', '2026-05-16',
+    ]);
+    expect(overrides.filter(o => o.cancelled)).toEqual([]);
+  });
+
   it('off-season break splits a biweekly winter from a weekly spring (#ottbikesocial shape)', () => {
     // Real shape from #ottbikesocial 2026:
     //   4 biweekly Thursdays in winter (1/8, 1/22, 2/5, 2/19)
