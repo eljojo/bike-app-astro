@@ -49,6 +49,17 @@ export interface BuildArgs {
  * the upstream VEVENT ("updated suggestions"). See
  * ~/code/bike-app/docs/plans/2026-04-21-calendar-suggestions-design.md under
  * Future work.
+ *
+ * Also planned (slots into the same "updated suggestions" surface): auto-extend
+ * an imported implicit series when the feed grows beyond its season_end. When
+ * a fresh feed pull contains occurrences past the imported event's season_end
+ * that match its modal DOW + cadence (and gap from season_end ≤ 60d), surface
+ * an admin-confirmable "extend series" suggestion that appends those
+ * occurrences as overrides and updates season_end. The per-occurrence `uid`
+ * field on series.overrides — added by the implicit-series-detection feature —
+ * is the prerequisite that lets dedupe absorb the extension cleanly. See
+ * ~/code/bike-app/docs/plans/2026-04-28-implicit-series-detection-design.md
+ * under Future work.
  */
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   const { db, city, organizers, repoEvents, feedCache, fetcher, siteTz } = args;
