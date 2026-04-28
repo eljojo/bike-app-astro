@@ -1,0 +1,82 @@
+---
+import './CommunityCard.scss';
+import { imageUrl, imageSrcSet2x } from '@/lib/media/image-service';
+import { t } from '@/i18n';
+import { organizerLink, organizerInitials, organizerInstagram, type OrganizerEntry } from '@/lib/models/organizer-model';
+
+interface Props {
+  org: OrganizerEntry;
+  locale?: string;
+  eventCount?: number;
+  showFeatured?: boolean;
+  showHandle?: boolean;
+  showTagline?: boolean;
+  showEventCount?: boolean;
+}
+
+const {
+  org,
+  locale,
+  eventCount = 0,
+  showFeatured = true,
+  showHandle = true,
+  showTagline = true,
+  showEventCount = true,
+} = Astro.props;
+
+const cover = org.data.media?.find(m => m.cover);
+const link = organizerLink(org, locale);
+const isExternal = link.startsWith('http');
+const handle = showHandle ? organizerInstagram(org.data) : undefined;
+---
+
+<a
+  href={link}
+  class:list={['community-card', { 'community-card--has-cover': !!cover }]}
+  {...(isExternal ? { target: '_blank', rel: 'noopener' } : {})}
+>
+  {cover && (
+    <img
+      src={imageUrl(cover.key, { width: 460 })}
+      srcset={`${imageUrl(cover.key, { width: 920 })} 2x`}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      class="community-card-cover"
+    />
+  )}
+  {cover && <div class="community-card-glass" aria-hidden="true"></div>}
+  <div class="community-card-avatar">
+    {org.data.photo_key ? (
+      <img
+        src={imageUrl(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
+        srcset={imageSrcSet2x(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
+        alt={org.data.name}
+        width="64"
+        height="64"
+        loading="lazy"
+        class="community-card-photo"
+      />
+    ) : (
+      <div class="community-card-initials">{organizerInitials(org.data.name)}</div>
+    )}
+  </div>
+  <div class="community-card-info">
+    <span class="community-card-name">{org.data.name}</span>
+    {showFeatured && org.data.featured && (
+      <span class="community-card-featured admin-only">{t('communities.featured', locale)}</span>
+    )}
+    {handle && (
+      <span class="community-card-handle">@{handle}</span>
+    )}
+    {showTagline && org.data.tagline && (
+      <span class="community-card-tagline">{org.data.tagline}</span>
+    )}
+    {showEventCount && eventCount > 0 && (
+      <span class="community-card-events">
+        {eventCount === 1 ? t('communities.one_event', locale) : t('communities.event_count', locale, { count: eventCount })}
+      </span>
+    )}
+    <slot />
+  </div>
+</a>

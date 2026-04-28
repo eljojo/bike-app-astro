@@ -1,8 +1,8 @@
 ---
 import './OrganizerSpotlight.scss';
-import ResponsiveImage from './ResponsiveImage.astro';
+import CommunityCard from './CommunityCard.astro';
 import { t } from '../i18n';
-import { organizerLink, organizerInitials, organizerInstagram, type OrganizerEntry } from '../lib/models/organizer-model';
+import type { OrganizerEntry } from '../lib/models/organizer-model';
 
 interface Props {
   organizers: OrganizerEntry[];
@@ -16,45 +16,14 @@ const { organizers, locale } = Astro.props;
   <section class="organizer-spotlight">
     <h2>{t('calendar.organizer_spotlight', locale)}</h2>
     <div class="organizer-spotlight-strip" data-show="3">
-      {organizers.map(org => {
-        const link = organizerLink(org, locale);
-        const isExternal = link.startsWith('http');
-
-        const content = (
-          <div class="organizer-spotlight-item">
-            {org.data.photo_key ? (
-              <ResponsiveImage
-                blobKey={org.data.photo_key}
-                alt={org.data.name}
-                widths={[128]}
-                width={64}
-                height={64}
-                class="organizer-spotlight-avatar"
-              />
-            ) : (
-              <div class="organizer-spotlight-initials">{organizerInitials(org.data.name)}</div>
-            )}
-            <div class="organizer-spotlight-info">
-              <span class="organizer-spotlight-name">{org.data.name}</span>
-              {organizerInstagram(org.data) && (
-                <span class="organizer-spotlight-handle">@{organizerInstagram(org.data)}</span>
-              )}
-            </div>
-          </div>
-        );
-
-        return link !== '#' ? (
-          <a
-            href={link}
-            class="organizer-spotlight-link"
-            {...(isExternal ? { target: '_blank', rel: 'noopener' } : {})}
-          >
-            {content}
-          </a>
-        ) : (
-          content
-        );
-      })}
+      {organizers.map(org => (
+        <CommunityCard
+          org={org}
+          locale={locale}
+          showFeatured={false}
+          showEventCount={false}
+        />
+      ))}
     </div>
     <script>
       document.addEventListener('DOMContentLoaded', () => {

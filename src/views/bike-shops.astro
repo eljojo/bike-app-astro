@@ -4,12 +4,12 @@ import './CommunitiesIndex.scss';
 import Base from '@/layouts/Base.astro';
 import SubTabToggle from '@/components/SubTabToggle.astro';
 import PinMap from '@/components/PinMap.astro';
-import { imageUrl, imageSrcSet2x } from '@/lib/media/image-service';
+import CommunityCard from '@/components/CommunityCard.astro';
 import { getCollection } from 'astro:content';
 import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
-import { organizerLink, organizerInitials, hasDetailPage, isBikeShop } from '@/lib/models/organizer-model';
+import { organizerLink, hasDetailPage, isBikeShop } from '@/lib/models/organizer-model';
 import { tTag } from '@/lib/i18n/tag-translations.server';
 
 const config = getCityConfig();
@@ -72,47 +72,22 @@ const breadcrumbs = breadcrumbJsonLd([
   <div class="communities-grid">
     {bikeShops.map(org => {
       const specialties = org.data.tags.filter(tag => tag !== 'bike-shop');
-      const cover = org.data.media?.find(m => m.cover);
       return (
-        <a href={organizerLink(org, locale)} class:list={['community-card', { 'community-card--has-cover': !!cover }]}>
-          {cover && (
-            <img
-              src={imageUrl(cover.key, { width: 460 })}
-              srcset={`${imageUrl(cover.key, { width: 920 })} 2x`}
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              class="community-card-cover"
-            />
+        <CommunityCard
+          org={org}
+          locale={locale}
+          showFeatured={false}
+          showHandle={false}
+          showEventCount={false}
+        >
+          {specialties.length > 0 && (
+            <span class="community-card-specialties">
+              {specialties.map(tag => (
+                <span class="specialty-pill">{tTag(tag, locale)}</span>
+              ))}
+            </span>
           )}
-          {cover && <div class="community-card-glass" aria-hidden="true"></div>}
-          <div class="community-card-avatar">
-            {org.data.photo_key ? (
-              <img
-                src={imageUrl(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
-                srcset={imageSrcSet2x(org.data.photo_key, { width: 128, height: 128, fit: 'cover' })}
-                alt={org.data.name}
-                width="64" height="64" loading="lazy"
-                class="community-card-photo"
-              />
-            ) : (
-              <div class="community-card-initials">{organizerInitials(org.data.name)}</div>
-            )}
-          </div>
-          <div class="community-card-info">
-            <span class="community-card-name">{org.data.name}</span>
-            {org.data.tagline && (
-              <span class="community-card-tagline">{org.data.tagline}</span>
-            )}
-            {specialties.length > 0 && (
-              <span class="community-card-specialties">
-                {specialties.map(tag => (
-                  <span class="specialty-pill">{tTag(tag, locale)}</span>
-                ))}
-              </span>
-            )}
-          </div>
-        </a>
+        </CommunityCard>
       );
     })}
   </div>
