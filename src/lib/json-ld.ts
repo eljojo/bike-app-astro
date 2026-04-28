@@ -280,3 +280,38 @@ export function webPageJsonLd(page: {
     },
   };
 }
+
+// --- Organizer ---
+
+export interface OrganizerJsonLdInput {
+  name: string;
+  tagline?: string;
+  website?: string;
+  social_links?: Array<{ platform: string; url: string }>;
+  photo_key?: string;
+}
+
+function buildSameAs(website?: string, socialLinks?: Array<{ platform: string; url: string }>): string[] {
+  const urls = new Set<string>();
+  if (website) urls.add(website);
+  for (const link of socialLinks ?? []) urls.add(link.url);
+  return [...urls];
+}
+
+export function organizerJsonLd(
+  data: OrganizerJsonLdInput,
+  ctx: { coverUrl?: string; isShop: boolean; url: string },
+) {
+  const type = ctx.isShop ? 'BicycleStore' : 'Organization';
+  const sameAs = buildSameAs(data.website, data.social_links);
+  return {
+    '@context': 'https://schema.org',
+    '@type': type,
+    name: data.name,
+    url: ctx.url,
+    ...(data.tagline && { description: data.tagline }),
+    ...(data.photo_key && { logo: originalUrl(data.photo_key) }),
+    ...(ctx.coverUrl && { image: [ctx.coverUrl] }),
+    ...(sameAs.length > 0 && { sameAs }),
+  };
+}

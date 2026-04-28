@@ -58,6 +58,7 @@
   opacity: 0.4;
   background: none;
   border: none;
+  color: inherit; // browsers default to a system button color that's invisible in dark mode
   cursor: pointer;
   padding: 0 0.25rem;
   font-size: 1rem;

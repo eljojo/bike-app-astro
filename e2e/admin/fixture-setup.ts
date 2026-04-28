@@ -484,6 +484,21 @@ A bio for testing community admin editing.
 `
   );
 
+  // community-cover-test: owned by community-cover.spec.ts (cover photo upload/remove tests)
+  fs.writeFileSync(
+    path.join(orgDir, 'community-cover-test.md'),
+    `---
+name: Community Cover Test Org
+tagline: Fixture for cover-photo e2e tests
+tags:
+  - test
+website: https://community-cover-test.example.com
+---
+
+A bio for testing community cover photo flows.
+`
+  );
+
   // shared-org: used by two events, should never be inlined
   fs.writeFileSync(
     path.join(orgDir, 'shared-org.md'),

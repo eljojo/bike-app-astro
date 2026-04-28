@@ -6,6 +6,7 @@ import { useFormValidation } from './useFormValidation';
 import { useEditorForm } from './useEditorForm';
 import { bindText } from './field-helpers';
 import PhotoField from './PhotoField';
+import CoverPhotoField, { type CoverItem } from './CoverPhotoField';
 import MarkdownEditor from './MarkdownEditor';
 import MapPinPicker from './MapPinPicker';
 import { useWizardSkips, buildCelebrateUrl } from './wizard-helpers';
@@ -51,6 +52,7 @@ export default function CommunityWizard({
   const [photoContentType, setPhotoContentType] = useState('');
   const [photoWidth, setPhotoWidth] = useState(0);
   const [photoHeight, setPhotoHeight] = useState(0);
+  const [coverItem, setCoverItem] = useState<CoverItem | undefined>(undefined);
 
   // --- Community: Online step ---
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
@@ -150,7 +152,7 @@ export default function CommunityWizard({
     contentId: null,
     userRole,
     validate,
-    deps: [name, photoKey, socialLinks, website, email, phone, lat, lng, address, body, mode],
+    deps: [name, photoKey, socialLinks, website, email, phone, lat, lng, address, body, mode, coverItem],
     buildPayload: () => {
       const allSocialLinks: SocialLink[] = [];
 
@@ -173,6 +175,15 @@ export default function CommunityWizard({
             ...(photoHeight && { photo_height: photoHeight }),
           }),
           ...(allSocialLinks.length > 0 && { social_links: allSocialLinks }),
+          ...(coverItem && {
+            media: [{
+              key: coverItem.key,
+              type: 'photo' as const,
+              ...(coverItem.width && { width: coverItem.width }),
+              ...(coverItem.height && { height: coverItem.height }),
+              cover: true,
+            }],
+          }),
         },
         body,
       };
@@ -257,6 +268,14 @@ export default function CommunityWizard({
               }}
             />
             <p class="form-field-hint">This will be their profile picture on the wiki.</p>
+          </div>
+          <div class="form-field">
+            <CoverPhotoField
+              cover={coverItem}
+              cdnUrl={cdnUrl}
+              onCoverChange={setCoverItem}
+            />
+            <p class="form-field-hint">A wide photo for the top of the community page (optional).</p>
           </div>
         </div>
         {editor.error && <div class="auth-error">{editor.error}</div>}
@@ -501,6 +520,12 @@ export default function CommunityWizard({
               {photoKey && (
                 <tr>
                   <td class="field-name">photo</td>
+                  <td>uploaded</td>
+                </tr>
+              )}
+              {coverItem && (
+                <tr>
+                  <td class="field-name">cover photo</td>
                   <td>uploaded</td>
                 </tr>
               )}

@@ -24,7 +24,7 @@ export const seedSession = (opts?: SeedOptions) => _seedSession(DB_PATH, opts);
 export const cleanupSession = (token: string) => _cleanupSession(DB_PATH, token);
 export const clearContentEdits = (contentType: string, slug: string) => _clearContentEdits(DB_PATH, contentType, slug);
 export const getContentEdit = (contentType: string, slug: string) => _getContentEdit(DB_PATH, contentType, slug);
-export const seedContentEdit = (contentType: string, slug: string, data: string) => _seedContentEdit(DB_PATH, contentType, slug, data);
+export const seedContentEdit = (contentType: string, slug: string, data: string, githubSha?: string) => _seedContentEdit(DB_PATH, contentType, slug, data, githubSha);
 export const getEmailToken = (opts: { userId?: string; email?: string }) => _getEmailToken(DB_PATH, opts);
 export const getUser = (userId: string) => _getUser(DB_PATH, userId);
 export { loginAs, proxyTiles };

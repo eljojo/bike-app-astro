@@ -21,6 +21,7 @@
 }
 
 a.community-card {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -29,6 +30,8 @@ a.community-card {
   padding: 0.75rem;
   border-radius: $border-radius;
   background: $color-card-bg;
+  overflow: hidden;
+  isolation: isolate; // keep cover/glass stacking contained
 
   @include dark-mode {
     background: $color-card-bg-dark;
@@ -39,6 +42,77 @@ a.community-card {
 
     @include dark-mode {
       background: $color-card-hover-dark;
+    }
+  }
+}
+
+// Cover photo shines through on the right; frosted gradient on the left
+// keeps text legible. Only renders when the organizer has a cover-flagged
+// media item.
+.community-card-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(6px) saturate(115%);
+  transform: scale(1.04); // slight overscan so the blur doesn't reveal box edges
+  z-index: 0;
+  pointer-events: none;
+}
+
+.community-card-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to right,
+    rgba(255, 255, 255, 0.68) 0%,
+    rgba(255, 255, 255, 0.62) 30%,
+    rgba(255, 255, 255, 0.30) 55%,
+    rgba(255, 255, 255, 0)    80%);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  // Mask the backdrop-blur so the right edge stays sharp
+  mask: linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 75%);
+  -webkit-mask: linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 75%);
+
+  @include dark-mode {
+    background: linear-gradient(to right,
+      rgba(20, 20, 28, 0.68) 0%,
+      rgba(20, 20, 28, 0.62) 30%,
+      rgba(20, 20, 28, 0.30) 55%,
+      rgba(20, 20, 28, 0)    80%);
+  }
+}
+
+// Lift avatar + info above the cover/glass layers
+.community-card-avatar,
+.community-card-info {
+  position: relative;
+  z-index: 2;
+}
+
+// White ring around the avatar when sitting on a cover photo
+.community-card--has-cover {
+  .community-card-photo,
+  .community-card-initials {
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+    @include dark-mode {
+      border-color: $color-bg-dark;
+    }
+  }
+
+  // The tagline can extend past the frost into the photo zone — keep it white
+  // with a subtle shadow so it reads against any cover.
+  .community-card-tagline {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+
+    @include dark-mode {
+      color: #fff;
     }
   }
 }

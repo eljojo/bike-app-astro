@@ -19,6 +19,24 @@ import { fetchSharedKeysData } from '../../lib/content/load-admin-content.server
 
 export const prerender = false;
 
+/**
+ * Defensive: at most one media item carries `cover: true`.
+ * If multiple do, keep the flag on the first occurrence and strip from the rest.
+ */
+function normalizeSingleCover(items: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  let seenCover = false;
+  return items.map(item => {
+    if (item.cover === true) {
+      if (seenCover) {
+        const { cover: _drop, ...rest } = item;
+        return rest;
+      }
+      seenCover = true;
+    }
+    return item;
+  });
+}
+
 const socialLinkSchema = z.object({
   platform: z.string(),
   url: z.string(),
@@ -174,7 +192,11 @@ export function createOrganizerHandlers(sharedKeysData: Record<string, Array<{ t
         if (update.frontmatter.photo_height) fm.photo_height = update.frontmatter.photo_height;
         if (update.frontmatter.photo_content_type) fm.photo_content_type = update.frontmatter.photo_content_type;
       }
-      if (update.frontmatter.media?.length) fm.media = update.frontmatter.media;
+      if (update.frontmatter.media !== undefined) {
+        fm.media = update.frontmatter.media.length
+          ? normalizeSingleCover(update.frontmatter.media)
+          : [];
+      }
 
       // Merge with existing frontmatter to preserve fields the editor doesn't manage
       const merged = mergeFrontmatter(

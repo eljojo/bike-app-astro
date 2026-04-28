@@ -45,3 +45,131 @@
     }
   }
 }
+
+// Cover photo slot — used in CommunityEditor and CommunityWizard.
+.cover-photo-field {
+  margin-bottom: 1rem;
+
+  > label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+}
+
+.cover-photo-field-preview {
+  position: relative;
+  border-radius: $border-radius;
+  overflow: hidden;
+  outline: 1px solid rgba(0, 0, 0, 0.08);
+  outline-offset: -1px;
+
+  @include dark-mode {
+    outline-color: rgba(255, 255, 255, 0.04);
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 1;
+    object-fit: cover;
+  }
+}
+
+.cover-photo-field-actions {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cover-photo-field-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  aspect-ratio: 3 / 1;
+  border: 2px dashed $color-border;
+  border-radius: $border-radius;
+  background: $color-card-bg;
+  padding: 1rem;
+  text-align: center;
+
+  @include dark-mode {
+    border-color: $color-border-dark;
+    background: $color-card-bg-dark;
+  }
+
+  .drop-hint {
+    @include muted-text;
+    font-size: 0.85rem;
+  }
+}
+
+// Preview pane — mirrors the public detail page layout.
+.editor-preview-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  object-fit: cover;
+  border-radius: $border-radius;
+  outline: 1px solid rgba(0, 0, 0, 0.08);
+  outline-offset: -1px;
+  margin-bottom: 0;
+
+  @include dark-mode {
+    outline-color: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.editor-preview-header {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+}
+
+.editor-preview-pane--has-cover .editor-preview-header {
+  margin-top: -40px; // overlap, smaller than public to fit the preview pane
+  align-items: flex-end;
+}
+
+.editor-preview-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: $color-card-bg;
+  flex-shrink: 0;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+}
+
+.editor-preview-pane--has-cover .editor-preview-avatar {
+  width: 80px;
+  height: 80px;
+  border: 4px solid $color-bg;
+
+  @include dark-mode {
+    border-color: $color-bg-dark;
+  }
+}
+
+.editor-preview-avatar--initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $color-accent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.editor-preview-header-info {
+  flex: 1;
+  min-width: 0;
+}

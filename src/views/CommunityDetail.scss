@@ -1,6 +1,101 @@
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
+// --- Cover hero ---
+// Sits at the top of the page. On mobile the body is already full-width
+// (no 85% constraint applies below $breakpoint-mobile), so width: 100% fills
+// the viewport edge-to-edge. We just drop the corner radius for that look.
+.community-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  margin-bottom: 0;
+  border-radius: $border-radius;
+  overflow: hidden;
+  background: $color-card-bg;
+  @include image-frame;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    border-radius: 0;
+  }
+}
+
+.community-cover-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+// When a cover is present, raise the avatar so it overlaps the cover's bottom-left
+// and grow it from 80px to 112px for a more confident profile feel.
+.community-detail--has-cover {
+  .community-detail-header {
+    margin-top: -56px; // half the avatar height — overlap
+    align-items: flex-end;
+
+    @media (max-width: $breakpoint-mobile) {
+      margin-top: -40px;
+      align-items: center; // restore mobile-centered avatar (base rule was overridden above)
+    }
+  }
+
+  // The cover has position: relative, which would paint it above the static
+  // header. Promote the avatar and info column into their own stacking context
+  // so they sit on top of the cover photo.
+  .community-detail-avatar,
+  .community-detail-header-info {
+    position: relative;
+    z-index: 1;
+  }
+
+  .community-detail-photo,
+  .community-detail-initials {
+    width: 112px;
+    height: 112px;
+    border: 5px solid $color-bg;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+    @include dark-mode {
+      border-color: $color-bg-dark;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      width: 80px;
+      height: 80px;
+      border-width: 4px;
+    }
+  }
+
+  .community-detail-initials {
+    font-size: 2rem;
+  }
+
+  .community-detail-header-info {
+    padding-bottom: 0.5rem; // align baseline with the bottom of the avatar circle
+
+    // Desktop only: name and tagline sit over the cover photo. Force white text
+    // with a multi-layer drop shadow — photo-agnostic, works in both color modes.
+    // On mobile the layout flexes to column and the text sits below the cover,
+    // so the original color and no shadow apply (this rule doesn't fire).
+    @media (min-width: $breakpoint-mobile) {
+      h1, .community-detail-tagline {
+        color: #fff;
+        text-shadow:
+          0 1px 0 rgba(0, 0, 0, 0.85),
+          0 2px 6px rgba(0, 0, 0, 0.6),
+          0 4px 16px rgba(0, 0, 0, 0.4);
+      }
+    }
+  }
+}
+
 .community-detail {
   max-width: 900px;
 }
