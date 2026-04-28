@@ -98,7 +98,7 @@ const rows: RenderRow[] = entries.map(entry => {
 });
 ---
 
-<article class="event-day-group">
+<article class:list={['event-day-group', { 'event-day-group--single': entries.length === 1 }]}>
   <div class="event-day-group-day" aria-hidden="true">
     <span class="event-day-group-weekday">{weekday}</span>
     <span class="event-day-group-daynum">{dayDisplay}</span>

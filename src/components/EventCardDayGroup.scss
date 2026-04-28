@@ -20,6 +20,33 @@
   }
 }
 
+// When the group holds exactly one event, restore the old EventCardCompact
+// behaviour: the whole card (including the day column) is clickable. The
+// row's ::after stretches over the parent so clicks on the day column hit
+// the row's anchor. We can't apply this when there are multiple rows
+// because the overlay would absorb clicks meant for sibling rows.
+.event-day-group--single .event-day-group-row {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  // Hover should highlight the whole card, not just the row, when the row
+  // *is* the whole card.
+  &:hover {
+    background: transparent;
+  }
+}
+
+.event-day-group--single:hover {
+  background: color.adjust($color-card-bg, $lightness: -3%);
+
+  @include dark-mode {
+    background: color.adjust($color-card-bg-dark, $lightness: 5%);
+  }
+}
+
 .event-day-group-day {
   width: 2.5em;
   flex-shrink: 0;
