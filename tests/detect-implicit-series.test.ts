@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractDescription } from '../src/lib/calendar-suggestions/detect-implicit-series';
+import { extractDescription, detectCancellation } from '../src/lib/calendar-suggestions/detect-implicit-series';
 
 describe('extractDescription', () => {
   it('returns null for empty / whitespace / undefined input', () => {
@@ -50,5 +50,55 @@ describe('extractDescription', () => {
     const out = extractDescription('<p>See <a href="https://example.com">here</a></p>');
     expect(out).toContain('https://example.com');
     expect(out).toContain('here');
+  });
+});
+
+describe('detectCancellation', () => {
+  it('returns null when neither summary nor description signals cancellation', () => {
+    expect(detectCancellation('Wednesday Coffee Ride', '<p>Manotick loop</p>')).toBeNull();
+    expect(detectCancellation('Open Time Trial', '<p>15km TT</p>')).toBeNull();
+  });
+
+  it('matches CANCELLED in summary (no reason)', () => {
+    expect(detectCancellation('Wednesday Coffee Ride - CANCELLED', '<p>Two ferries</p>'))
+      .toEqual({ cancelled: true, reason: undefined });
+  });
+
+  it('matches CANCELED (American spelling) and lowercase variants', () => {
+    expect(detectCancellation('Open TT - canceled', undefined))
+      .toEqual({ cancelled: true, reason: undefined });
+  });
+
+  it('matches NO RIDE with trailing reason token', () => {
+    expect(detectCancellation('Sunday Ride 25-06-22 - NO RIDE - RLCT', undefined))
+      .toEqual({ cancelled: true, reason: 'RLCT' });
+  });
+
+  it('matches WX RESCHEDULED in summary', () => {
+    expect(detectCancellation('Gravel Ride - Ashton-Gillies Petit - WX RESCHEDULED', undefined))
+      .toEqual({ cancelled: true, reason: 'WX' });
+  });
+
+  it('matches "No <weekday> ride" at start of description (unconditional)', () => {
+    expect(detectCancellation('Sunday Ride 25-06-22', '<p>No Sunday ride due to RLCT</p>'))
+      .toEqual({ cancelled: true, reason: 'RLCT' });
+  });
+
+  it('does NOT match conditional cancellation language in description', () => {
+    expect(detectCancellation(
+      'Biking in the Gatineau Park',
+      '<p>If there is no ride leader signed up the ride will be cancelled</p>',
+    )).toBeNull();
+  });
+
+  it('does NOT match the substring "cancellation" in unrelated context (word boundary)', () => {
+    expect(detectCancellation('Cancellation policy update', undefined)).toBeNull();
+  });
+
+  it('summary signal takes precedence over description signal', () => {
+    expect(detectCancellation(
+      'Wednesday Coffee Ride - CANCELLED',
+      '<p>If conditions worsen the ride will be cancelled</p>',
+    )).toEqual({ cancelled: true, reason: undefined });
   });
 });

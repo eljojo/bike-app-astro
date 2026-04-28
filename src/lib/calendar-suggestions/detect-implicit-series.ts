@@ -34,3 +34,55 @@ export function extractDescription(html: string | undefined): string | null {
   }
   return md;
 }
+
+const CANCELLED_RE = /\b(?:CANCELLED|CANCELED)\b/i;
+const NO_RIDE_RE = /\bNO RIDE\b/i;
+const WX_RESCHEDULED_RE = /\bWX RESCHEDULED\b/i;
+const TRAILING_REASON_RE = /[-—]\s*([A-Za-z][A-Za-z0-9 ]{0,30})\s*$/;
+const NO_DAY_RIDE_DESC_RE = /^\s*<?p?>?\s*No\s+(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day\s+ride\b/i;
+const NO_DAY_RIDE_REASON_RE = /No\s+\w+day\s+ride\s+(?:due to|because of)\s+(.+?)(?:[<.]|$)/i;
+
+export interface CancellationSignal {
+  cancelled: true;
+  reason?: string;
+}
+
+/**
+ * Detect a cancellation signal in an ICS occurrence's SUMMARY (preferred) or
+ * DESCRIPTION (fallback). Returns null when no signal matches.
+ *
+ * Conditional cancellations in DESCRIPTION ("if there is no ride leader the
+ * ride will be cancelled") are deliberately NOT matched — those rides are
+ * still scheduled. The detector requires unconditional phrasing.
+ */
+export function detectCancellation(
+  summary: string,
+  description: string | undefined,
+): CancellationSignal | null {
+  const reasonFromSummary = (re: RegExp): string | undefined => {
+    const match = summary.match(re);
+    if (!match) return undefined;
+    const after = summary.slice(match.index! + match[0].length);
+    const reasonMatch = after.match(TRAILING_REASON_RE);
+    return reasonMatch?.[1]?.trim();
+  };
+
+  if (WX_RESCHEDULED_RE.test(summary)) {
+    return { cancelled: true, reason: 'WX' };
+  }
+  if (NO_RIDE_RE.test(summary)) {
+    return { cancelled: true, reason: reasonFromSummary(NO_RIDE_RE) };
+  }
+  if (CANCELLED_RE.test(summary)) {
+    return { cancelled: true, reason: reasonFromSummary(CANCELLED_RE) };
+  }
+
+  if (description) {
+    if (NO_DAY_RIDE_DESC_RE.test(description)) {
+      const reasonMatch = description.match(NO_DAY_RIDE_REASON_RE);
+      return { cancelled: true, reason: reasonMatch?.[1]?.trim() };
+    }
+  }
+
+  return null;
+}
