@@ -351,3 +351,124 @@ describe('detectImplicitSeries — clustering rules', () => {
     expect(result.orphans).toHaveLength(4);
   });
 });
+
+describe('detectImplicitSeries — per-field override emission', () => {
+  it('emits start_time override for occurrences whose ToD differs from modal', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },  // 14:00
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },  // 14:00
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z' },  // 14:00
+      { uid: 'd', summary: 'X', dtstart: '20260527T133000Z' },  // 13:30 — outlier
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const ovr = result.clusters[0].series?.overrides?.find(o => o.date === '2026-05-27');
+    // Toronto is UTC-4 in May → 14:00Z = 10:00 local; 13:30Z = 09:30 local
+    expect(ovr?.start_time).toBe('09:30');
+  });
+
+  it('emits location override for occurrences whose LOCATION differs from modal', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', location: 'Place A' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', location: 'Place A' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z', location: 'Place A' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z', location: 'Place B' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.location).toBe('Place A');
+    const ovr = cluster.series?.overrides?.find(o => o.date === '2026-05-27');
+    expect(ovr?.location).toBe('Place B');
+  });
+
+  it('emits event_url override on every occurrence when URLs are all unique', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', url: 'https://e.com/1' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', url: 'https://e.com/2' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z', url: 'https://e.com/3' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z', url: 'https://e.com/4' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    const overrides = result.clusters[0].series?.overrides ?? [];
+    expect(overrides).toHaveLength(4);
+    expect(overrides.map(o => o.event_url).sort()).toEqual([
+      'https://e.com/1', 'https://e.com/2', 'https://e.com/3', 'https://e.com/4',
+    ]);
+    expect(result.clusters[0].url).toBeUndefined();  // no master URL since all distinct
+  });
+
+  it('promotes shared event_url to master when all occurrences share one', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', url: 'https://shared.com' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', url: 'https://shared.com' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z', url: 'https://shared.com' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z', url: 'https://shared.com' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    const cluster = result.clusters[0];
+    expect(cluster.url).toBe('https://shared.com');
+    for (const ovr of cluster.series?.overrides ?? []) {
+      expect(ovr.event_url).toBeUndefined();
+    }
+  });
+
+  it('sets master description when ≥60% share; deviating descriptions become note overrides', () => {
+    const standard = '<p>The standard ride description</p>';
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', description: standard },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', description: standard },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z', description: standard },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z', description: '<p>Special bakery edition</p>' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    const cluster = result.clusters[0];
+    expect(cluster.description).toBe('The standard ride description');
+    const ovr = cluster.series?.overrides?.find(o => o.date === '2026-05-27');
+    expect(ovr?.note).toBe('Special bakery edition');
+    const standardOvr = cluster.series?.overrides?.find(o => o.date === '2026-05-06');
+    expect(standardOvr?.note).toBeUndefined();
+  });
+
+  it('leaves master description empty when no modal; every distinct description becomes a note', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', description: '<p>Route A</p>' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', description: '<p>Route B</p>' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z', description: '<p>Route C</p>' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z', description: '<p>Route D</p>' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    const cluster = result.clusters[0];
+    expect(cluster.description).toBeUndefined();
+    const notes = (cluster.series?.overrides ?? []).map(o => o.note).sort();
+    expect(notes).toEqual(['Route A', 'Route B', 'Route C', 'Route D']);
+  });
+
+  it('detects cancellation in SUMMARY and emits override with cancelled+note', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z' },
+      { uid: 'd', summary: 'X - CANCELLED', dtstart: '20260527T140000Z',
+        description: '<p>Two ferries</p>' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const ovr = result.clusters[0].series?.overrides?.find(o => o.date === '2026-05-27');
+    expect(ovr?.cancelled).toBe(true);
+    expect(ovr?.note).toMatch(/^Cancelled\./);
+    expect(ovr?.note).toContain('Two ferries');
+  });
+
+  it('strips status suffix from cluster summary so cancelled siblings still group', () => {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X - CANCELLED', dtstart: '20260513T140000Z' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    expect(result.clusters[0].summary).toBe('X');
+  });
+});

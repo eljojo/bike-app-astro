@@ -90,7 +90,7 @@ export function detectCancellation(
   return null;
 }
 
-const MODAL_DESCRIPTION_THRESHOLD = 0.6;
+const MODAL_PROMOTION_THRESHOLD = 0.6;
 
 /**
  * From a list of per-occurrence descriptions (already filtered through
@@ -112,7 +112,7 @@ export function pickModalDescription(descriptions: Array<string | null>): string
     if (count > bestCount) { bestCount = count; bestKey = key; }
   }
   if (bestKey === null) return null;
-  return bestCount / present.length >= MODAL_DESCRIPTION_THRESHOLD ? bestKey : null;
+  return bestCount / present.length >= MODAL_PROMOTION_THRESHOLD ? bestKey : null;
 }
 
 const MIN_CLUSTER_SIZE = 4;
@@ -199,13 +199,15 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
 
   // Modal DOW
   const dowCounts = new Map<number, number>();
-  for (const e of entries) dowCounts.set(e.zdt.dayOfWeek % 7, (dowCounts.get(e.zdt.dayOfWeek % 7) ?? 0) + 1);
+  for (const e of entries) {
+    const dow = e.zdt.dayOfWeek % 7;
+    dowCounts.set(dow, (dowCounts.get(dow) ?? 0) + 1);
+  }
   let modalDow = -1, modalDowCount = 0;
   for (const [d, n] of dowCounts) if (n > modalDowCount) { modalDow = d; modalDowCount = n; }
   if (modalDowCount / entries.length < MODAL_DOW_THRESHOLD) return null;
 
   const inCadence = entries.filter(e => (e.zdt.dayOfWeek % 7) === modalDow);
-  const outOfCadence = entries.filter(e => (e.zdt.dayOfWeek % 7) !== modalDow);
 
   // Modal cadence (gaps between in-cadence consecutive occurrences). The
   // modal gap must be weekly (7) or biweekly (14); other gaps may be any
@@ -228,35 +230,113 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
     if (g <= 0 || g % modalGap !== 0) return null;
   }
 
+  // Modal time-of-day (HH:MM in siteTz)
+  const todCounts = new Map<string, number>();
+  for (const e of entries) {
+    const tod = e.zdt.toPlainTime().toString({ smallestUnit: 'minute' });
+    todCounts.set(tod, (todCounts.get(tod) ?? 0) + 1);
+  }
+  let modalTod = '', modalTodCount = 0;
+  for (const [t, n] of todCounts) if (n > modalTodCount) { modalTod = t; modalTodCount = n; }
+
+  // Modal LOCATION
+  const locCounts = new Map<string, number>();
+  for (const e of entries) {
+    const loc = e.master.location || '';
+    if (loc) locCounts.set(loc, (locCounts.get(loc) ?? 0) + 1);
+  }
+  let modalLocation: string | undefined;
+  let modalLocationCount = 0;
+  for (const [l, n] of locCounts) if (n > modalLocationCount) { modalLocation = l; modalLocationCount = n; }
+  // Promote modal location to master only when the threshold is met (otherwise leave master empty).
+  const masterLocation = (modalLocation && modalLocationCount / entries.length >= MODAL_PROMOTION_THRESHOLD)
+    ? modalLocation : undefined;
+
+  // Modal URL
+  const urlCounts = new Map<string, number>();
+  for (const e of entries) {
+    const url = stringPropOrUndefined(e.master.component, 'url');
+    if (url) urlCounts.set(url, (urlCounts.get(url) ?? 0) + 1);
+  }
+  let modalUrl: string | undefined;
+  let modalUrlCount = 0;
+  for (const [u, n] of urlCounts) if (n > modalUrlCount) { modalUrlCount = n; modalUrl = u; }
+  const masterUrl = (modalUrl && modalUrlCount / entries.length >= MODAL_PROMOTION_THRESHOLD) ? modalUrl : undefined;
+
+  // Modal description (≥60% of non-null entries)
+  const extracted = entries.map(e => extractDescription(e.master.description || undefined));
+  const masterDescription = pickModalDescription(extracted) ?? undefined;
+
+  // Build overrides
+  type Override = NonNullable<NonNullable<ParsedVEvent['series']>['overrides']>[number];
+  const overrides: Array<{ ovr: Override; outOfCadence: boolean }> = entries.map((e, i) => {
+    const tod = e.zdt.toPlainTime().toString({ smallestUnit: 'minute' });
+    const loc = e.master.location || '';
+    const url = stringPropOrUndefined(e.master.component, 'url');
+    const desc = extracted[i];
+    const cancellation = detectCancellation(e.master.summary, e.master.description || undefined);
+    const outOfCadence = (e.zdt.dayOfWeek % 7) !== modalDow;
+    const ovr: Override = {
+      date: e.zdt.toPlainDate().toString(),
+      uid: e.master.uid,
+    };
+    if (tod !== modalTod) ovr.start_time = tod;
+    if (loc && loc !== masterLocation) ovr.location = loc;
+    if (url && url !== masterUrl) ovr.event_url = url;
+    if (cancellation) {
+      ovr.cancelled = true;
+      const reasonLabel = cancellation.reason ? ` — ${cancellation.reason}` : '';
+      ovr.note = desc
+        ? `Cancelled${reasonLabel}.\n\n${desc}`
+        : `Cancelled${reasonLabel}.`;
+    } else if (desc && desc !== masterDescription) {
+      ovr.note = desc;
+    }
+    return { ovr, outOfCadence };
+  });
+
+  // Drop overrides that have only date+uid (no actual divergence). Out-of-cadence
+  // entries are kept regardless: their date itself is the divergence.
+  const meaningfulOverrides = overrides
+    .filter(({ ovr, outOfCadence }) =>
+      outOfCadence ||
+      ovr.start_time !== undefined ||
+      ovr.location !== undefined ||
+      ovr.event_url !== undefined ||
+      ovr.note !== undefined ||
+      ovr.cancelled !== undefined,
+    )
+    .map(({ ovr }) => ovr);
+
   const recurrence: 'weekly' | 'biweekly' = modalGap === WEEKLY_DAYS ? 'weekly' : 'biweekly';
   const recurrence_day: RecurrenceDay = DOW_INDEX_TO_NAME[modalDow];
   const first = entries[0];
   const last = entries[entries.length - 1];
-
-  // Master start/summary built later in emission task; for now produce a
-  // skeleton ParsedVEvent so the test can assert structural fields. Per-field
-  // overrides (location/start_time/note/event_url/etc.) are emitted in the
-  // next task.
   const seasonStart = first.zdt.toPlainDate().toString();
   const seasonEnd = last.zdt.toPlainDate().toString();
-  const masterStartTime = first.zdt.toPlainTime().toString({ smallestUnit: 'minute' });
 
   return {
     uid: first.master.uid,
     summary: first.master.summary.replace(STATUS_STRIP_RE, '').trim(),
-    start: `${seasonStart}T${masterStartTime}:00`,
+    start: `${seasonStart}T${modalTod}:00`,
+    location: masterLocation,
+    description: masterDescription,
+    url: masterUrl,
     series: {
       kind: 'recurrence',
       recurrence,
       recurrence_day,
       season_start: seasonStart,
       season_end: seasonEnd,
-      overrides: outOfCadence.map(e => ({
-        date: e.zdt.toPlainDate().toString(),
-        uid: e.master.uid,
-      })),
+      overrides: meaningfulOverrides.length > 0 ? meaningfulOverrides : undefined,
     },
   };
+}
+
+function stringPropOrUndefined(comp: ICAL.Component, name: string): string | undefined {
+  const v = comp.getFirstPropertyValue(name);
+  if (v == null) return undefined;
+  return String(v);
 }
 
 function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
