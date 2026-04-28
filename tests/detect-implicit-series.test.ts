@@ -229,6 +229,47 @@ describe('detectImplicitSeries — clustering rules', () => {
     expect(result.orphans).toHaveLength(4);
   });
 
+  it('consolidates sibling buckets that share a "<base> - <variant>" pattern with no base bucket', () => {
+    // OBC Sunday Ride pattern: each occurrence has SUMMARY
+    // "Sunday Ride YY-MM-DD - <Location>" with a different location every
+    // week. After date stripping each bucket becomes "Sunday Ride - <Loc>";
+    // with no plain "Sunday Ride" base bucket, the consolidate pass merges
+    // them into a synthetic one when the combined set would form a cluster.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Sunday Ride 26-04-05 - Nepean Sportsplex', dtstart: '20260405T140000Z' },
+      { uid: 'b', summary: 'Sunday Ride 26-04-12 - Andrew Haydon Park', dtstart: '20260412T140000Z' },
+      { uid: 'c', summary: 'Sunday Ride 26-04-19 - Airport NRC',        dtstart: '20260419T140000Z' },
+      { uid: 'd', summary: 'Sunday Ride 26-04-26 - Orleans',             dtstart: '20260426T140000Z' },
+      { uid: 'e', summary: 'Sunday Ride 26-05-03 - Nepean Sportsplex',   dtstart: '20260503T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.summary).toBe('Sunday Ride');
+    expect(cluster.series?.recurrence_day).toBe('sunday');
+    // Per-occurrence location rides along as an override note.
+    const aprilFifth = cluster.series?.overrides?.find(o => o.date === '2026-04-05');
+    expect(aprilFifth?.note).toBe('Nepean Sportsplex');
+    const aprilTwelfth = cluster.series?.overrides?.find(o => o.date === '2026-04-12');
+    expect(aprilTwelfth?.note).toBe('Andrew Haydon Park');
+  });
+
+  it('does NOT consolidate prefix siblings that wouldn\'t form a viable cluster', () => {
+    // Three "Workshop - <topic>" one-offs on different days of the week, no
+    // recurrence pattern. The consolidate pass would merge them but the modal
+    // DOW gate fails (each entry is a different DOW), so the buckets stay
+    // split and each becomes a one-off orphan suggestion.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Workshop - Brakes',  dtstart: '20260505T180000Z' }, // Tue
+      { uid: 'b', summary: 'Workshop - Tires',   dtstart: '20260513T180000Z' }, // Wed
+      { uid: 'c', summary: 'Workshop - Drivetrain', dtstart: '20260521T180000Z' }, // Thu
+      { uid: 'd', summary: 'Workshop - Wheels',  dtstart: '20260530T180000Z' }, // Sat
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(0);
+    expect(result.orphans.map(o => o.uid).sort()).toEqual(['a', 'b', 'c', 'd']);
+  });
+
   it('keeps a "<base> - CANCELLED DUE TO X" occurrence in its series cluster (cancelled override)', () => {
     // Real OBC pattern: " - CANCELLED DUE TO RLCT" uses a space-separated
     // multi-word reason. Without proper stripping, the bucket key would carry

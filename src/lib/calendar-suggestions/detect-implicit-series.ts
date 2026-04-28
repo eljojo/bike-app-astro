@@ -164,12 +164,14 @@ export function detectImplicitSeries(
   masters: ICAL.Event[],
   siteTz: string,
 ): { clusters: ParsedVEvent[]; orphans: ICAL.Event[] } {
-  // Bucket by SUMMARY (with status suffixes stripped so cancelled occurrences
-  // group with their siblings).
+  // Bucket by SUMMARY normalised so siblings don't fragment over irrelevant
+  // variations: status suffixes (so cancelled occurrences group with their
+  // series), embedded dates like `26-04-05` (so OBC's "Sunday Ride 26-04-05"
+  // siblings reduce to "Sunday Ride …"), and runs of internal whitespace.
   const buckets = new Map<string, BucketEntry[]>();
   for (const m of masters) {
     if (!m.startDate || !m.summary) continue;
-    const key = m.summary.replace(STATUS_STRIP_RE, '').trim();
+    const key = normalizeSummaryForBucket(m.summary);
     const zdt = icalTimeToSiteZdt(m.startDate, siteTz);
     const list = buckets.get(key) ?? [];
     list.push({ master: m, zdt });
@@ -185,20 +187,45 @@ export function detectImplicitSeries(
   // suffix rides along as a per-occurrence note.
   foldVariantBuckets(buckets);
 
+  // Prefix-sibling consolidation: when the feed has many "<base> - <variant>"
+  // buckets but no "<base>" bucket of its own (the OBC Sunday Ride pattern,
+  // where each occurrence has a different location suffix), merge the
+  // siblings into a synthetic "<base>" cluster — but only when the combined
+  // set actually forms a valid cluster, so unrelated events that happen to
+  // share a prefix don't get merged.
+  consolidatePrefixSiblings(buckets);
+
   const clusters: ParsedVEvent[] = [];
   const orphans: ICAL.Event[] = [];
 
-  for (const [, entries] of buckets) {
+  for (const [bucketKey, entries] of buckets) {
     entries.sort((a, b) => Temporal.ZonedDateTime.compare(a.zdt, b.zdt));
     const subBuckets = splitByYearAndGap(entries);
     for (const sub of subBuckets) {
-      const cluster = tryFormCluster(sub);
+      const cluster = tryFormCluster(sub, bucketKey);
       if (cluster) clusters.push(cluster);
       else for (const e of sub) orphans.push(e.master);
     }
   }
 
   return { clusters, orphans };
+}
+
+const DATE_IN_TITLE_RE = /\b\d{2,4}-\d{2}-\d{2}\b/g;
+
+/**
+ * Canonicalise a SUMMARY for bucketing: strip trailing status suffix, strip
+ * any embedded YY-MM-DD / YYYY-MM-DD date pattern, and collapse whitespace.
+ * Used both for keying the buckets and as the cluster's `summary` value, so
+ * the suggestion shown to the admin is the canonical name without per-occurrence
+ * dates baked into it.
+ */
+function normalizeSummaryForBucket(summary: string): string {
+  return summary
+    .replace(STATUS_STRIP_RE, '')
+    .replace(DATE_IN_TITLE_RE, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -218,24 +245,100 @@ function foldVariantBuckets(buckets: Map<string, BucketEntry[]>): void {
   for (const key of keys) {
     const variantBucket = buckets.get(key);
     if (!variantBucket) continue;
+    // Try multiple split points (left-to-right) and fold against the first
+    // base bucket that actually exists. OBC sponsors a few rides with summary
+    // "Sunday Ride - Brought to you by Bushtukah - Orleans": the right base
+    // is "Sunday Ride", with the sponsor + location folded together as the
+    // variant note. Splitting on the LAST separator would have looked for
+    // "Sunday Ride - Brought to you by Bushtukah" (which doesn't exist) and
+    // missed the fold entirely.
     const parts = key.split(SEPARATOR_RE);
     if (parts.length < 2) continue;
-    const variantNote = parts[parts.length - 1].trim();
-    const baseKey = parts.slice(0, -1).join(' - ').trim();
-    if (!variantNote || !baseKey) continue;
-    const baseBucket = buckets.get(baseKey);
-    if (!baseBucket || baseBucket === variantBucket) continue;
-    // Alignment guard: every variant entry must land on the base bucket's
-    // modal day-of-week. Without this check the fold could merge unrelated
-    // sub-events that happen to share a name prefix.
-    const baseModalDow = modalDayOfWeek(baseBucket);
-    if (baseModalDow == null) continue;
-    if (!variantBucket.every(e => (e.zdt.dayOfWeek % 7) === baseModalDow)) continue;
-    for (const e of variantBucket) {
-      e.variantNote = variantNote;
-      baseBucket.push(e);
+    let folded = false;
+    for (let i = 1; i < parts.length; i++) {
+      const baseKey = parts.slice(0, i).join(' - ').trim();
+      const variantNote = parts.slice(i).join(' - ').trim();
+      if (!baseKey || !variantNote) continue;
+      const baseBucket = buckets.get(baseKey);
+      if (!baseBucket || baseBucket === variantBucket) continue;
+      // Alignment guard: every variant entry must land on the base bucket's
+      // modal day-of-week. Without this check the fold could merge unrelated
+      // sub-events that happen to share a name prefix.
+      const baseModalDow = modalDayOfWeek(baseBucket);
+      if (baseModalDow == null) continue;
+      if (!variantBucket.every(e => (e.zdt.dayOfWeek % 7) === baseModalDow)) continue;
+      for (const e of variantBucket) {
+        e.variantNote = variantNote;
+        baseBucket.push(e);
+      }
+      buckets.delete(key);
+      folded = true;
+      break;
     }
-    buckets.delete(key);
+    if (folded) continue;
+  }
+}
+
+/**
+ * When a feed has many "<base> - <variant>" buckets but no "<base>" bucket,
+ * merge the siblings into a synthetic "<base>" bucket — but only when the
+ * combined entries form a viable cluster (≥ MIN_CLUSTER_SIZE entries on a
+ * shared modal DOW). This catches OBC's Sunday Ride pattern where each
+ * occurrence has a different location suffix and date in the title; without
+ * consolidation each becomes its own one-off suggestion. The viability gate
+ * prevents over-merging unrelated events that just happen to share a prefix.
+ *
+ * Each consolidated entry's `variantNote` is set to the trimmed suffix so the
+ * cluster builder surfaces the per-occurrence location/label as an override note.
+ */
+function consolidatePrefixSiblings(buckets: Map<string, BucketEntry[]>): void {
+  const SEPARATOR_RE = /\s+-\s+/;
+  // Group bucket keys by their prefix (everything before the first ` - `).
+  const byPrefix = new Map<string, string[]>();
+  for (const key of buckets.keys()) {
+    const m = key.match(SEPARATOR_RE);
+    if (!m) continue;
+    const prefix = key.slice(0, m.index!).trim();
+    if (!prefix) continue;
+    const list = byPrefix.get(prefix) ?? [];
+    list.push(key);
+    byPrefix.set(prefix, list);
+  }
+
+  for (const [prefix, siblingKeys] of byPrefix) {
+    if (siblingKeys.length < 2) continue;
+    // If a "<base>" bucket already exists, foldVariantBuckets has already had
+    // its turn and any folds it could do are done. Skipping here avoids
+    // re-folding into a base bucket that didn't qualify previously.
+    if (buckets.has(prefix)) continue;
+
+    // Combine entries from all sibling buckets, tagging each with its
+    // suffix-as-variant-note. We don't mutate the source buckets until we've
+    // confirmed the consolidated set forms a valid cluster.
+    interface PreparedEntry { entry: BucketEntry; variant: string }
+    const prepared: PreparedEntry[] = [];
+    for (const k of siblingKeys) {
+      const entries = buckets.get(k);
+      if (!entries) continue;
+      const variant = k.slice(prefix.length).replace(/^\s+-\s+/, '').trim();
+      for (const entry of entries) prepared.push({ entry, variant });
+    }
+    if (prepared.length < MIN_CLUSTER_SIZE) continue;
+
+    // Modal DOW gate: at least MODAL_DOW_THRESHOLD of the combined set must
+    // share a single day-of-week. This is the same threshold tryFormCluster
+    // applies; pre-checking avoids creating a merged bucket only to have it
+    // rejected, which would orphan all the entries.
+    const dow = modalDayOfWeek(prepared.map(p => p.entry));
+    if (dow == null) continue;
+    const onDow = prepared.filter(p => (p.entry.zdt.dayOfWeek % 7) === dow).length;
+    if (onDow / prepared.length < MODAL_DOW_THRESHOLD) continue;
+
+    for (const { entry, variant } of prepared) {
+      if (variant) entry.variantNote = variant;
+    }
+    buckets.set(prefix, prepared.map(p => p.entry));
+    for (const k of siblingKeys) buckets.delete(k);
   }
 }
 
@@ -273,7 +376,7 @@ function splitByYearAndGap(entries: BucketEntry[]): BucketEntry[][] {
   return out;
 }
 
-function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
+function tryFormCluster(entries: BucketEntry[], bucketKey?: string): ParsedVEvent | null {
   if (entries.length < MIN_CLUSTER_SIZE) return null;
 
   // Modal DOW
@@ -444,7 +547,7 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
 
   return {
     uid: first.master.uid,
-    summary: first.master.summary.replace(STATUS_STRIP_RE, '').trim(),
+    summary: bucketKey ?? normalizeSummaryForBucket(first.master.summary),
     start: `${seasonStart}T${modalTod}:00`,
     location: masterLocation,
     description: masterDescription,

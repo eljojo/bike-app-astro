@@ -72,6 +72,32 @@ describe('parseIcs — OBC 2026 snapshot', () => {
     expect(roadBikeOrphans).toEqual([]);
   });
 
+  it('consolidates the Sunday Ride series despite per-occurrence date+location SUMMARYs', () => {
+    // Each VEVENT looks like "Sunday Ride 26-MM-DD - <Location>" with a
+    // unique date+location per week. Pre-fix this would fragment into 13
+    // orphan one-off suggestions. Post-fix the date strip + prefix-sibling
+    // consolidation merges them into one weekly Sunday cluster, with the
+    // location riding along as a per-occurrence note.
+    const sundayRide = feed.events.find(e =>
+      e.summary === 'Sunday Ride' && e.series?.kind === 'recurrence',
+    );
+    expect(sundayRide).toBeDefined();
+    expect(sundayRide?.series?.recurrence_day).toBe('sunday');
+    const overrides = sundayRide?.series?.overrides ?? [];
+    expect(overrides.length).toBeGreaterThanOrEqual(10);
+    // Spot-check that location notes survived the consolidation.
+    const knownLocations = ['Nepean Sportsplex', 'Andrew Haydon Park', 'Airport NRC'];
+    for (const loc of knownLocations) {
+      const hit = overrides.find(o => o.note?.includes(loc));
+      expect(hit, `expected an override note containing '${loc}'`).toBeDefined();
+    }
+    // No "Sunday Ride 26-..." orphan suggestions should leak.
+    const sundayOrphans = feed.events.filter(e =>
+      e.summary?.startsWith('Sunday Ride 26-'),
+    );
+    expect(sundayOrphans).toEqual([]);
+  });
+
   it('preserves Almonte Paris-Roubaix as a one-off (not in a series)', () => {
     const apr = feed.events.find(e => e.summary === '2026 Almonte Paris-Roubaix');
     expect(apr).toBeDefined();
