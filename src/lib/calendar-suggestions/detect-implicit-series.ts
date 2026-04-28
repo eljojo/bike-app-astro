@@ -86,3 +86,28 @@ export function detectCancellation(
 
   return null;
 }
+
+const MODAL_DESCRIPTION_THRESHOLD = 0.6;
+
+/**
+ * From a list of per-occurrence descriptions (already filtered through
+ * extractDescription, so nulls represent placeholders or absences), pick the
+ * modal description if it appears in ≥60% of the *non-null* entries.
+ *
+ * Nulls don't compete; the denominator is non-null entries only. This means
+ * a cluster of 10 occurrences where 7 share description X and 3 are
+ * placeholders becomes "master body = X", not "70% of 10 → no modal".
+ */
+export function pickModalDescription(descriptions: Array<string | null>): string | null {
+  const present = descriptions.filter((d): d is string => d !== null);
+  if (present.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const d of present) counts.set(d, (counts.get(d) ?? 0) + 1);
+  let bestKey: string | null = null;
+  let bestCount = 0;
+  for (const [key, count] of counts) {
+    if (count > bestCount) { bestCount = count; bestKey = key; }
+  }
+  if (bestKey === null) return null;
+  return bestCount / present.length >= MODAL_DESCRIPTION_THRESHOLD ? bestKey : null;
+}

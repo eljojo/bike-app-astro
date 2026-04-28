@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractDescription, detectCancellation } from '../src/lib/calendar-suggestions/detect-implicit-series';
+import { extractDescription, detectCancellation, pickModalDescription } from '../src/lib/calendar-suggestions/detect-implicit-series';
 
 describe('extractDescription', () => {
   it('returns null for empty / whitespace / undefined input', () => {
@@ -100,5 +100,53 @@ describe('detectCancellation', () => {
       'Wednesday Coffee Ride - CANCELLED',
       '<p>If conditions worsen the ride will be cancelled</p>',
     )).toEqual({ cancelled: true, reason: undefined });
+  });
+});
+
+describe('pickModalDescription', () => {
+  it('returns null when fewer than the threshold share a description', () => {
+    // 5 distinct out of 10 = 50%, below 60% threshold
+    const result = pickModalDescription(['a', 'b', 'c', 'd', 'e', 'a', 'b', 'c', 'd', 'e']);
+    expect(result).toBeNull();
+  });
+
+  it('returns the modal description when ≥60% of inputs share it', () => {
+    // 8 of 10 share "X" (80%)
+    const result = pickModalDescription(['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'a', 'b']);
+    expect(result).toBe('X');
+  });
+
+  it('returns the modal at exactly 60% threshold', () => {
+    // 6 of 10 share "X" (exactly 60%)
+    const result = pickModalDescription(['X', 'X', 'X', 'X', 'X', 'X', 'a', 'b', 'c', 'd']);
+    expect(result).toBe('X');
+  });
+
+  it('does not return a modal at 59%', () => {
+    // 59 of 100 share "X"
+    const inputs = [...Array(59).fill('X'), ...Array(41).fill(0).map((_, i) => `unique-${i}`)];
+    const result = pickModalDescription(inputs);
+    expect(result).toBeNull();
+  });
+
+  it('treats nulls as absent (not voting either way)', () => {
+    // 7 share "X", 3 are null. Of 7 non-null, 7/7 = 100% modal.
+    const result = pickModalDescription(['X', 'X', 'X', 'X', 'X', 'X', 'X', null, null, null]);
+    expect(result).toBe('X');
+  });
+
+  it('returns null when all inputs are null', () => {
+    expect(pickModalDescription([null, null, null, null])).toBeNull();
+  });
+
+  it('returns null when an empty array is passed', () => {
+    expect(pickModalDescription([])).toBeNull();
+  });
+
+  it('uses non-null denominator: 7 real with 7×"X" + 3 null = master is X', () => {
+    // Threshold computed against non-null total (7), not full length (10).
+    // 7/7 = 100% ≥ 60%.
+    const result = pickModalDescription(['X', 'X', 'X', 'X', 'X', 'X', 'X', null, null, null]);
+    expect(result).toBe('X');
   });
 });
