@@ -151,7 +151,9 @@ const locale = Astro.currentLocale;
                   <div class="upcoming-event-info">
                     <span class="upcoming-event-name">{event.name}</span>
                     <span class="upcoming-event-meta">
-                      {formatDateRange(event.startDate, event.endDate)}
+                      {event.nextDate
+                        ? formatDateRange(event.nextDate, undefined, locale)
+                        : formatDateRange(event.startDate, event.endDate, locale)}
                       {event.organizerName && ` · ${event.organizerName}`}
                     </span>
                   </div>

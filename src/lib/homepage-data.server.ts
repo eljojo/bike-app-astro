@@ -11,6 +11,7 @@ import type { PlaceData } from './geo/proximity';
 import { getInstanceFeatures } from './config/instance-features';
 import { paths } from './paths';
 import { eventCoverKey } from './models/event-model';
+import { isSeriesEvent, expandSeriesOccurrences, getNextOccurrence } from './series-utils';
 
 type RouteEntry = CollectionEntry<'routes'>;
 type EventEntry = CollectionEntry<'events'>;
@@ -40,6 +41,11 @@ export interface UpcomingEvent {
   name: string;
   startDate: string;
   endDate?: string;
+  // For series events, the next non-cancelled occurrence on or after today.
+  // Renderers should prefer this over the (start_date, end_date) season range
+  // since a range like "April 16 – June 25" is ambiguous about when the next
+  // ride actually happens.
+  nextDate?: string;
   organizerName?: string;
   organizerSlug?: string;
   posterKey?: string;
@@ -185,24 +191,39 @@ function getAllFeaturedRoutes(routes: RouteEntry[], locale?: string): FeaturedRo
 // Upcoming events (next 3)
 // ---------------------------------------------------------------------------
 
-function getUpcomingEvents(
+// Exported for unit tests; loadMagazineData calls with `now` defaulted.
+export function getUpcomingEvents(
   events: EventEntry[],
   organizers: OrganizerEntry[],
+  now: Date = new Date(),
 ): UpcomingEvent[] {
-  const now = new Date();
   const orgMap = new Map<string, OrganizerEntry>();
   for (const org of organizers) orgMap.set(org.id, org);
 
+  // For series events: the next non-cancelled occurrence whose end-of-day is
+  // still in the future. Returns undefined for one-offs (caller falls back to
+  // start_date for sort/display).
+  function nextOccurrenceDate(data: EventEntry['data']): string | undefined {
+    if (!isSeriesEvent(data)) return undefined;
+    const occurrences = expandSeriesOccurrences(data as Parameters<typeof expandSeriesOccurrences>[0]);
+    return getNextOccurrence(occurrences, now)?.date;
+  }
+
+  // Effective sort date: next occurrence for series, start_date for one-offs.
+  // Without this a series whose first occurrence was months ago floats to the
+  // top of the list even if its next ride is far in the future.
+  function sortDate(data: EventEntry['data']): number {
+    return parseLocalDate(nextOccurrenceDate(data) ?? data.start_date).getTime();
+  }
+
   return events
     .filter(e => {
+      // Series: keep if any future occurrence exists. One-off: keep if not past.
+      if (isSeriesEvent(e.data)) return nextOccurrenceDate(e.data) !== undefined;
       const endDate = e.data.end_date || e.data.start_date;
       return endOfDay(endDate) >= now;
     })
-    .sort((a, b) => {
-      const aDate = parseLocalDate(a.data.start_date).getTime();
-      const bDate = parseLocalDate(b.data.start_date).getTime();
-      return aDate - bDate;
-    })
+    .sort((a, b) => sortDate(a.data) - sortDate(b.data))
     .slice(0, 5)
     .map(e => {
       const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
@@ -212,6 +233,7 @@ function getUpcomingEvents(
         name: e.data.name,
         startDate: e.data.start_date,
         endDate: e.data.end_date,
+        nextDate: nextOccurrenceDate(e.data),
         organizerName: org?.data.name,
         organizerSlug: org?.id,
         posterKey: eventCoverKey(e.data),
