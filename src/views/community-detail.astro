@@ -131,7 +131,7 @@ function socialLinkLabel(link: { platform: string; url: string }): string {
 const allMedia = data.media ?? [];
 const cover = allMedia.find(m => m.cover);
 const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
-const coverAlt = cover?.caption || data.name;
+const coverAlt = cover ? (cover.caption || data.name) : undefined;
 const galleryMedia = allMedia.filter(m => !m.cover);
 const mediaItems = galleryMedia.map(m => ({
   type: m.type || 'photo',
@@ -178,12 +178,10 @@ const PAST_EVENTS_INITIAL = 4;
   <article class:list={['community-detail', { 'community-detail--has-cover': !!cover }]}>
     {cover && (
       <div class="community-cover">
-        <ResponsiveImage
-          blobKey={cover.key}
-          alt={coverAlt}
-          widths={[800, 1170, 2340]}
-          width={1170}
-          height={390}
+        <img
+          src={imageUrl(cover.key, { width: 1170 })}
+          srcset={`${imageUrl(cover.key, { width: 2340 })} 2x`}
+          alt={coverAlt || ''}
           loading="eager"
           class="community-cover-photo"
         />

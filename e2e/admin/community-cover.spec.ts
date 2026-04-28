@@ -32,22 +32,22 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const FIXTURE_PATH = 'demo/organizers/community-admin-test.md';
-const SLUG = 'community-admin-test';
+const FIXTURE_PATH = 'demo/organizers/community-cover-test.md';
+const SLUG = 'community-cover-test';
 
-// Minimal OrganizerDetail JSON matching the community-admin-test fixture.
+// Minimal OrganizerDetail JSON matching the community-cover-test fixture.
 // Used as the base for D1 cache seeds. Must pass organizerDetailFromCache Zod validation.
 const BASE_DETAIL = {
   slug: SLUG,
-  name: 'Community Admin Test Org',
-  tagline: 'A tagline for testing',
-  tags: ['gravel', 'touring'],
-  featured: true,
+  name: 'Community Cover Test Org',
+  tagline: 'Fixture for cover-photo e2e tests',
+  tags: ['test'],
+  featured: false,
   hidden: false,
-  website: 'https://community-admin-test.example.com',
+  website: 'https://community-cover-test.example.com',
   social_links: [],
   media: [],
-  body: 'A bio for testing community admin editing.',
+  body: 'A bio for testing community cover photo flows.',
 };
 
 test.describe('Community Cover Photo', () => {
@@ -98,7 +98,7 @@ test.describe('Community Cover Photo', () => {
   });
 
   test('removing the cover un-flags the media and removes the cover item', async ({ page }) => {
-    const seedCoverKey = 'organizers/community-admin-test/seed-cover.jpg';
+    const seedCoverKey = 'organizers/community-cover-test/seed-cover.jpg';
 
     // Write the cover into the fixture file — this is what the save handler reads.
     const filePath = path.join(FIXTURE_DIR, FIXTURE_PATH);
@@ -143,8 +143,8 @@ test.describe('Community Cover Photo', () => {
   });
 
   test('non-cover media items pass through unchanged when only the cover is replaced', async ({ page }) => {
-    const oldCoverKey = 'organizers/community-admin-test/old-cover.jpg';
-    const legacyKey = 'organizers/community-admin-test/legacy-gallery.jpg';
+    const oldCoverKey = 'organizers/community-cover-test/old-cover.jpg';
+    const legacyKey = 'organizers/community-cover-test/legacy-gallery.jpg';
 
     // Write the seeded state into the fixture file.
     const filePath = path.join(FIXTURE_DIR, FIXTURE_PATH);
