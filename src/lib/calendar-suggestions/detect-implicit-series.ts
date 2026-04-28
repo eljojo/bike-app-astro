@@ -1,4 +1,7 @@
+import ICAL from 'ical.js';
+import { Temporal } from '@js-temporal/polyfill';
 import { NodeHtmlMarkdown } from 'node-html-markdown';
+import type { ParsedVEvent, RecurrenceDay } from './types';
 
 const htmlConverter = new NodeHtmlMarkdown();
 
@@ -110,4 +113,168 @@ export function pickModalDescription(descriptions: Array<string | null>): string
   }
   if (bestKey === null) return null;
   return bestCount / present.length >= MODAL_DESCRIPTION_THRESHOLD ? bestKey : null;
+}
+
+const MIN_CLUSTER_SIZE = 4;
+const MODAL_DOW_THRESHOLD = 0.8;
+const MAX_GAP_DAYS = 60;
+const WEEKLY_DAYS = 7;
+const BIWEEKLY_DAYS = 14;
+
+const DOW_INDEX_TO_NAME: RecurrenceDay[] = [
+  'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+];
+
+const STATUS_STRIP_RE = /\s*-\s*(?:CANCELLED|CANCELED|NO RIDE|WX RESCHEDULED)(?:\s*-\s*[A-Z0-9]+)?\s*$/i;
+
+interface BucketEntry {
+  master: ICAL.Event;
+  zdt: Temporal.ZonedDateTime;
+}
+
+/**
+ * Detect implicit weekly/biweekly series in a list of non-RRULE ICAL.Event
+ * masters. Clusters that satisfy the rules become synthetic ParsedVEvent
+ * instances with kind: 'recurrence'; non-clustered masters are returned as
+ * orphans for the caller to map via the existing one-off path.
+ *
+ * Spec: ~/code/bike-app/docs/plans/2026-04-28-implicit-series-detection-design.md
+ */
+export function detectImplicitSeries(
+  masters: ICAL.Event[],
+  siteTz: string,
+): { clusters: ParsedVEvent[]; orphans: ICAL.Event[] } {
+  // Bucket by SUMMARY (with status suffixes stripped so cancelled occurrences
+  // group with their siblings).
+  const buckets = new Map<string, BucketEntry[]>();
+  for (const m of masters) {
+    if (!m.startDate || !m.summary) continue;
+    const key = m.summary.replace(STATUS_STRIP_RE, '').trim();
+    const zdt = icalTimeToSiteZdt(m.startDate, siteTz);
+    const list = buckets.get(key) ?? [];
+    list.push({ master: m, zdt });
+    buckets.set(key, list);
+  }
+
+  const clusters: ParsedVEvent[] = [];
+  const orphans: ICAL.Event[] = [];
+
+  for (const [, entries] of buckets) {
+    entries.sort((a, b) => Temporal.ZonedDateTime.compare(a.zdt, b.zdt));
+    const subBuckets = splitByYearAndGap(entries);
+    for (const sub of subBuckets) {
+      const cluster = tryFormCluster(sub);
+      if (cluster) clusters.push(cluster);
+      else for (const e of sub) orphans.push(e.master);
+    }
+  }
+
+  return { clusters, orphans };
+}
+
+function splitByYearAndGap(entries: BucketEntry[]): BucketEntry[][] {
+  if (entries.length === 0) return [];
+  const out: BucketEntry[][] = [];
+  let current: BucketEntry[] = [entries[0]];
+  for (let i = 1; i < entries.length; i++) {
+    const prev = entries[i - 1];
+    const curr = entries[i];
+    const yearChanged = prev.zdt.year !== curr.zdt.year;
+    const gapDays = Math.round(
+      prev.zdt.until(curr.zdt, { largestUnit: 'days' }).total({ unit: 'days' }),
+    );
+    if (yearChanged || gapDays > MAX_GAP_DAYS) {
+      out.push(current);
+      current = [curr];
+    } else {
+      current.push(curr);
+    }
+  }
+  out.push(current);
+  return out;
+}
+
+function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
+  if (entries.length < MIN_CLUSTER_SIZE) return null;
+
+  // Modal DOW
+  const dowCounts = new Map<number, number>();
+  for (const e of entries) dowCounts.set(e.zdt.dayOfWeek % 7, (dowCounts.get(e.zdt.dayOfWeek % 7) ?? 0) + 1);
+  let modalDow = -1, modalDowCount = 0;
+  for (const [d, n] of dowCounts) if (n > modalDowCount) { modalDow = d; modalDowCount = n; }
+  if (modalDowCount / entries.length < MODAL_DOW_THRESHOLD) return null;
+
+  const inCadence = entries.filter(e => (e.zdt.dayOfWeek % 7) === modalDow);
+  const outOfCadence = entries.filter(e => (e.zdt.dayOfWeek % 7) !== modalDow);
+
+  // Modal cadence (gaps between in-cadence consecutive occurrences). The
+  // modal gap must be weekly (7) or biweekly (14); other gaps may be any
+  // positive multiple of the modal (handles missed weeks: a 14d gap in a
+  // weekly cluster is two weeks with the middle one skipped). Truly
+  // irregular spacing — modal not in {7, 14}, or any gap not a multiple
+  // of the modal — rejects.
+  if (inCadence.length < 2) return null;
+  const gapCounts = new Map<number, number>();
+  for (let i = 1; i < inCadence.length; i++) {
+    const days = Math.round(
+      inCadence[i - 1].zdt.until(inCadence[i].zdt, { largestUnit: 'days' }).total({ unit: 'days' }),
+    );
+    gapCounts.set(days, (gapCounts.get(days) ?? 0) + 1);
+  }
+  let modalGap = -1, modalGapCount = 0;
+  for (const [g, n] of gapCounts) if (n > modalGapCount) { modalGap = g; modalGapCount = n; }
+  if (modalGap !== WEEKLY_DAYS && modalGap !== BIWEEKLY_DAYS) return null;
+  for (const g of gapCounts.keys()) {
+    if (g <= 0 || g % modalGap !== 0) return null;
+  }
+
+  const recurrence: 'weekly' | 'biweekly' = modalGap === WEEKLY_DAYS ? 'weekly' : 'biweekly';
+  const recurrence_day: RecurrenceDay = DOW_INDEX_TO_NAME[modalDow];
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+
+  // Master start/summary built later in emission task; for now produce a
+  // skeleton ParsedVEvent so the test can assert structural fields. Per-field
+  // overrides (location/start_time/note/event_url/etc.) are emitted in the
+  // next task.
+  const seasonStart = first.zdt.toPlainDate().toString();
+  const seasonEnd = last.zdt.toPlainDate().toString();
+  const masterStartTime = first.zdt.toPlainTime().toString({ smallestUnit: 'minute' });
+
+  return {
+    uid: first.master.uid,
+    summary: first.master.summary.replace(STATUS_STRIP_RE, '').trim(),
+    start: `${seasonStart}T${masterStartTime}:00`,
+    series: {
+      kind: 'recurrence',
+      recurrence,
+      recurrence_day,
+      season_start: seasonStart,
+      season_end: seasonEnd,
+      overrides: outOfCadence.map(e => ({
+        date: e.zdt.toPlainDate().toString(),
+        uid: e.master.uid,
+      })),
+    },
+  };
+}
+
+function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
+  if (t.isDate) {
+    return Temporal.PlainDate.from({ year: t.year, month: t.month, day: t.day })
+      .toZonedDateTime(siteTz);
+  }
+  const zone = t.zone;
+  const isFloating =
+    zone == null ||
+    (zone === ICAL.Timezone.localTimezone) ||
+    (typeof zone.tzid === 'string' && zone.tzid === 'floating');
+  if (isFloating) {
+    return Temporal.PlainDateTime.from({
+      year: t.year, month: t.month, day: t.day,
+      hour: t.hour, minute: t.minute, second: t.second,
+    }).toZonedDateTime(siteTz);
+  }
+  return Temporal.Instant.fromEpochMilliseconds(t.toJSDate().getTime())
+    .toZonedDateTimeISO(siteTz);
 }
