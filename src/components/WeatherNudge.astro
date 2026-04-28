@@ -56,11 +56,21 @@ const { locale } = Astro.props;
         }
       }
 
-      // Move to top of main column when prominence is high
+      // Prominent placement: park the card just below the video in the
+      // main column (or at the end of main when there's no video). On
+      // mobile the layout's `display: contents` flattens main into the
+      // page grid, so the per-section `order` rules in the SCSS still
+      // pin the card to its mobile slot regardless of where it lands
+      // structurally here.
       if (data.prominence === 'high') {
         const main = document.querySelector('.magazine-main');
         if (main) {
-          main.prepend(card);
+          const video = main.querySelector('.magazine-video');
+          if (video && video.parentNode === main) {
+            video.after(card);
+          } else {
+            main.appendChild(card);
+          }
           card.classList.add('weather-prominent');
         }
       }

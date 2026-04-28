@@ -447,10 +447,10 @@
     }
   }
 
-  // Prominent placement — rare good day, moved to top of main column
+  // Prominent placement — rare good day. Placed below the video by the
+  // companion script. The flex-column parent's gap handles spacing, so
+  // no per-card margins here.
   &.weather-prominent {
-    margin-bottom: 1.5rem;
-
     .weather-card-link {
       font-size: 1rem;
       color: $color-text;
