@@ -121,6 +121,7 @@ Long-term direction. Read to understand *why* decisions are made.
 How the app works. Read to understand *what* things are.
 - [context-system](_ctx/context-system.md) — how the _ctx/ knowledge base works: philosophy, loading tiers, types, maintenance
 - [content-model](_ctx/content-model.md) — model schemas as source of truth, content type registry, ContentOps, GitFiles
+- [event-series](_ctx/event-series.md) — recurrence vs explicit-schedule patterns, ICS UID layers, expander, dedupe matching
 - [config-layers](_ctx/config-layers.md) — build-time vs runtime config, city config YAML, AppEnv, build-time transforms
 - [instance-types](_ctx/instance-types.md) — wiki/blog/club, feature flags vs identity checks
 - [save-pipeline](_ctx/save-pipeline.md) — SaveHandlers factory, conflict detection, D1 cache overlay
