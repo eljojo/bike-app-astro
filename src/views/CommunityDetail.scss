@@ -80,20 +80,17 @@
   .community-detail-header-info {
     padding-bottom: 0.5rem; // align baseline with the bottom of the avatar circle
 
-    // Desktop only: name and tagline sit over the cover photo, so a halo
-    // shadow gives them legibility against varied photos. On mobile the layout
-    // flexes to column and the text sits below the cover, so no shadow needed.
+    // Desktop only: name and tagline sit over the cover photo. Force white text
+    // with a multi-layer drop shadow — photo-agnostic, works in both color modes.
+    // On mobile the layout flexes to column and the text sits below the cover,
+    // so the original color and no shadow apply (this rule doesn't fire).
     @media (min-width: $breakpoint-mobile) {
       h1, .community-detail-tagline {
+        color: #fff;
         text-shadow:
-          0 0 4px rgba(255, 255, 255, 0.7),
-          0 1px 2px rgba(255, 255, 255, 0.5);
-
-        @include dark-mode {
-          text-shadow:
-            0 0 4px rgba(0, 0, 0, 0.7),
-            0 1px 2px rgba(0, 0, 0, 0.5);
-        }
+          0 1px 0 rgba(0, 0, 0, 0.85),
+          0 2px 6px rgba(0, 0, 0, 0.6),
+          0 4px 16px rgba(0, 0, 0, 0.4);
       }
     }
   }
