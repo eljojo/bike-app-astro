@@ -202,6 +202,8 @@ export default function EventWizard({
     }
     if (draft.organizer) {
       const org = draft.organizer;
+      // Known organizer: server emits a slug string (matches EventDetail['organizer']'s
+      // ref shape). Look it up in the registry and populate the form.
       if (typeof org === 'string') {
         const found = organizers.find(o => o.slug === org);
         if (found) {
@@ -217,11 +219,16 @@ export default function EventWizard({
           disclosure.open('orgForm');
         }
       } else {
+        // Custom organizer — clear any stale ref state from a prior selection.
+        setOrgSlug('');
         setOrgName(org.name || '');
         setOrgWebsite(org.website || '');
         setOrgInstagram(org.instagram || '');
         setOrgPhotoKey(org.photo_key || '');
         setOrgPhotoContentType(org.photo_content_type || '');
+        setOrgPhotoWidth(undefined);
+        setOrgPhotoHeight(undefined);
+        setIsExistingRef(false);
         disclosure.open('orgForm');
       }
     }
