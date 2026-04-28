@@ -218,6 +218,7 @@
   "events.time_limit": "Time limit",
   "events.hours": "hours",
   "events.date": "Date",
+  "events.next_date": "Next date",
   "events.distance": "Distance",
   "events.location": "Location",
   "events.view_on_map": "View location on map",

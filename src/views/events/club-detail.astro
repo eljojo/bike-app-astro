@@ -11,7 +11,7 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { imageUrl } from '@/lib/media/image-service';
 import { eventCoverKey } from '@/lib/models/event-model';
 import { formatDateRange, formatDate, parseLocalDate, endOfDay } from '@/lib/date-utils';
-import { t, localePath, eventNoun, eventNextLabel, eventSignUpLabel, eventEditionsLabel, eventGoBackLabel } from '@/i18n';
+import { t, localePath, eventNoun, eventSignUpLabel, eventEditionsLabel, eventGoBackLabel } from '@/i18n';
 import { expandSeriesOccurrences, getNextOccurrence, isSeriesActive, isSeriesEvent, type SeriesOccurrence } from '@/lib/series-utils';
 import { paths } from '@/lib/paths';
 import SubTabToggle from '@/components/SubTabToggle.astro';
@@ -175,7 +175,6 @@ if (typeof data.organizer === 'string') {
   organizerUrl = data.organizer.website;
 }
 
-const dateDisplay = formatDateRange(data.start_date, data.end_date, locale);
 const coverKey = eventCoverKey(data);
 const coverUrl = coverKey ? imageUrl(coverKey, { width: 800 }) : undefined;
 
@@ -218,12 +217,12 @@ const organizerSocialLinks = organizerEntry
       { instagram: organizerInstagram, website: organizerWebsite },
     ).filter(link => !['twitter', 'x'].includes(link.platform.toLowerCase()));
 
-// Exclude links already surfaced elsewhere on the page
+// Exclude links already surfaced elsewhere on the page (including per-occurrence overrides,
+// which are computed below — collected after the series block).
 const shownUrls = new Set<string>();
 if (organizerUrl) shownUrls.add(organizerUrl);
 if (data.event_url) shownUrls.add(data.event_url);
 if (regUrl) shownUrls.add(regUrl);
-const extraSocialLinks = organizerSocialLinks.filter(link => !shownUrls.has(link.url));
 
 function socialLinkLabel(link: { platform: string; url: string }): string {
   if (link.platform === 'instagram') {
@@ -260,16 +259,8 @@ function formatTime(time: string, loc?: string): string {
   return d.toLocaleTimeString(loc || 'en-CA', { hour: 'numeric', minute: '2-digit' });
 }
 
-// Build date display with optional time — meet time shown when available
-const hasMeetTime = !!data.meet_time && !!data.start_time;
-const timeDisplay = hasMeetTime
-  ? t('events.meet_time', locale, { meet: formatTime(data.meet_time!, locale), roll: formatTime(data.start_time!, locale) })
-  : data.start_time
-    ? formatTime(data.start_time, locale)
-    : undefined;
-const dateWithTime = timeDisplay ? `${dateDisplay} \u2014 ${timeDisplay}` : dateDisplay;
-
-// Series data — must be declared before isPastEvent which depends on them
+// Series data — must be declared before display values, since an active series
+// shifts the page to describe the next occurrence rather than the season range.
 const isSeries = isSeriesEvent(data);
 const seriesOccurrences = isSeries ? expandSeriesOccurrences(data) : [];
 const now = new Date();
@@ -277,9 +268,54 @@ const nextOccurrence = isSeries ? getNextOccurrence(seriesOccurrences, now) : un
 const seriesActive = isSeries && isSeriesActive(seriesOccurrences, now);
 const seriesEnded = isSeries && !seriesActive;
 
+// When the next occurrence exists, the page describes that occurrence —
+// date/time/location/URLs prefer per-occurrence overrides over top-level.
+const useNext = !!nextOccurrence;
+const displayMeetTime = useNext ? nextOccurrence!.meet_time : data.meet_time;
+const displayStartTime = useNext ? nextOccurrence!.start_time : data.start_time;
+const displayLocation = useNext ? nextOccurrence!.location : data.location;
+const displayDate = useNext
+  ? formatOccurrenceDateLong(nextOccurrence!.date)
+  : formatDateRange(data.start_date, data.end_date, locale);
+
+// Build date display with optional time — meet time shown when available
+const hasMeetTime = !!displayMeetTime && !!displayStartTime;
+const timeDisplay = hasMeetTime
+  ? t('events.meet_time', locale, { meet: formatTime(displayMeetTime!, locale), roll: formatTime(displayStartTime!, locale) })
+  : displayStartTime
+    ? formatTime(displayStartTime, locale)
+    : undefined;
+const dateWithTime = timeDisplay ? `${displayDate} — ${timeDisplay}` : displayDate;
+
 // Past event detection — for series, use whether the series is still active
 const eventEndDate = data.end_date || data.start_date;
 const isPastEvent = isSeries ? seriesEnded : endOfDay(eventEndDate) < new Date();
+
+// Sign-up / event-website URLs prefer per-occurrence overrides over top-level.
+// The primary CTA gets the best sign-up URL, falling back to the best event URL.
+// Any remaining distinct URLs we know about render as secondary fact links so the
+// season-level event page stays reachable even when an occurrence override exists.
+type FactLinkKind = 'signup' | 'website';
+const factLinkCandidates: { url: string; kind: FactLinkKind }[] = [
+  ...(nextOccurrence?.registration_url ? [{ url: nextOccurrence.registration_url, kind: 'signup' as const }] : []),
+  ...(regUrl ? [{ url: regUrl, kind: 'signup' as const }] : []),
+  ...(nextOccurrence?.event_url ? [{ url: nextOccurrence.event_url, kind: 'website' as const }] : []),
+  ...(data.event_url ? [{ url: data.event_url, kind: 'website' as const }] : []),
+];
+const ctaSignUpUrl = nextOccurrence?.registration_url || regUrl;
+const ctaEventUrl = nextOccurrence?.event_url || data.event_url;
+const ctaPrimaryUrl = ctaSignUpUrl || ctaEventUrl;
+const seenFactUrls = new Set<string>();
+if (ctaPrimaryUrl) seenFactUrls.add(ctaPrimaryUrl);
+const secondaryFactLinks = factLinkCandidates.filter(l => {
+  if (seenFactUrls.has(l.url)) return false;
+  seenFactUrls.add(l.url);
+  return true;
+});
+if (ctaSignUpUrl) shownUrls.add(ctaSignUpUrl);
+if (ctaEventUrl) shownUrls.add(ctaEventUrl);
+for (const l of secondaryFactLinks) shownUrls.add(l.url);
+const extraSocialLinks = organizerSocialLinks.filter(link => !shownUrls.has(link.url));
 
 // Find next edition (forward in chain) for past event messaging
 const currentIndex = editions.findIndex((ed: { id: string }) => ed.id === event.id);
@@ -347,7 +383,7 @@ const reg = data.registration;
 const departureGroups = reg?.departure_groups ?? [];
 
 // Registration link text
-const isInstagramReg = regUrl && (regUrl.includes('instagram.com') || regUrl.includes('instagr.am'));
+const isInstagramReg = ctaSignUpUrl && (ctaSignUpUrl.includes('instagram.com') || ctaSignUpUrl.includes('instagr.am'));
 
 // Tags
 const tags = data.tags ?? [];
@@ -361,14 +397,16 @@ const breadcrumbs = breadcrumbJsonLd([
 // Build a plain-text description for JSON-LD from the markdown body
 const bodyPreview = makePreview(event.body).join(' ').slice(0, 200) || undefined;
 
+// JSON-LD describes the next occurrence when the series is active, so search
+// snippets and calendar previews point to what's actually next, not the season opener.
 const jsonLd = eventJsonLd({
   name: data.name,
-  start_date: data.start_date,
-  start_time: data.start_time,
-  end_date: data.end_date,
+  start_date: useNext ? nextOccurrence!.date : data.start_date,
+  start_time: displayStartTime || displayMeetTime,
+  end_date: useNext ? nextOccurrence!.date : data.end_date,
   end_time: data.end_time,
-  location: data.location,
-  registration_url: regUrl,
+  location: displayLocation,
+  registration_url: ctaSignUpUrl,
   organizer_name: organizerName,
   organizer_url: organizerUrl,
   poster_key: coverKey,
@@ -379,7 +417,7 @@ const jsonLd = eventJsonLd({
 });
 
 // Social preview description: date, location, distance, noun — no name repetition
-const seoDescParts = [dateDisplay, data.location, data.distances].filter(Boolean);
+const seoDescParts = [displayDate, displayLocation, data.distances].filter(Boolean);
 const seoNoun = eventNoun(tags, locale);
 const seoDescription = seoDescParts.length > 0
   ? `${seoDescParts.join(' \u2014 ')}. ${seoNoun.charAt(0).toUpperCase() + seoNoun.slice(1)}.`
@@ -473,41 +511,20 @@ function editionDateLabel(startDate: string, loc?: string): string {
           </ul>
         )}
 
-        {nextOccurrence && (() => {
-          const summaryTime = nextOccurrence.meet_time || nextOccurrence.start_time;
-          return (
-            <div class="event-series-next-ride">
-              <strong>{eventNextLabel(tags, locale)}:</strong>{' '}
-              {formatOccurrenceDateLong(nextOccurrence.date)}
-              {summaryTime && ` \u00b7 ${formatTime(summaryTime, locale)}`}
-              {nextOccurrence.location && (
-                <Fragment>
-                  {' \u00b7 '}
-                  {/^https?:\/\//i.test(nextOccurrence.location)
-                    ? <a href={nextOccurrence.location} target="_blank" rel="noopener noreferrer" title={nextOccurrence.location} aria-label={t('events.view_on_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a>
-                    : nextOccurrence.location}
-                  {nextOccurrence.event_url && (
-                    <Fragment>
-                      {' '}
-                      <a href={nextOccurrence.event_url} target="_blank" rel="noopener noreferrer" title={nextOccurrence.event_url} aria-label={t('events.event_website', locale)}>{'\u{1F310}'}</a>
-                    </Fragment>
-                  )}
-                  {nextOccurrence.registration_url && (
-                    <Fragment>
-                      {' '}
-                      <a href={nextOccurrence.registration_url} target="_blank" rel="noopener noreferrer" title={nextOccurrence.registration_url} aria-label={t('events.register', locale)}>{'\u{1F39F}\u{FE0F}'}</a>
-                    </Fragment>
-                  )}
-                </Fragment>
-              )}
-            </div>
-          );
-        })()}
-
         <div class="event-detail-facts">
           <dl class="event-detail-facts-grid">
-            <dt>{t('events.date', locale)}</dt>
-            <dd>{dateWithTime}</dd>
+            <dt>{t(useNext ? 'events.next_date' : 'events.date', locale)}</dt>
+            <dd>
+              {dateWithTime}
+              {nextOccurrence?.rescheduled_from && (
+                <span class="event-detail-fact-note">
+                  {' \u00b7 '}{t('events.series_rescheduled_from', locale, { date: formatOccurrenceDate(nextOccurrence.rescheduled_from) })}
+                </span>
+              )}
+              {nextOccurrence?.note && (
+                <span class="event-detail-fact-note">{' \u00b7 '}{nextOccurrence.note}</span>
+              )}
+            </dd>
 
             {data.distances && (
               <Fragment>
@@ -523,12 +540,12 @@ function editionDateLabel(startDate: string, loc?: string): string {
               </Fragment>
             )}
 
-            {data.location && (
+            {displayLocation && (
               <Fragment>
                 <dt>{t('events.location', locale)}</dt>
-                <dd>{/^https?:\/\//i.test(data.location)
-                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location} aria-label={t('events.view_on_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a>
-                  : data.location}</dd>
+                <dd>{/^https?:\/\//i.test(displayLocation)
+                  ? <a href={displayLocation} target="_blank" rel="noopener noreferrer" title={displayLocation} aria-label={t('events.view_on_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a>
+                  : displayLocation}</dd>
               </Fragment>
             )}
 
@@ -565,21 +582,23 @@ function editionDateLabel(startDate: string, loc?: string): string {
             )}
           </dl>
 
-          {!isPastEvent && regUrl ? (
-            <a class="event-detail-facts-cta" href={regUrl} target="_blank" rel="noopener noreferrer">
+          {!isPastEvent && ctaSignUpUrl ? (
+            <a class="event-detail-facts-cta" href={ctaSignUpUrl} target="_blank" rel="noopener noreferrer">
               {isInstagramReg && followName ? followName : eventSignUpLabel(tags, locale)} &#x2192;
             </a>
-          ) : !isPastEvent && data.event_url && (
-            <a class="event-detail-facts-cta" href={data.event_url} target="_blank" rel="noopener noreferrer">
+          ) : !isPastEvent && ctaEventUrl && (
+            <a class="event-detail-facts-cta" href={ctaEventUrl} target="_blank" rel="noopener noreferrer">
               {t('events.event_website', locale)} &#x2192;
             </a>
           )}
 
-          {data.event_url && regUrl && (
+          {!isPastEvent && secondaryFactLinks.length > 0 && (
             <div class="event-detail-facts-links">
-              <a href={data.event_url} target="_blank" rel="noopener noreferrer">
-                {t('events.event_website', locale)}
-              </a>
+              {secondaryFactLinks.map(link => (
+                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                  {link.kind === 'signup' ? eventSignUpLabel(tags, locale) : t('events.event_website', locale)}
+                </a>
+              ))}
             </div>
           )}
         </div>

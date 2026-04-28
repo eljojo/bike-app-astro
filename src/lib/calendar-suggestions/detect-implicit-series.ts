@@ -318,8 +318,11 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
     };
     if (tod !== modalTod) ovr.start_time = tod;
     if (loc && loc !== masterLocation) ovr.location = loc;
-    if (url && url !== masterUrl) ovr.event_url = url;
-    if (rwg && rwg !== masterRegistrationUrl) ovr.registration_url = rwg;
+    // Per-occurrence URL property is the action link for that specific instance
+    // (e.g. obcrides.ca/events/N — the RSVP page), so it lives in registration_url.
+    // The RWG description link is a fallback when there's no calendar URL.
+    if (url && url !== masterUrl) ovr.registration_url = url;
+    if (rwg && rwg !== masterRegistrationUrl && !ovr.registration_url) ovr.registration_url = rwg;
     if (cancellation) {
       ovr.cancelled = true;
       const reasonLabel = cancellation.reason ? ` — ${cancellation.reason}` : '';

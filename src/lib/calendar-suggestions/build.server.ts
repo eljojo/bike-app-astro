@@ -222,6 +222,7 @@ function trimSeriesAgainstRepo(
       location: o.location ?? e.location,
       description: o.note ?? e.description,
       url: o.event_url ?? e.url,
+      registration_url: o.registration_url ?? e.registration_url,
     }));
 }
 

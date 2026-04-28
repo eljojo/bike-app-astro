@@ -209,6 +209,7 @@
   "events.time_limit": "Tiempo límite",
   "events.hours": "horas",
   "events.date": "Fecha",
+  "events.next_date": "Próxima fecha",
   "events.distance": "Distancia",
   "events.location": "Ubicación",
   "events.view_on_map": "Ver ubicación en el mapa",

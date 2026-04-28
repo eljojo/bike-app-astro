@@ -383,7 +383,10 @@ describe('detectImplicitSeries — per-field override emission', () => {
     expect(ovr?.location).toBe('Place B');
   });
 
-  it('emits event_url override on every occurrence when URLs are all unique', () => {
+  it('emits registration_url override on every occurrence when URLs are all unique', () => {
+    // Per-occurrence URL property is the RSVP/sign-up link for that specific
+    // instance (e.g. obcrides.ca/events/N), so it lives in registration_url —
+    // not event_url, which is reserved for the season/series landing page.
     const ics = makeIcs([
       { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', url: 'https://e.com/1' },
       { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', url: 'https://e.com/2' },
@@ -393,9 +396,10 @@ describe('detectImplicitSeries — per-field override emission', () => {
     const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
     const overrides = result.clusters[0].series?.overrides ?? [];
     expect(overrides).toHaveLength(4);
-    expect(overrides.map(o => o.event_url).sort()).toEqual([
+    expect(overrides.map(o => o.registration_url).sort()).toEqual([
       'https://e.com/1', 'https://e.com/2', 'https://e.com/3', 'https://e.com/4',
     ]);
+    for (const ovr of overrides) expect(ovr.event_url).toBeUndefined();
     expect(result.clusters[0].url).toBeUndefined();  // no master URL since all distinct
   });
 
@@ -411,6 +415,7 @@ describe('detectImplicitSeries — per-field override emission', () => {
     expect(cluster.url).toBe('https://shared.com');
     for (const ovr of cluster.series?.overrides ?? []) {
       expect(ovr.event_url).toBeUndefined();
+      expect(ovr.registration_url).toBeUndefined();
     }
   });
 
