@@ -27,9 +27,13 @@ function orgName(organizer?: string | { name: string }) {
   return organizer.name;
 }
 
-// Group by month (like public calendar)
-function groupByMonth(evts: typeof events) {
-  const groups: Record<string, { label: string; events: typeof events }> = {};
+type EventList = typeof events;
+
+// Group by month, returning groups ordered as requested. Upcoming listings
+// want ascending months (soonest at top); past listings want descending
+// months (most recent past at top).
+function groupByMonth(evts: EventList, monthOrder: 'asc' | 'desc') {
+  const groups: Record<string, { label: string; events: EventList }> = {};
   for (const e of evts) {
     const date = new Date(e.start_date + 'T00:00:00');
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -42,11 +46,24 @@ function groupByMonth(evts: typeof events) {
     groups[key].events.push(e);
   }
   return Object.entries(groups)
-    .sort(([a], [b]) => b.localeCompare(a))
+    .sort(([a], [b]) => monthOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a))
     .map(([, group]) => group);
 }
 
-const grouped = groupByMonth(events);
+const todayStr = new Date().toISOString().slice(0, 10);
+const isPast = (e: typeof events[number]) => (e.end_date || e.start_date) < todayStr;
+
+// Upcoming: soonest at top. Past: most recent at top. Within-month order
+// follows the same convention so a sequence of asc-month days flows naturally.
+const upcomingEvents = events
+  .filter(e => !isPast(e))
+  .sort((a, b) => a.start_date.localeCompare(b.start_date));
+const pastEvents = events
+  .filter(isPast)
+  .sort((a, b) => b.start_date.localeCompare(a.start_date));
+
+const upcomingGrouped = groupByMonth(upcomingEvents, 'asc');
+const pastGrouped = groupByMonth(pastEvents, 'desc');
 const user = Astro.locals.user;
 
 const incomplete = events
@@ -82,7 +99,7 @@ const suggestionsHeading = t('admin.sidebar.suggestions', locale);
 
     <div class="admin-list-layout">
       <div class="admin-list-main">
-        {grouped.map(({ label, events: monthEvents }) => (
+        {upcomingGrouped.map(({ label, events: monthEvents }) => (
           <div class="event-month-group">
             <h2 class="month-header">{label}</h2>
             <div class="event-list">
@@ -120,6 +137,50 @@ const suggestionsHeading = t('admin.sidebar.suggestions', locale);
             </div>
           </div>
         ))}
+
+        {pastEvents.length > 0 && (
+          <details class="past-events-toggle">
+            <summary>Show past events <span class="past-events-count">({pastEvents.length})</span></summary>
+            {pastGrouped.map(({ label, events: monthEvents }) => (
+              <div class="event-month-group">
+                <h2 class="month-header">{label}</h2>
+                <div class="event-list">
+                  {monthEvents.map(e => (
+                    <div class="event-list-item">
+                      <a href={`/admin/events/${e.id}`} class="event-list-link">
+                        {e.poster_key ? (
+                          <img
+                            src={buildImageUrl(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
+                            srcset={buildImageSrcSet2x(cdnUrl, e.poster_key, { width: 80, height: 80, fit: 'cover' })}
+                            alt=""
+                            loading="lazy"
+                            class="event-poster-thumb"
+                          />
+                        ) : (
+                          <span class="event-poster-placeholder">🚲</span>
+                        )}
+                        <div class="event-card-info">
+                          <span class="event-card-name">{e.name}</span>
+                          <span class="event-card-meta">
+                            {e.start_date}
+                            {orgName(e.organizer) && <> &middot; {orgName(e.organizer)}</>}
+                            {pendingIds.has(e.id) && <span class="event-pending">pending</span>}
+                          </span>
+                        </div>
+                      </a>
+                      <a href={`/admin/events/new?copy=${e.id}&full=1`} class="event-copy-btn" title="Duplicate event">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </details>
+        )}
 
         {events.length === 0 && <p class="auth-message">No events found.</p>}
       </div>
@@ -292,5 +353,36 @@ const suggestionsHeading = t('admin.sidebar.suggestions', locale);
     border-radius: $border-radius;
     font-size: 0.75rem;
     margin-left: 0.25rem;
+  }
+
+  .past-events-toggle {
+    margin-top: 2rem;
+
+    > summary {
+      cursor: pointer;
+      font-family: $font-heading;
+      font-size: 1rem;
+      padding: 0.5rem 0;
+      list-style: none;
+      @include muted-text;
+
+      &::-webkit-details-marker { display: none; }
+
+      &:hover {
+        color: $color-text;
+
+        @include dark-mode {
+          color: $color-text-dark;
+        }
+      }
+    }
+
+    &[open] > summary {
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  .past-events-count {
+    font-weight: 400;
   }
 </style>
