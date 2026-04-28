@@ -18,7 +18,20 @@ const { id, tags, items, urlParam } = Astro.props;
 const locale = Astro.currentLocale;
 ---
 
-<ul class="tag-filter" id={id}>
+{/*
+  The items map and url-param are stashed on the root as data attributes
+  rather than passed via `define:vars` on an inline script — the latter
+  would need an unsafe-inline / per-page hash that production CSP doesn't
+  grant. The hoisted <script> below is bundled and served from 'self', so
+  CSP 'self' allows it without any per-page coordination.
+*/}
+<ul
+  class="tag-filter"
+  id={id}
+  data-tag-filter
+  data-items={JSON.stringify(items)}
+  data-url-param={urlParam ?? ''}
+>
   <li>
     <button class="tag-filter--btn tag-filter--all active" data-tag="all">{t('filter.all', locale)}</button>
   </li>
@@ -29,13 +42,22 @@ const locale = Astro.currentLocale;
   ))}
 </ul>
 
-<script is:inline define:vars={{ rootId: id, items, urlParam }}>
-  (() => {
-    const root = document.getElementById(rootId);
-    if (!root) return;
-    const allBtn = root.querySelector('.tag-filter--all');
-    const tagButtons = Array.from(root.querySelectorAll('.tag-filter--btn:not(.tag-filter--all)'));
+<script>
+  // Hoisted (no `is:inline`) → bundled to an external module served from
+  // 'self', which production CSP allows. Each TagFilter root carries its
+  // configuration in data attributes so this single bundle handles every
+  // instance on the page.
+  function setupTagFilter(root: HTMLElement) {
+    const allBtn = root.querySelector<HTMLButtonElement>('.tag-filter--all');
+    const tagButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('.tag-filter--btn:not(.tag-filter--all)'));
+    let items: Record<string, string[]>;
+    try {
+      items = JSON.parse(root.dataset.items || '{}') as Record<string, string[]>;
+    } catch {
+      return;
+    }
     const slugs = Object.keys(items);
+    const urlParam = root.dataset.urlParam || '';
 
     // Restore filters from URL if `urlParam` was set. The component owns the
     // URL contract so consumers don't need to coordinate.
@@ -45,28 +67,31 @@ const locale = Astro.currentLocale;
     if (initialTags.length) {
       allBtn?.classList.remove('active');
       for (const tagName of initialTags) {
-        const btn = root.querySelector(`.tag-filter--btn[data-tag="${tagName}"]`);
+        const btn = root.querySelector(`.tag-filter--btn[data-tag="${CSS.escape(tagName)}"]`);
         if (btn) btn.classList.add('active');
       }
     }
 
-    function getActiveTags() {
-      return tagButtons.filter(b => b.classList.contains('active')).map(b => b.dataset.tag);
+    function getActiveTags(): string[] {
+      return tagButtons
+        .filter(b => b.classList.contains('active'))
+        .map(b => b.dataset.tag ?? '')
+        .filter(Boolean);
     }
 
-    function computeEnabledSlugs(activeTags) {
+    function computeEnabledSlugs(activeTags: string[]): string[] {
       if (activeTags.length === 0) return slugs.slice();
       // AND-match: a slug is enabled iff its tags include every active tag.
       return slugs.filter(slug => {
-        const tags = items[slug] ?? [];
+        const slugTags = items[slug] ?? [];
         for (const t of activeTags) {
-          if (!tags.includes(t)) return false;
+          if (!slugTags.includes(t)) return false;
         }
         return true;
       });
     }
 
-    function applyDimming(activeTags, enabledSlugs) {
+    function applyDimming(activeTags: string[], enabledSlugs: string[]) {
       // Smart visibility: when any tag is active, hide pills that wouldn't
       // narrow further (no enabled slug carries the tag) and dim pills
       // present on every enabled slug (no information value to clicking).
@@ -77,12 +102,12 @@ const locale = Astro.currentLocale;
         }
         return;
       }
-      const tagFreq = new Map();
+      const tagFreq = new Map<string, number>();
       for (const slug of enabledSlugs) {
         for (const t of items[slug] ?? []) tagFreq.set(t, (tagFreq.get(t) ?? 0) + 1);
       }
       for (const btn of tagButtons) {
-        const tag = btn.dataset.tag;
+        const tag = btn.dataset.tag ?? '';
         const freq = tagFreq.get(tag) ?? 0;
         if (freq === 0) {
           btn.style.display = 'none';
@@ -93,7 +118,7 @@ const locale = Astro.currentLocale;
       }
     }
 
-    function syncUrl(activeTags) {
+    function syncUrl(activeTags: string[]) {
       if (!urlParam) return;
       const url = new URL(window.location.href);
       if (activeTags.length > 0) {
@@ -105,30 +130,26 @@ const locale = Astro.currentLocale;
       }
     }
 
-    // `meta` carries which tag the user touched and what kind of change it
-    // was, so consumers can fire analytics only on adds (or distinguish
-    // 'init' from real interactions).
-    function emit(meta) {
+    type Action = 'init' | 'add' | 'remove' | 'clear';
+    interface Meta { action: Action; lastChangedTag?: string }
+
+    function emit(meta: Meta) {
       const activeTags = getActiveTags();
       const enabledSlugs = computeEnabledSlugs(activeTags);
       applyDimming(activeTags, enabledSlugs);
       root.dispatchEvent(new CustomEvent('tagfilter:change', {
-        detail: {
-          enabledSlugs,
-          activeTags,
-          action: meta?.action ?? 'init',
-          lastChangedTag: meta?.lastChangedTag,
-        },
+        detail: { enabledSlugs, activeTags, action: meta.action, lastChangedTag: meta.lastChangedTag },
         bubbles: false,
       }));
     }
 
     root.addEventListener('click', (e) => {
-      const btn = e.target.closest('.tag-filter--btn');
+      const target = e.target as HTMLElement;
+      const btn = target.closest<HTMLButtonElement>('.tag-filter--btn');
       if (!btn) return;
 
-      let action;
-      let lastChangedTag;
+      let action: Action;
+      let lastChangedTag: string | undefined;
       if (btn.classList.contains('tag-filter--all')) {
         // "All" clears every other filter.
         for (const b of root.querySelectorAll('.tag-filter--btn')) b.classList.remove('active');
@@ -146,15 +167,18 @@ const locale = Astro.currentLocale;
       emit({ action, lastChangedTag });
     });
 
-    // Initial paint: consumers attach their listener in <script> tags later
-    // in the document. Wait for DOMContentLoaded so every inline listener
-    // has had a chance to register before we fire the first event —
-    // otherwise a deep-link like /calendar?tags=gravel would set the pill
-    // active but never tell the consumer to filter.
+    // Initial paint: consumers attach their listener via hoisted <script>
+    // tags too. Defer to DOMContentLoaded so every listener has registered
+    // before the first event fires — a deep-link like /calendar?tags=gravel
+    // would otherwise set the pill active but never notify the consumer.
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', emit, { once: true });
+      document.addEventListener('DOMContentLoaded', () => emit({ action: 'init' }), { once: true });
     } else {
-      emit();
+      emit({ action: 'init' });
     }
-  })();
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-tag-filter]')) {
+    setupTagFilter(root);
+  }
 </script>

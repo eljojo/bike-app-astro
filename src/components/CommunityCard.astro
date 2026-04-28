@@ -12,6 +12,12 @@ interface Props {
   showHandle?: boolean;
   showTagline?: boolean;
   showEventCount?: boolean;
+  /**
+   * When true, mark the card as a tag-filter fallback and hide it by
+   * default. Used by the calendar spotlight to render orgs that only
+   * surface when a matching tag is filtered.
+   */
+  dataTagFallback?: boolean;
 }
 
 const {
@@ -22,6 +28,7 @@ const {
   showHandle = true,
   showTagline = true,
   showEventCount = true,
+  dataTagFallback = false,
 } = Astro.props;
 
 const cover = org.data.media?.find(m => m.cover);
@@ -34,6 +41,7 @@ const handle = showHandle ? organizerInstagram(org.data) : undefined;
   href={link}
   class:list={['community-card', { 'community-card--has-cover': !!cover }]}
   data-organizer-slug={org.id}
+  {...(dataTagFallback ? { 'data-tag-fallback': 'true', style: 'display: none;' } : {})}
   {...(isExternal ? { target: '_blank', rel: 'noopener' } : {})}
 >
   {cover && (

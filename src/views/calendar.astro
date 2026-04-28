@@ -299,17 +299,42 @@ for (const entry of nonSeasonalUpcoming) {
   eventTagsBySlug[entry.event.id] = canonicalTags(entry.event.data.tags ?? []);
 }
 
-// Reverse index: organizer-slug → event ids, so the spotlight section can
-// hide any organizer with no events in the active filter set.
-const eventSlugsByOrganizer: Record<string, string[]> = {};
+// Spotlight match by tag, not by event-overlap: an org's "filter identity"
+// is the union of its own `tags` field and the canonicalised tags carried
+// by any event it hosts. A women-only club with no women-only event in
+// the upcoming window still matches the women-only filter because its
+// own org-level tag asserts the identity.
+const orgTagsForSpotlightBySlug: Record<string, string[]> = {};
+const orgEventTagsAcc = new Map<string, Set<string>>();
 for (const entry of nonSeasonalUpcoming) {
   const org = entry.event.data.organizer;
   const orgSlug = typeof org === 'string' ? org : undefined;
   if (!orgSlug) continue;
-  const list = eventSlugsByOrganizer[orgSlug] ?? [];
-  if (!list.includes(entry.event.id)) list.push(entry.event.id);
-  eventSlugsByOrganizer[orgSlug] = list;
+  const set = orgEventTagsAcc.get(orgSlug) ?? new Set<string>();
+  for (const t of entry.event.data.tags ?? []) set.add(t);
+  orgEventTagsAcc.set(orgSlug, set);
 }
+for (const org of allOrganizers) {
+  const own = org.data.tags ?? [];
+  const fromEvents = [...(orgEventTagsAcc.get(org.id) ?? [])];
+  orgTagsForSpotlightBySlug[org.id] = canonicalTags([...own, ...fromEvents]);
+}
+
+// Tag-filter fallbacks: orgs that don't qualify for the default spotlight
+// (no Instagram, fewer than 2 events) but whose own tags overlap with the
+// filter pool. These render hidden and only surface when the matching
+// tag is engaged — so a women-only club without upcoming women-only events
+// still appears under the women-only filter. Declared here, after
+// `eventFilterTags` and `orgTagsForSpotlightBySlug`, so the closure can
+// resolve them at evaluation time.
+const spotlightSlugs = new Set(spotlightOrganizers.map(o => o.id));
+const filterTagSet = new Set(eventFilterTags);
+const spotlightFallbacks = allOrganizers.filter(o => {
+  if (spotlightSlugs.has(o.id)) return false;
+  if (o.data.hidden) return false;
+  const tags = orgTagsForSpotlightBySlug[o.id] ?? [];
+  return tags.some(t => filterTagSet.has(t));
+});
 
 const ogImage = config.page_posters?.calendar ? imageUrl(config.page_posters.calendar, { width: 1200, height: 630, fit: 'cover' }) : undefined;
 const calendarDescription = t('calendar.description', locale, { city: config.name });
@@ -345,6 +370,14 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
   {eventFilterTags.length > 0 && (
     <TagFilter id="calendar-filter" tags={eventFilterTags} items={eventTagsBySlug} urlParam="tags" />
   )}
+
+  {/*
+    Spotlight org-tags map for the calendar listener. Stashed in a data
+    attribute on a hidden element so a hoisted <script> can read it; an
+    `is:inline define:vars` script tag would need a CSP hash that
+    production doesn't grant.
+  */}
+  <div hidden id="calendar-spotlight-data" data-org-tags={JSON.stringify(orgTagsForSpotlightBySlug)}></div>
 
   {!hasUpcoming && (
     <p><strong>{t('calendar.wrap', locale)}</strong></p>
@@ -383,8 +416,12 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     </section>
   )}
 
-  {spotlightOrganizers.length > 0 && (
-    <OrganizerSpotlight organizers={spotlightOrganizers} locale={locale} />
+  {(spotlightOrganizers.length > 0 || spotlightFallbacks.length > 0) && (
+    <OrganizerSpotlight
+      organizers={spotlightOrganizers}
+      fallbackOrganizers={spotlightFallbacks}
+      locale={locale}
+    />
   )}
 
   {Object.keys(upcomingByMonth).length > 0 && (
@@ -487,7 +524,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     })();
   </script>
 
-  <script is:inline define:vars={{ eventSlugsByOrganizer }}>
+  <script>
     // Calendar's TagFilter wiring. Filter applies across every section that
     // surfaces events: the featured strips (Find your people, Learn and
     // connect, Coming up), the organizer spotlight (orgs with no matching
@@ -495,81 +532,93 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     // entirely when nothing inside it survives, so a narrow filter doesn't
     // leave empty headings.
     const calendarFilterRoot = document.getElementById('calendar-filter');
-    calendarFilterRoot?.addEventListener('tagfilter:change', (e) => {
-      const detail = e.detail;
+    const orgTagsHost = document.getElementById('calendar-spotlight-data');
+    let orgTagsForSpotlightBySlug: Record<string, string[]> = {};
+    try {
+      orgTagsForSpotlightBySlug = JSON.parse(orgTagsHost?.dataset.orgTags || '{}');
+    } catch {
+      orgTagsForSpotlightBySlug = {};
+    }
+    calendarFilterRoot?.addEventListener('tagfilter:change', (e: Event) => {
+      const detail = (e as CustomEvent<{
+        enabledSlugs: string[];
+        activeTags: string[];
+        action: 'init' | 'add' | 'remove' | 'clear';
+        lastChangedTag?: string;
+      }>).detail;
       const enabled = new Set(detail.enabledSlugs);
       const isFiltered = detail.activeTags.length > 0;
 
       // 1) Featured cards across all .calendar-section blocks.
-      document.querySelectorAll('.event-card-featured[data-event-slug]').forEach(card => {
+      document.querySelectorAll<HTMLElement>('.event-card-featured[data-event-slug]').forEach(card => {
         const slug = card.dataset.eventSlug ?? '';
         card.style.display = enabled.has(slug) ? '' : 'none';
       });
 
       // 2) Empty .calendar-section <section> elements (Find your people,
       //    Learn and connect, Coming up).
-      document.querySelectorAll('.calendar-section').forEach(section => {
-        const cards = section.querySelectorAll('.event-card-featured');
+      document.querySelectorAll<HTMLElement>('.calendar-section').forEach(section => {
+        const cards = section.querySelectorAll<HTMLElement>('.event-card-featured');
         if (cards.length === 0) return;
         const anyVisible = Array.from(cards).some(c => c.style.display !== 'none');
         section.style.display = anyVisible ? '' : 'none';
       });
 
-      // 3) Organizer spotlight: when filtered, randomly pick at most
-      //    `data-show` orgs from those with at least one enabled event,
-      //    shuffled so the choice varies between filter clicks; when no
-      //    filter is active, leave the spotlight's own random-3 logic in charge.
-      const spotlight = document.querySelector('.organizer-spotlight');
+      // 3) Organizer spotlight. The listener fully owns spotlight display:
+      //    - Unfiltered: hide every fallback, Fisher-Yates shuffle the main
+      //      orgs, show the first `data-show`.
+      //    - Filtered: an org matches if its tags include EVERY active tag
+      //      (AND, like the rest of the filter). Mains and fallbacks both
+      //      compete; shuffle matches, keep the first `data-show`.
+      //    Fallbacks are orgs that don't meet the default Instagram + 2-events
+      //    gate but appear under matching tag filters (e.g. a women-only club
+      //    with no upcoming women-only events).
+      const spotlight = document.querySelector<HTMLElement>('.organizer-spotlight');
       if (spotlight) {
-        const strip = spotlight.querySelector('.organizer-spotlight-strip');
+        const strip = spotlight.querySelector<HTMLElement>('.organizer-spotlight-strip');
         const cap = parseInt(strip?.dataset.show || '3', 10);
-        const orgCards = Array.from(spotlight.querySelectorAll('[data-organizer-slug]'));
-        if (isFiltered) {
-          // Fisher-Yates shuffle of the cards that match the active filter,
-          // then keep the first `cap` and hide the rest.
-          const matches = orgCards.filter(card => {
-            const slug = card.dataset.organizerSlug ?? '';
-            const orgSlugs = eventSlugsByOrganizer[slug] ?? [];
-            return orgSlugs.some(s => enabled.has(s));
-          });
-          for (let i = matches.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [matches[i], matches[j]] = [matches[j], matches[i]];
-          }
-          const keep = new Set(matches.slice(0, cap));
-          for (const card of orgCards) {
-            card.style.display = keep.has(card) ? '' : 'none';
-          }
-          spotlight.style.display = keep.size > 0 ? '' : 'none';
-        } else {
-          // Filter cleared — restore the spotlight to whatever its own
-          // shuffle script decided. Don't touch the per-card display here:
-          // the shuffle ran once on DOMContentLoaded and we only override
-          // it while a filter is engaged.
-          spotlight.style.display = '';
+        const orgCards = Array.from(spotlight.querySelectorAll<HTMLElement>('[data-organizer-slug]'));
+        const mains = orgCards.filter(c => !c.dataset.tagFallback);
+        const candidates = isFiltered
+          ? orgCards.filter(card => {
+              const slug = card.dataset.organizerSlug ?? '';
+              const orgTags = orgTagsForSpotlightBySlug[slug] ?? [];
+              return detail.activeTags.every(t => orgTags.includes(t));
+            })
+          : mains;
+        // Fisher-Yates shuffle the candidate set, take the first `cap`.
+        const shuffled = candidates.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
+        const keep = new Set(shuffled.slice(0, cap));
+        for (const card of orgCards) {
+          card.style.display = keep.has(card) ? '' : 'none';
+        }
+        spotlight.style.display = keep.size > 0 ? '' : 'none';
       }
 
       // 4) Subscribe / Add Event buttons sit above the months grid; when a
       //    filter is active the user is in "narrow what's on" mode, not in
       //    "subscribe to the whole calendar" mode, so tuck the strip away.
-      const subscribeActions = document.querySelector('.calendar-subscribe-actions');
+      const subscribeActions = document.querySelector<HTMLElement>('.calendar-subscribe-actions');
       if (subscribeActions) {
         subscribeActions.style.display = isFiltered ? 'none' : '';
       }
 
       // 5) Full calendar grid: rows + parent collapse.
-      document.querySelectorAll('.calendar-months-grid .event-day-group-row').forEach(row => {
+      document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-day-group-row').forEach(row => {
         const slug = row.dataset.eventSlug ?? '';
         row.style.display = enabled.has(slug) ? '' : 'none';
       });
-      document.querySelectorAll('.calendar-months-grid .event-day-group').forEach(group => {
-        const anyVisible = Array.from(group.querySelectorAll('.event-day-group-row'))
+      document.querySelectorAll<HTMLElement>('.calendar-months-grid .event-day-group').forEach(group => {
+        const anyVisible = Array.from(group.querySelectorAll<HTMLElement>('.event-day-group-row'))
           .some(r => r.style.display !== 'none');
         group.style.display = anyVisible ? '' : 'none';
       });
-      document.querySelectorAll('.calendar-month-card').forEach(card => {
-        const anyVisible = Array.from(card.querySelectorAll('.event-day-group'))
+      document.querySelectorAll<HTMLElement>('.calendar-month-card').forEach(card => {
+        const anyVisible = Array.from(card.querySelectorAll<HTMLElement>('.event-day-group'))
           .some(g => g.style.display !== 'none');
         card.style.display = anyVisible ? '' : 'none';
       });

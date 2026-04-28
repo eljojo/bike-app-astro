@@ -6,13 +6,22 @@ import type { OrganizerEntry } from '../lib/models/organizer-model';
 
 interface Props {
   organizers: OrganizerEntry[];
+  /**
+   * Orgs that don't meet the default spotlight criteria (Instagram + 2+
+   * events) but should still be reachable via the calendar's tag filter
+   * — e.g. a women-only club with no upcoming women-only events. They
+   * render hidden by default; the calendar's filter listener reveals
+   * matching fallbacks (capped at `data-show`) when a filter is active.
+   */
+  fallbackOrganizers?: OrganizerEntry[];
   locale?: string;
 }
 
-const { organizers, locale } = Astro.props;
+const { organizers, fallbackOrganizers = [], locale } = Astro.props;
+const hasAny = organizers.length > 0 || fallbackOrganizers.length > 0;
 ---
 
-{organizers.length > 0 && (
+{hasAny && (
   <section class="organizer-spotlight">
     <h2>{t('calendar.organizer_spotlight', locale)}</h2>
     <div class="organizer-spotlight-strip" data-show="3">
@@ -24,28 +33,15 @@ const { organizers, locale } = Astro.props;
           showEventCount={false}
         />
       ))}
+      {fallbackOrganizers.map(org => (
+        <CommunityCard
+          org={org}
+          locale={locale}
+          showFeatured={false}
+          showEventCount={false}
+          dataTagFallback={true}
+        />
+      ))}
     </div>
-    <script>
-      document.addEventListener('DOMContentLoaded', () => {
-        const strip = document.querySelector<HTMLElement>('.organizer-spotlight-strip[data-show]');
-        if (!strip) return;
-        const count = parseInt(strip.dataset.show || '3', 10);
-        const children = Array.from(strip.children) as HTMLElement[];
-        if (children.length <= count) {
-          children.forEach(c => c.style.display = '');
-          return;
-        }
-        // Fisher-Yates shuffle to pick `count` random items
-        const indices = children.map((_, i) => i);
-        for (let i = indices.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [indices[i], indices[j]] = [indices[j], indices[i]];
-        }
-        const shown = new Set(indices.slice(0, count));
-        children.forEach((child, i) => {
-          child.style.display = shown.has(i) ? '' : 'none';
-        });
-      });
-    </script>
   </section>
 )}

@@ -48,6 +48,7 @@ export function tagPillColor(tag: string): TagColor {
  */
 export const TAG_SYNONYMS: Record<string, string> = {
 	'social': 'social-ride',
+	'group-ride': 'social-ride',
 	'youth': 'family-friendly',
 };
 
