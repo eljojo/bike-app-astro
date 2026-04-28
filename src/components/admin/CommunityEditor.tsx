@@ -83,11 +83,9 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
           ...(socialLinks.length > 0 && {
             social_links: socialLinks.filter(l => l.url.trim()),
           }),
-          ...(media.length > 0 && {
-            media: media.map(m => {
-              const { cover, ...rest } = m;
-              return cover ? { ...rest, cover: true as const } : rest;
-            }),
+          media: media.map(m => {
+            const { cover, ...rest } = m;
+            return cover ? { ...rest, cover: true as const } : rest;
           }),
           ...(icsUrl && { ics_url: icsUrl }),
         },

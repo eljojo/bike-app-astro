@@ -376,6 +376,32 @@ describe('organizerHandlers.buildFileChanges — cover normalize', () => {
     const written = result.files.find(f => f.path.endsWith('bike-ottawa.md'))!;
     expect(written.content).toMatch(/key: b\.jpg[\s\S]*?cover: true/);
   });
+
+  it('writes empty media: [] when editor sends an empty media array (clears existing media)', async () => {
+    const update = {
+      frontmatter: {
+        name: 'Bike Ottawa',
+        media: [],
+      },
+      body: '',
+    };
+    const result = await handlers.buildFileChanges(
+      update,
+      'bike-ottawa',
+      {
+        primaryFile: {
+          content: '---\nname: Bike Ottawa\nmedia:\n  - key: old.jpg\n    cover: true\n---\n',
+          sha: 'sha1',
+        },
+        auxiliaryFiles: {},
+      },
+      {} as never,
+    );
+    const written = result.files.find(f => f.path.endsWith('bike-ottawa.md'))!;
+    // The empty array must be persisted so previously-saved cover gets cleared.
+    expect(written.content).toMatch(/media: \[\]/);
+    expect(written.content).not.toContain('old.jpg');
+  });
 });
 
 describe('organizerHandlers.afterCommit', () => {

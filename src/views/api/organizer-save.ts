@@ -192,8 +192,10 @@ export function createOrganizerHandlers(sharedKeysData: Record<string, Array<{ t
         if (update.frontmatter.photo_height) fm.photo_height = update.frontmatter.photo_height;
         if (update.frontmatter.photo_content_type) fm.photo_content_type = update.frontmatter.photo_content_type;
       }
-      if (update.frontmatter.media?.length) {
-        fm.media = normalizeSingleCover(update.frontmatter.media);
+      if (update.frontmatter.media !== undefined) {
+        fm.media = update.frontmatter.media.length
+          ? normalizeSingleCover(update.frontmatter.media)
+          : [];
       }
 
       // Merge with existing frontmatter to preserve fields the editor doesn't manage
