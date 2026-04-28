@@ -6,11 +6,14 @@ import { useFormValidation } from './useFormValidation';
 import EditorLayout from './EditorLayout';
 import { bindText, bindCheckbox, bindTextarea } from './field-helpers';
 import PhotoField from './PhotoField';
+import CoverPhotoField, { type CoverItem } from './CoverPhotoField';
 import TagEditor from './TagEditor';
 import CommunityPreview from './CommunityPreview';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
 import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
+
+type EditorMediaItem = NonNullable<OrganizerDetail['media']>[number];
 
 interface Props {
   initialData: Partial<OrganizerDetail> & { contentHash?: string; isNew?: boolean };
@@ -41,6 +44,16 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     initialData.social_links?.length ? initialData.social_links : [],
   );
   const [icsUrl, setIcsUrl] = useState(initialData.ics_url || '');
+  const [media, setMedia] = useState<EditorMediaItem[]>(initialData.media ?? []);
+
+  const cover = media.find(m => m.cover) as CoverItem | undefined;
+
+  function handleCoverChange(newCover: CoverItem | undefined) {
+    setMedia(prev => {
+      const withoutCover = prev.filter(m => !m.cover);
+      return newCover ? [...withoutCover, newCover as EditorMediaItem] : withoutCover;
+    });
+  }
 
   const { validate } = useFormValidation([
     { field: 'community-name', check: () => !name.trim(), message: 'Name is required' },
@@ -53,7 +66,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
     userRole,
     validate,
     initialBody: initialData.body || '',
-    deps: [name, tagline, body, tags, featured, hidden, photoKey, socialLinks, icsUrl],
+    deps: [name, tagline, body, tags, featured, hidden, photoKey, socialLinks, icsUrl, media],
     buildPayload: () => {
       const payload: OrganizerUpdate = {
         frontmatter: {
@@ -69,6 +82,12 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
           }),
           ...(socialLinks.length > 0 && {
             social_links: socialLinks.filter(l => l.url.trim()),
+          }),
+          ...(media.length > 0 && {
+            media: media.map(m => {
+              const { cover, ...rest } = m;
+              return cover ? { ...rest, cover: true as const } : rest;
+            }),
           }),
           ...(icsUrl && { ics_url: icsUrl }),
         },
@@ -116,6 +135,7 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
           body={body}
           tags={tags}
           photoKey={photoKey}
+          media={media}
           socialLinks={socialLinks}
           cdnUrl={cdnUrl}
           displayTag={displayTag}
@@ -172,13 +192,19 @@ export default function CommunityEditor({ initialData, cdnUrl, tagTranslations =
         <PhotoField
           photoKey={photoKey}
           cdnUrl={cdnUrl}
-          label="Photo"
+          label="Profile photo"
           onPhotoChange={(key, contentType, width, height) => {
             setPhotoKey(key);
             setPhotoContentType(contentType);
             setPhotoWidth(width || 0);
             setPhotoHeight(height || 0);
           }}
+        />
+
+        <CoverPhotoField
+          cover={cover}
+          cdnUrl={cdnUrl}
+          onCoverChange={handleCoverChange}
         />
 
         <div class="form-field">
