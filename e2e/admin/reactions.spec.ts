@@ -206,7 +206,7 @@ test.describe('Calendar Bookmarked Events', () => {
     await expect(section).toBeVisible();
 
     // Should contain the bookmarked event
-    const bookmarkedCards = section.locator('.event-card-compact--bookmarked');
+    const bookmarkedCards = section.locator('.event-day-group--bookmarked');
     await expect(bookmarkedCards).toHaveCount(1);
   });
 });

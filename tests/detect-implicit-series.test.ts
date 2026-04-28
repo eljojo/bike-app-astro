@@ -713,3 +713,145 @@ describe('codex 2nd-pass bugs in revalidateClusterAfterTrim', () => {
     expect(trimmed!.start.endsWith('T10:00:00')).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// User-reported bug: biweekly rides counted as weekly with off-weeks marked
+// as cancelled. Asserts the expected behaviour for several biweekly shapes
+// to figure out which one is misbehaving in production.
+// ---------------------------------------------------------------------------
+
+describe('BUG REPRO: biweekly classification', () => {
+  it('pure biweekly: 4 occurrences with uniform 14-day gaps → biweekly cluster, no cancelled rows', () => {
+    // 4 Tuesdays every 14 days, all in same year, same time.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Biweekly Ride', dtstart: '20260505T220000Z' },
+      { uid: 'b', summary: 'Biweekly Ride', dtstart: '20260519T220000Z' },
+      { uid: 'c', summary: 'Biweekly Ride', dtstart: '20260602T220000Z' },
+      { uid: 'd', summary: 'Biweekly Ride', dtstart: '20260616T220000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.recurrence).toBe('biweekly');
+    // No off-weeks should be marked cancelled — every cycle date has an
+    // occurrence.
+    const cancelled = (cluster.series?.overrides ?? []).filter(o => o.cancelled);
+    expect(cancelled).toEqual([]);
+  });
+
+  it('biweekly with one missed: 4 occurrences with gaps [14, 28, 14] → biweekly with 1 cancelled', () => {
+    // Biweekly base with one missed cycle: dates a, +14, +28 (skip), +14.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Biweekly Ride', dtstart: '20260505T220000Z' },
+      { uid: 'b', summary: 'Biweekly Ride', dtstart: '20260519T220000Z' },
+      // 5/19 → 6/16 = 28 days = one missed biweek (6/2)
+      { uid: 'c', summary: 'Biweekly Ride', dtstart: '20260616T220000Z' },
+      { uid: 'd', summary: 'Biweekly Ride', dtstart: '20260630T220000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.recurrence).toBe('biweekly');
+    const cancelled = (cluster.series?.overrides ?? []).filter(o => o.cancelled);
+    expect(cancelled.map(o => o.date)).toEqual(['2026-06-02']);
+  });
+
+  it('biweekly with one off-cycle extra session: gaps [14, 14, 7] → biweekly cluster + 5/16 as off-cycle override', () => {
+    // Real shape from OBC's "Group Riding Clinic": 4 Saturday sessions at
+    //   4/11, 4/25, 5/9, 5/16
+    // The first three are biweekly; 5/16 is an extra session one week after
+    // 5/9 (a make-up class or graduation). Today the strict
+    // multiples-of-modal rule rejects because the 7-day gap is not a
+    // multiple of 14, so all 4 events become 4 separate one-offs.
+    //
+    // Expected: cluster forms biweekly. Each event lands as an override
+    // row (3 cycle-aligned + 1 off-cycle extra for 5/16). No phantom
+    // cancelled-skip rows. expandSeriesOccurrences walks the cycle for
+    // the aligned three, then iterates the off-cycle 5/16 as a "specific
+    // date" extra — recurring + specific dates.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Group Riding Clinic', dtstart: '20260411T140000Z' },
+      { uid: 'b', summary: 'Group Riding Clinic', dtstart: '20260425T140000Z' },
+      { uid: 'c', summary: 'Group Riding Clinic', dtstart: '20260509T140000Z' },
+      { uid: 'd', summary: 'Group Riding Clinic', dtstart: '20260516T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.recurrence).toBe('biweekly');
+    const overrides = cluster.series?.overrides ?? [];
+    // All four events should be in overrides; no phantom cancelled.
+    expect(overrides.map(o => o.date).sort()).toEqual([
+      '2026-04-11', '2026-04-25', '2026-05-09', '2026-05-16',
+    ]);
+    expect(overrides.filter(o => o.cancelled)).toEqual([]);
+  });
+
+  it('off-season break splits a biweekly winter from a weekly spring (#ottbikesocial shape)', () => {
+    // Real shape from #ottbikesocial 2026:
+    //   4 biweekly Thursdays in winter (1/8, 1/22, 2/5, 2/19)
+    //   then a 56-day off-season break
+    //   then 11 weekly Thursdays starting 4/16 through 6/25
+    //
+    // BUG: with MAX_GAP_DAYS=60, the 56-day gap doesn't split. Combined,
+    // weekly-count wins the modal vote (10 weekly gaps vs 3 biweekly), so
+    // the whole 15-event sub-bucket is classified as weekly. The biweekly
+    // off-weeks (1/15, 1/29, 2/12, 2/26) AND the off-season break weeks
+    // become phantom cancelled-skip rows.
+    //
+    // EXPECTED: the 56-day gap is treated as an off-season break, splitting
+    // into two clusters — winter biweekly + spring weekly.
+    const ics = makeIcs([
+      // Winter biweekly Thursdays
+      { uid: 'w1', summary: '#ottbikesocial', dtstart: '20260109T000000Z' },  // Thu 1/8 ET
+      { uid: 'w2', summary: '#ottbikesocial', dtstart: '20260123T000000Z' },  // Thu 1/22
+      { uid: 'w3', summary: '#ottbikesocial', dtstart: '20260206T000000Z' },  // Thu 2/5
+      { uid: 'w4', summary: '#ottbikesocial', dtstart: '20260220T000000Z' },  // Thu 2/19
+      // 56-day off-season gap
+      // Spring weekly Thursdays
+      { uid: 's1', summary: '#ottbikesocial', dtstart: '20260416T230000Z' },  // Thu 4/16 ET
+      { uid: 's2', summary: '#ottbikesocial', dtstart: '20260423T230000Z' },
+      { uid: 's3', summary: '#ottbikesocial', dtstart: '20260430T230000Z' },
+      { uid: 's4', summary: '#ottbikesocial', dtstart: '20260507T230000Z' },
+      { uid: 's5', summary: '#ottbikesocial', dtstart: '20260514T230000Z' },
+      { uid: 's6', summary: '#ottbikesocial', dtstart: '20260521T230000Z' },
+      { uid: 's7', summary: '#ottbikesocial', dtstart: '20260528T230000Z' },
+      { uid: 's8', summary: '#ottbikesocial', dtstart: '20260604T230000Z' },
+      { uid: 's9', summary: '#ottbikesocial', dtstart: '20260611T230000Z' },
+      { uid: 's10', summary: '#ottbikesocial', dtstart: '20260618T230000Z' },
+      { uid: 's11', summary: '#ottbikesocial', dtstart: '20260625T230000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(2);
+    const winter = result.clusters.find(c => c.series?.season_start?.startsWith('2026-01'));
+    const spring = result.clusters.find(c => c.series?.season_start?.startsWith('2026-04'));
+    expect(winter?.series?.recurrence).toBe('biweekly');
+    expect(spring?.series?.recurrence).toBe('weekly');
+    // Neither cluster should have phantom cancelled rows for the off-season
+    // break or for the biweekly off-weeks.
+    const winterCancelled = (winter?.series?.overrides ?? []).filter(o => o.cancelled);
+    const springCancelled = (spring?.series?.overrides ?? []).filter(o => o.cancelled);
+    expect(winterCancelled).toEqual([]);
+    expect(springCancelled).toEqual([]);
+  });
+
+  it('biweekly OBC-shape: 5 Tuesdays with gaps [14, 14, 42, 28] → biweekly with 3 cancelled', () => {
+    // Real shape from the 9.5km Women's & Youth TT in OBC fixture:
+    //   May 5, May 19, Jun 2, Jul 14, Aug 11
+    // Gaps: 14, 14, 42 (3 missed biweeks span: 6/16, 6/30, 7/14? no wait
+    // 7/14 IS present, so missed are 6/16 and 6/30), 28 (7/28 missed).
+    const ics = makeIcs([
+      { uid: 'a', summary: '9.5km TT', dtstart: '20260505T220000Z' },
+      { uid: 'b', summary: '9.5km TT', dtstart: '20260519T220000Z' },
+      { uid: 'c', summary: '9.5km TT', dtstart: '20260602T220000Z' },
+      { uid: 'd', summary: '9.5km TT', dtstart: '20260714T220000Z' },
+      { uid: 'e', summary: '9.5km TT', dtstart: '20260811T220000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.recurrence).toBe('biweekly');
+    const cancelled = (cluster.series?.overrides ?? []).filter(o => o.cancelled);
+    expect(cancelled.map(o => o.date)).toEqual(['2026-06-16', '2026-06-30', '2026-07-28']);
+  });
+});

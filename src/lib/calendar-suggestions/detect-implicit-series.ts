@@ -117,7 +117,15 @@ export function pickModalDescription(descriptions: Array<string | null>): string
 
 const MIN_CLUSTER_SIZE = 4;
 const MODAL_DOW_THRESHOLD = 0.8;
-const MAX_GAP_DAYS = 60;
+const ON_CYCLE_THRESHOLD = 0.6;
+// 42 days = 6 weeks. Splits at gaps that signal an off-season break while
+// preserving runs with up to two consecutive missed biweekly cycles
+// (max plausible "missed" gap before the absence reads as off-season).
+// Original 60d was too lenient: it merged biweekly winter + weekly spring
+// in calendars that have a short off-season (e.g. #ottbikesocial 2026:
+// 2/19 → 4/16 = 56d gap), classifying the whole thing as weekly with
+// phantom cancelled-skip rows for both off-weeks and off-season weeks.
+const MAX_GAP_DAYS = 42;
 const WEEKLY_DAYS = 7;
 const BIWEEKLY_DAYS = 14;
 
@@ -226,9 +234,22 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
   let modalGap = -1, modalGapCount = 0;
   for (const [g, n] of gapCounts) if (n > modalGapCount) { modalGap = g; modalGapCount = n; }
   if (modalGap !== WEEKLY_DAYS && modalGap !== BIWEEKLY_DAYS) return null;
-  for (const g of gapCounts.keys()) {
-    if (g <= 0 || g % modalGap !== 0) return null;
-  }
+  // Anchor the cycle at the first same-DOW occurrence and partition entries
+  // into "on-cycle" (date = anchor + k * modalGap) and off-cycle extras.
+  // Off-cycle extras ride along as override rows with their actual dates —
+  // this is the "recurring + specific dates" pattern that fits real-world
+  // data like a biweekly clinic with a make-up session inserted between
+  // cycles (e.g. OBC's Group Riding Clinic: 4/11, 4/25, 5/9 biweekly + 5/16
+  // extra). The cluster forms when at least ON_CYCLE_THRESHOLD of same-DOW
+  // entries align with the cycle.
+  const cycleAnchor = inCadence[0].zdt;
+  const onCycleCount = inCadence.filter(e => {
+    const days = Math.round(
+      cycleAnchor.until(e.zdt, { largestUnit: 'days' }).total({ unit: 'days' }),
+    );
+    return days >= 0 && days % modalGap === 0;
+  }).length;
+  if (onCycleCount / inCadence.length < ON_CYCLE_THRESHOLD) return null;
 
   // Modal time-of-day (HH:MM in siteTz)
   const todCounts = new Map<string, number>();
@@ -463,13 +484,16 @@ export function revalidateClusterAfterTrim(
   let modalGap = -1, modalGapCount = 0;
   for (const [g, n] of gapCounts) if (n > modalGapCount) { modalGap = g; modalGapCount = n; }
   if (modalGap !== WEEKLY_DAYS && modalGap !== BIWEEKLY_DAYS) return null;
-  // Match tryFormCluster's Task 5 deviation: every other gap must be a positive
-  // multiple of modal (handles missed weeks like [7,14,7]). Without this, a
-  // trim that produces gaps like [7, 10, 7] would falsely qualify (modal=7,
-  // but 10 isn't a multiple of 7).
-  for (const g of gapCounts.keys()) {
-    if (g <= 0 || g % modalGap !== 0) return null;
-  }
+  // Anchor the cycle at the first surviving date and check on-cycle ratio
+  // against `slim` (date strings). Mirrors tryFormCluster's recurring-plus-
+  // specific-dates rule so off-cycle survivors don't get rejected on trim.
+  const slimAnchorMs = new Date(slim[0].date + 'T00:00:00Z').getTime();
+  const onCycleCount = slim.filter(s => {
+    const ms = new Date(s.date + 'T00:00:00Z').getTime();
+    const days = Math.round((ms - slimAnchorMs) / (24 * 3600 * 1000));
+    return days >= 0 && days % modalGap === 0;
+  }).length;
+  if (onCycleCount / slim.length < ON_CYCLE_THRESHOLD) return null;
 
   // Rebuild the trimmed series with updated cadence + season range. When the
   // master is removed we still want the cluster's modal time-of-day on the
