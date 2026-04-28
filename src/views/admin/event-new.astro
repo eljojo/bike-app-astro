@@ -70,6 +70,8 @@ if (fromFeed && icsUid && !copyFromId) {
   const { calendarFeedCache } = await import('../../lib/env/env.service');
   const { fetchIcsFeed } = await import('../../lib/external/ics-feed.server');
   const { buildCopyDataFromVevent } = await import('../../lib/calendar-suggestions/prefill');
+  const { isGoogleMapsUrl } = await import('../../lib/google-maps-url');
+  const { searchPlace } = await import('../api/places-prefill');
 
   const FEED_TTL_SECONDS = 60 * 60;
   const org = adminOrganizers.find(o => o.slug === fromFeed);
@@ -93,7 +95,21 @@ if (fromFeed && icsUid && !copyFromId) {
       if (!vevent) {
         icsMissing = true;
       } else {
-        icsCopyData = buildCopyDataFromVevent(vevent, fromFeed);
+        // Google Calendar puts a maps URL in LOCATION when the event is
+        // associated with a Google Place. Resolve it to the place name via
+        // the same flow the place wizard uses, so the editor opens with
+        // "Richcraft Recreation Complex - Kanata" instead of a 200-char URL.
+        // Plain-text addresses skip the API call.
+        let location = vevent.location;
+        if (location && env.GOOGLE_PLACES_API_KEY && isGoogleMapsUrl(location)) {
+          try {
+            const place = await searchPlace(location, env.GOOGLE_PLACES_API_KEY);
+            if (place?.name) location = place.name;
+          } catch (err) {
+            console.warn(`Google Places resolution failed for ICS location "${location}":`, err);
+          }
+        }
+        icsCopyData = buildCopyDataFromVevent({ ...vevent, location }, fromFeed);
       }
     } catch (err) {
       console.error('ICS prefill failed:', err);

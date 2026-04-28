@@ -115,7 +115,7 @@ async function fetchPlaceDetails(id: string, apiKey: string, isCid = false): Pro
   };
 }
 
-async function searchPlace(query: string, apiKey: string): Promise<PlaceResult | null> {
+export async function searchPlace(query: string, apiKey: string): Promise<PlaceResult | null> {
   // Try extracting metadata from URL first
   if (query.startsWith('http')) {
     const cid = extractCid(query);
