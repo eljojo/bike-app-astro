@@ -759,6 +759,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                     : occ.location}</span>}
                   {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url} aria-label={t('events.event_website', locale)}>{'\u{1F310}'}</a></span>}
                   {occ.registration_url && <span class="event-series-date-link"><a href={occ.registration_url} target="_blank" rel="noopener noreferrer" title={occ.registration_url} aria-label={t('events.register', locale)}>{'\u{1F39F}\u{FE0F}'}</a></span>}
+                  {occ.map_url && <span class="event-series-date-link"><a href={occ.map_url} target="_blank" rel="noopener noreferrer" title={occ.map_url} aria-label={t('events.view_route_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a></span>}
                   {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                   {occ.rescheduled_from && (
                     <span class="event-series-date-note">
@@ -784,6 +785,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                       : occ.location}</span>}
                     {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url} aria-label={t('events.event_website', locale)}>{'\u{1F310}'}</a></span>}
                     {occ.registration_url && <span class="event-series-date-link"><a href={occ.registration_url} target="_blank" rel="noopener noreferrer" title={occ.registration_url} aria-label={t('events.register', locale)}>{'\u{1F39F}\u{FE0F}'}</a></span>}
+                    {occ.map_url && <span class="event-series-date-link"><a href={occ.map_url} target="_blank" rel="noopener noreferrer" title={occ.map_url} aria-label={t('events.view_route_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a></span>}
                     {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                     {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
                   </li>

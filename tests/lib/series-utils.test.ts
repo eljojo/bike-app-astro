@@ -80,6 +80,31 @@ describe('expandSeriesOccurrences', () => {
     expect(result[0].location).toBe('Park A');
   });
 
+  it('surfaces per-occurrence map_url, event_url, registration_url', () => {
+    const event = {
+      name: 'Ride',
+      series: {
+        recurrence: 'weekly',
+        recurrence_day: 'tuesday',
+        season_start: '2026-06-02',
+        season_end: '2026-06-09',
+        overrides: [
+          {
+            date: '2026-06-02',
+            map_url: 'https://ridewithgps.com/routes/123',
+            event_url: 'https://example.com/ride',
+            registration_url: 'https://example.com/register',
+          },
+        ],
+      },
+    };
+    const result = expandSeriesOccurrences(event as any);
+    expect(result[0].map_url).toBe('https://ridewithgps.com/routes/123');
+    expect(result[0].event_url).toBe('https://example.com/ride');
+    expect(result[0].registration_url).toBe('https://example.com/register');
+    expect(result[1].map_url).toBeUndefined();
+  });
+
   it('handles cancelled occurrences', () => {
     const event = {
       name: 'Ride',

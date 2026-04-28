@@ -28,7 +28,7 @@ There is no per-occurrence `poster_key`. The top-level event poster is the only 
 
 `expandSeriesOccurrences()` in `src/lib/series-utils.ts` projects either pattern into a flat `SeriesOccurrence[]` sorted by date. Per-occurrence values fall back to top-level event fields (`override.location ?? event.location`, etc.) — only set them in the override/schedule entry when they actually differ.
 
-`uid` and `map_url` exist on the schema but are *not* surfaced into `SeriesOccurrence` — they're metadata for the import/dedupe pipeline, not for rendering.
+`uid` is on the schema but *not* surfaced into `SeriesOccurrence` — it's metadata for the import/dedupe pipeline, not for rendering. `map_url` *is* surfaced; the per-occurrence rwgps URL appears as a 🗺️ link on each occurrence row alongside `event_url` and `registration_url`.
 
 ## ICS UID Layers
 

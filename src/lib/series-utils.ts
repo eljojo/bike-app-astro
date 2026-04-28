@@ -12,6 +12,7 @@ export interface SeriesOccurrence {
   rescheduled_from?: string;
   event_url?: string;          // per-occurrence event-website URL override
   registration_url?: string;   // per-occurrence sign-up URL override
+  map_url?: string;            // per-occurrence route-map URL override (e.g. RWGPS)
 }
 
 interface SeriesOverride {
@@ -24,6 +25,7 @@ interface SeriesOverride {
   rescheduled_from?: string;
   event_url?: string;
   registration_url?: string;
+  map_url?: string;
 }
 
 interface SeriesData {
@@ -63,6 +65,7 @@ function toSeriesOccurrence(
     rescheduled_from: override?.rescheduled_from,
     event_url: override?.event_url,
     registration_url: override?.registration_url,
+    map_url: override?.map_url,
   };
 }
 
