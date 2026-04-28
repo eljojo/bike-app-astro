@@ -168,14 +168,12 @@ const locale = Astro.currentLocale;
     });
 
     // Initial paint: consumers attach their listener via hoisted <script>
-    // tags too. Defer to DOMContentLoaded so every listener has registered
-    // before the first event fires — a deep-link like /calendar?tags=gravel
-    // would otherwise set the pill active but never notify the consumer.
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => emit({ action: 'init' }), { once: true });
-    } else {
-      emit({ action: 'init' });
-    }
+    // tags too, and Astro may bundle them as separate modules. setTimeout
+    // schedules a macrotask that runs AFTER every module on the page has
+    // executed and the microtask queue has drained, so the consumer's
+    // listener is definitely attached by the time the event fires —
+    // regardless of which module ran first in the bundle.
+    setTimeout(() => emit({ action: 'init' }), 0);
   }
 
   for (const root of document.querySelectorAll<HTMLElement>('[data-tag-filter]')) {
