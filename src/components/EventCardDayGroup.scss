@@ -142,6 +142,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 
+  @media (min-width: $breakpoint-tablet) {
+    font-weight: normal;
+  }
+
   .calendar-month-card & {
     @media (min-width: $breakpoint-tablet) {
       font-size: 0.9em;
