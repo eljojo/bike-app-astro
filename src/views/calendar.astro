@@ -115,16 +115,23 @@ for (const o of allOrganizers) {
 
 // Total events per organizer (past + future) for the rarity boost — an
 // org running one event a year deserves more surface than a club running
-// weekly practices. Also reused below for the organizer-spotlight ranking.
+// weekly practices. Series count by their non-cancelled occurrences so a
+// single weekly-series entry doesn't masquerade as one annual event.
+// Also reused below for the organizer-spotlight ranking.
 const totalOrganizerCounts = new Map<string, number>();
 const organizerYears = new Map<string, Set<number>>();
 for (const e of events) {
   const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
   if (!orgId) continue;
-  totalOrganizerCounts.set(orgId, (totalOrganizerCounts.get(orgId) || 0) + 1);
-  const year = parseLocalDate(e.data.start_date).getFullYear();
+  const dates: string[] = isSeriesEvent(e.data)
+    ? expandSeriesOccurrences(e.data as Parameters<typeof expandSeriesOccurrences>[0])
+        .filter(o => !o.cancelled)
+        .map(o => o.date)
+    : [e.data.start_date as string];
+  totalOrganizerCounts.set(orgId, (totalOrganizerCounts.get(orgId) ?? 0) + dates.length);
   if (!organizerYears.has(orgId)) organizerYears.set(orgId, new Set());
-  organizerYears.get(orgId)!.add(year);
+  const years = organizerYears.get(orgId)!;
+  for (const d of dates) years.add(parseLocalDate(d).getFullYear());
 }
 
 // Memoise scores per event id so series occurrences don't re-score
