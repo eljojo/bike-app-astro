@@ -52,6 +52,16 @@ export interface ParsedSeries {
   season_start?: string;       // YYYY-MM-DD
   season_end?: string;         // YYYY-MM-DD
   skip_dates?: string[];
-  overrides?: Array<{ date: string; start_time?: string; location?: string; cancelled?: boolean; note?: string }>;
+  overrides?: Array<{
+    date: string;
+    start_time?: string;
+    location?: string;
+    cancelled?: boolean;
+    note?: string;
+    uid?: string;
+    event_url?: string;
+    map_url?: string;
+    registration_url?: string;
+  }>;
   schedule?: Array<{ date: string; start_time?: string; location?: string }>;
 }

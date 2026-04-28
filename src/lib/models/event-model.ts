@@ -51,6 +51,13 @@ export const seriesOccurrenceOverrideSchema = z.object({
   note: z.string().optional(),
   cancelled: z.boolean().optional(),
   rescheduled_from: z.string().optional(),
+  // Per-occurrence fields populated by implicit series detection (see
+  // ~/code/bike-app/docs/plans/2026-04-28-implicit-series-detection-design.md).
+  // `uid` is the source VEVENT's UID, used by buildSuggestions for dedupe.
+  uid: z.string().optional(),
+  event_url: z.string().optional(),
+  map_url: z.string().optional(),
+  registration_url: z.string().optional(),
 });
 
 export const eventSeriesSchema = z.object({

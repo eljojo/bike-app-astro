@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  seriesOccurrenceOverrideSchema,
+  eventDetailSchema,
   eventDetailToCache,
   eventDetailFromCache,
 } from '../src/lib/models/event-model';
@@ -205,5 +207,58 @@ describe('buildFreshEventData', () => {
     expect(parsed.name).toBe('Bike Fest');
     expect(parsed.body).toBe('Event body');
     expect(parsed.organizer).toBe('bike-club');
+  });
+});
+
+describe('seriesOccurrenceOverrideSchema — implicit-series additions', () => {
+  it('accepts uid, event_url, map_url, registration_url as optional fields', () => {
+    const parsed = seriesOccurrenceOverrideSchema.parse({
+      date: '2026-05-13',
+      uid: 'https://obcrides.ca/events/123',
+      event_url: 'https://obcrides.ca/events/123',
+      map_url: 'https://maps.app.goo.gl/abc',
+      registration_url: 'https://example.com/register',
+      note: 'West Carleton ramble',
+    });
+    expect(parsed.uid).toBe('https://obcrides.ca/events/123');
+    expect(parsed.event_url).toBe('https://obcrides.ca/events/123');
+    expect(parsed.map_url).toBe('https://maps.app.goo.gl/abc');
+    expect(parsed.registration_url).toBe('https://example.com/register');
+  });
+
+  it('round-trips override with new fields through the cache serializer', () => {
+    const event = eventDetailSchema.parse({
+      id: 'wed-coffee-ride-2026',
+      slug: 'wed-coffee-ride-2026',
+      year: '2026',
+      name: 'Wednesday Coffee Ride',
+      start_date: '2026-05-06',
+      body: '',
+      series: {
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-20',
+        overrides: [
+          {
+            date: '2026-05-13',
+            uid: 'https://obcrides.ca/events/3642',
+            event_url: 'https://obcrides.ca/events/3642',
+            note: 'West end ride through Carp',
+          },
+        ],
+      },
+    });
+    const round = eventDetailFromCache(eventDetailToCache(event));
+    expect(round.series?.overrides?.[0].uid).toBe('https://obcrides.ca/events/3642');
+    expect(round.series?.overrides?.[0].event_url).toBe('https://obcrides.ca/events/3642');
+  });
+
+  it('leaves all four new fields undefined when absent', () => {
+    const parsed = seriesOccurrenceOverrideSchema.parse({ date: '2026-05-13' });
+    expect(parsed.uid).toBeUndefined();
+    expect(parsed.event_url).toBeUndefined();
+    expect(parsed.map_url).toBeUndefined();
+    expect(parsed.registration_url).toBeUndefined();
   });
 });
