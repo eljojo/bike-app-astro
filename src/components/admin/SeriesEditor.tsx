@@ -37,6 +37,15 @@ function EventUrlBadge({ value, className }: { value: string; className: string 
   );
 }
 
+/** Render a per-occurrence registration_url override as a 🎟️ emoji link. */
+function RegistrationUrlBadge({ value, className }: { value: string; className: string }) {
+  return (
+    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
+      {'\u{1F39F}\u{FE0F}'}
+    </a>
+  );
+}
+
 /** Build localized day option labels using Intl */
 function buildDayOptions(intlLocale: string): { value: DayName; label: string }[] {
   return DAY_NAMES.map((name, i) => {
@@ -95,6 +104,7 @@ interface OverrideEntry {
   cancelled?: boolean;
   rescheduled_from?: string;
   event_url?: string;
+  registration_url?: string;
 }
 
 interface PopoverState {
@@ -499,6 +509,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                         {o.cancelled && <span class="series-override-badge series-override-badge--cancelled">cancelled</span>}
                         {o.location && <LocationBadge value={o.location} className="series-override-badge" />}
                         {o.event_url && <EventUrlBadge value={o.event_url} className="series-override-badge" />}
+                        {o.registration_url && <RegistrationUrlBadge value={o.registration_url} className="series-override-badge" />}
                         {o.note && <span class="series-override-badge">{o.note}</span>}
                         <button type="button" class="btn-link" onClick={() => setOverrides(overrides.filter(x => x.date !== o.date))}>
                           remove

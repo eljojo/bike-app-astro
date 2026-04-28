@@ -492,6 +492,12 @@ function editionDateLabel(startDate: string, loc?: string): string {
                       <a href={nextOccurrence.event_url} target="_blank" rel="noopener noreferrer" title={nextOccurrence.event_url}>{'\u{1F310}'}</a>
                     </Fragment>
                   )}
+                  {nextOccurrence.registration_url && (
+                    <Fragment>
+                      {' '}
+                      <a href={nextOccurrence.registration_url} target="_blank" rel="noopener noreferrer" title={nextOccurrence.registration_url}>{'\u{1F39F}\u{FE0F}'}</a>
+                    </Fragment>
+                  )}
                 </Fragment>
               )}
             </div>
@@ -733,6 +739,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                     ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>{'\u{1F5FA}\u{FE0F}'}</a>
                     : occ.location}</span>}
                   {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url}>{'\u{1F310}'}</a></span>}
+                  {occ.registration_url && <span class="event-series-date-link"><a href={occ.registration_url} target="_blank" rel="noopener noreferrer" title={occ.registration_url}>{'\u{1F39F}\u{FE0F}'}</a></span>}
                   {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                   {occ.rescheduled_from && (
                     <span class="event-series-date-note">
@@ -757,6 +764,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                       ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>{'\u{1F5FA}\u{FE0F}'}</a>
                       : occ.location}</span>}
                     {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url}>{'\u{1F310}'}</a></span>}
+                    {occ.registration_url && <span class="event-series-date-link"><a href={occ.registration_url} target="_blank" rel="noopener noreferrer" title={occ.registration_url}>{'\u{1F39F}\u{FE0F}'}</a></span>}
                     {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                     {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
                   </li>

@@ -10,7 +10,8 @@ export interface SeriesOccurrence {
   note?: string;
   cancelled?: boolean;
   rescheduled_from?: string;
-  event_url?: string;   // per-occurrence URL override
+  event_url?: string;          // per-occurrence event-website URL override
+  registration_url?: string;   // per-occurrence sign-up URL override
 }
 
 interface SeriesOverride {
@@ -22,6 +23,7 @@ interface SeriesOverride {
   cancelled?: boolean;
   rescheduled_from?: string;
   event_url?: string;
+  registration_url?: string;
 }
 
 interface SeriesData {
@@ -60,6 +62,7 @@ function toSeriesOccurrence(
     cancelled: override?.cancelled,
     rescheduled_from: override?.rescheduled_from,
     event_url: override?.event_url,
+    registration_url: override?.registration_url,
   };
 }
 
