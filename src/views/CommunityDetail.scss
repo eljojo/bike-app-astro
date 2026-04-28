@@ -47,6 +47,15 @@
     }
   }
 
+  // The cover has position: relative, which would paint it above the static
+  // header. Promote the avatar and info column into their own stacking context
+  // so they sit on top of the cover photo.
+  .community-detail-avatar,
+  .community-detail-header-info {
+    position: relative;
+    z-index: 1;
+  }
+
   .community-detail-photo,
   .community-detail-initials {
     width: 112px;
