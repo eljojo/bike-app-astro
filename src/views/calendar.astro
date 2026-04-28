@@ -18,6 +18,7 @@ import { tTag } from '@/lib/i18n/tag-translations.server';
 import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
 import { imageUrl } from '@/lib/media/image-service';
 import { expandEvents, deduplicateSeries, splitUpcomingPast, groupByMonth, effectiveDate, type CalendarEntry } from '@/lib/calendar-helpers';
+import { scoreEvent } from '@/lib/event-scoring';
 import Icon from '@/components/Icon.astro';
 
 const config = getCityConfig();
@@ -103,12 +104,49 @@ for (const e of upcomingDeduped) {
 const showCommunity = community.length >= 2;
 const showLearnConnect = learnConnect.length >= 2;
 
+// Featured-organizer lookup for scoring. See event-scoring.ts.
+const featuredOrgIds = new Set<string>();
+for (const o of allOrganizers) {
+  if (o.data.featured) featuredOrgIds.add(o.id);
+}
+
+// Memoise scores per event id so series occurrences don't re-score
+// (deduplicateSeries already collapses series, but memoising is cheap).
+const scoreCache = new Map<string, number>();
+function entryScore(entry: CalendarEntry): number {
+  const id = entry.event.id;
+  const cached = scoreCache.get(id);
+  if (cached !== undefined) return cached;
+  const data = entry.event.data;
+  const orgId = typeof data.organizer === 'string' ? data.organizer : undefined;
+  const score = scoreEvent({
+    tags: (data.tags as string[]) ?? [],
+    isSeries: isSeriesEvent(data),
+    organizerFeatured: orgId ? featuredOrgIds.has(orgId) : false,
+    effectiveDate: effectiveDate(entry),
+    now,
+  });
+  scoreCache.set(id, score);
+  return score;
+}
+
+// Pick top N by score, then re-sort the chosen N by date so the strip
+// reads chronologically. Ties break by earlier date.
+function pickTopByScore(entries: CalendarEntry[], n: number): CalendarEntry[] {
+  const scored = entries.map(e => ({ e, s: entryScore(e), d: parseLocalDate(effectiveDate(e)).getTime() }));
+  scored.sort((a, b) => (b.s - a.s) || (a.d - b.d));
+  return scored.slice(0, n).map(x => x.e).sort((a, b) =>
+    parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime()
+  );
+}
+
 // Build "Coming up" pool: general events + lone events from sparse sections
 const comingUpPool = [...general];
 if (!showCommunity) comingUpPool.push(...community);
 if (!showLearnConnect) comingUpPool.push(...learnConnect);
-comingUpPool.sort((a, b) => parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime());
-const comingUp = comingUpPool.slice(0, 3);
+const comingUp = pickTopByScore(comingUpPool, 3);
+const communityTop = pickTopByScore(community, 3);
+const learnConnectTop = pickTopByScore(learnConnect, 3);
 
 // Compute adaptive heading: if all comingUp events share the same noun, use type-specific heading
 const comingUpHeading = (() => {
@@ -387,7 +425,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     <section class="calendar-section">
       <h2>{t('calendar.find_your_people', locale)}</h2>
       <div class="featured-cards">
-        {community.slice(0, 3).map(e => (
+        {communityTop.map(e => (
           <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
         ))}
       </div>
@@ -398,7 +436,7 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     <section class="calendar-section">
       <h2>{t('calendar.learn_and_connect', locale)}</h2>
       <div class="featured-cards">
-        {learnConnect.slice(0, 3).map(e => (
+        {learnConnectTop.map(e => (
           <EventCardFeatured event={e.event} seriesBadge={getSeriesBadge(e)} occurrenceDate={e.occurrenceDate} organizerName={resolveOrganizerName(e)} locale={locale} />
         ))}
       </div>
