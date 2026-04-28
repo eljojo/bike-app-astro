@@ -2,9 +2,9 @@
 @use '../styles/mixins' as *;
 
 // --- Cover hero ---
-// Sits at the top of the page, full content width on desktop. On mobile,
-// `width: 100vw` does the bleed; the negative margins are defensive in case
-// a future change constrains the parent below the viewport.
+// Sits at the top of the page. On mobile the body is already full-width
+// (no 85% constraint applies below $breakpoint-mobile), so width: 100% fills
+// the viewport edge-to-edge. We just drop the corner radius for that look.
 .community-cover {
   position: relative;
   width: 100%;
@@ -21,9 +21,6 @@
 
   @media (max-width: $breakpoint-mobile) {
     border-radius: 0;
-    margin-left: calc((100vw - 100%) / -2);
-    margin-right: calc((100vw - 100%) / -2);
-    width: 100vw;
   }
 }
 
@@ -44,6 +41,7 @@
 
     @media (max-width: $breakpoint-mobile) {
       margin-top: -40px;
+      align-items: center; // restore mobile-centered avatar (base rule was overridden above)
     }
   }
 
@@ -82,18 +80,20 @@
   .community-detail-header-info {
     padding-bottom: 0.5rem; // align baseline with the bottom of the avatar circle
 
-    // Name and tagline sit over the cover photo. The shadow gives them a halo
-    // that survives both light and dark cover images. Light-mode text is dark,
-    // so the halo is light; dark-mode text is light, so the halo is dark.
-    h1, .community-detail-tagline {
-      text-shadow:
-        0 0 4px rgba(255, 255, 255, 0.7),
-        0 1px 2px rgba(255, 255, 255, 0.5);
-
-      @include dark-mode {
+    // Desktop only: name and tagline sit over the cover photo, so a halo
+    // shadow gives them legibility against varied photos. On mobile the layout
+    // flexes to column and the text sits below the cover, so no shadow needed.
+    @media (min-width: $breakpoint-mobile) {
+      h1, .community-detail-tagline {
         text-shadow:
-          0 0 4px rgba(0, 0, 0, 0.7),
-          0 1px 2px rgba(0, 0, 0, 0.5);
+          0 0 4px rgba(255, 255, 255, 0.7),
+          0 1px 2px rgba(255, 255, 255, 0.5);
+
+        @include dark-mode {
+          text-shadow:
+            0 0 4px rgba(0, 0, 0, 0.7),
+            0 1px 2px rgba(0, 0, 0, 0.5);
+        }
       }
     }
   }
