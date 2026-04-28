@@ -339,7 +339,7 @@ function stringPropOrUndefined(comp: ICAL.Component, name: string): string | und
   return String(v);
 }
 
-function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
+export function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
   if (t.isDate) {
     return Temporal.PlainDate.from({ year: t.year, month: t.month, day: t.day })
       .toZonedDateTime(siteTz);

@@ -1,6 +1,7 @@
 import ICAL from 'ical.js';
 import { Temporal } from '@js-temporal/polyfill';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay } from '../calendar-suggestions/types';
+import { detectImplicitSeries, icalTimeToSiteZdt } from '../calendar-suggestions/detect-implicit-series';
 
 const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
   MO: 'monday', TU: 'tuesday', WE: 'wednesday', TH: 'thursday',
@@ -56,12 +57,28 @@ export function parseIcs(text: string, sourceUrl: string, siteTz: string, now?: 
 
   const nowInstant = now ?? new Date();
   const events: ParsedVEvent[] = [];
+
+  // Split masters by RRULE presence: RRULE masters use the existing per-master
+  // path; non-RRULE masters go through implicit-series detection first, with
+  // orphans falling back to mapOneOff. See
+  // ~/code/bike-app/docs/plans/2026-04-28-implicit-series-detection-design.md.
+  const rruleMasters: Array<[string, ICAL.Event]> = [];
+  const plainMasters: ICAL.Event[] = [];
   for (const [uid, master] of masters) {
+    if (master.component.hasProperty('rrule')) rruleMasters.push([uid, master]);
+    else plainMasters.push(master);
+  }
+
+  for (const [uid, master] of rruleMasters) {
     const eventOverrides = overridesByUid.get(uid) ?? [];
-    const isRecurring = master.component.hasProperty('rrule');
-    const out = isRecurring
-      ? mapSeries(master, eventOverrides, siteTz, nowInstant)
-      : mapOneOff(master, siteTz);
+    const out = mapSeries(master, eventOverrides, siteTz, nowInstant);
+    if (out) events.push(out);
+  }
+
+  const { clusters, orphans } = detectImplicitSeries(plainMasters, siteTz);
+  for (const cluster of clusters) events.push(cluster);
+  for (const master of orphans) {
+    const out = mapOneOff(master, siteTz);
     if (out) events.push(out);
   }
 
@@ -282,37 +299,12 @@ function stringPropOrUndefined(comp: ICAL.Component, name: string): string | und
 }
 
 /**
- * Project an `ICAL.Time` into a `Temporal.ZonedDateTime` anchored at `siteTz`.
- *
- * - VALUE=DATE (all-day): there's no time component; anchor at midnight in
- *   siteTz so callers can extract the calendar date.
- * - Floating (no Z, no TZID): the wall-clock fields are interpreted in siteTz.
- * - TZID-resolved or UTC: trust ical.js's instant via toJSDate(); project that
- *   instant into siteTz for callers that want naive site-local fields.
- */
-function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
-  if (t.isDate) {
-    return Temporal.PlainDate.from({ year: t.year, month: t.month, day: t.day })
-      .toZonedDateTime(siteTz);
-  }
-  const zone = t.zone;
-  const isFloating =
-    zone == null ||
-    (zone === ICAL.Timezone.localTimezone) ||
-    (typeof zone.tzid === 'string' && zone.tzid === 'floating');
-  if (isFloating) {
-    return Temporal.PlainDateTime.from({
-      year: t.year, month: t.month, day: t.day,
-      hour: t.hour, minute: t.minute, second: t.second,
-    }).toZonedDateTime(siteTz);
-  }
-  return Temporal.Instant.fromEpochMilliseconds(t.toJSDate().getTime())
-    .toZonedDateTimeISO(siteTz);
-}
-
-/**
  * Render an event start/end as the naive string the downstream YAML expects:
  * `YYYY-MM-DD` for all-day, `YYYY-MM-DDTHH:MM:SS` for timed.
+ *
+ * Uses `icalTimeToSiteZdt` from `detect-implicit-series.ts` (the single source
+ * of truth for projecting an `ICAL.Time` into a `Temporal.ZonedDateTime`
+ * anchored at `siteTz`).
  */
 function renderEventStart(t: ICAL.Time, siteTz: string, isAllDay: boolean): string {
   const zdt = icalTimeToSiteZdt(t, siteTz);
