@@ -410,6 +410,10 @@ export function revalidateClusterAfterTrim(
   if (!cluster.series || cluster.series.kind !== 'recurrence') return cluster;
   const overrides = cluster.series.overrides ?? [];
   const surviving = overrides.filter(o => !o.uid || !removedUids.has(o.uid));
+  // Real surviving occurrences only — synthetic cancelled-skip rows added by
+  // the missed-week pass aren't real source VEVENTs and must not inflate the
+  // size threshold or pretend to be importable one-offs.
+  const realSurviving = surviving.filter(o => !o.cancelled);
   // The cluster's master also represents one occurrence (its UID is on the
   // top-level event). If that UID was removed, we lose the master too.
   const masterRemoved = cluster.uid ? removedUids.has(cluster.uid) : false;
@@ -421,11 +425,13 @@ export function revalidateClusterAfterTrim(
     ? overrides.some(o => o.uid === cluster.uid)
     : false;
   const masterContribution = masterInOverrides ? 0 : (masterRemoved ? 0 : 1);
-  const totalSurviving = masterContribution + surviving.length;
+  const totalSurviving = masterContribution + realSurviving.length;
   if (totalSurviving < MIN_CLUSTER_SIZE) return null;
 
   // Build a chronologically sorted list of dates from surviving overrides
   // plus (if not removed AND not already in overrides) the master's date.
+  // Cancelled-skip rows are part of the cycle and stay in `slim` so the
+  // gap-rule re-check sees a continuous schedule.
   type Slim = { date: string; start_time?: string };
   const slim: Slim[] = surviving.map(o => ({ date: o.date, start_time: o.start_time }));
   if (!masterInOverrides && !masterRemoved) {
@@ -465,13 +471,17 @@ export function revalidateClusterAfterTrim(
     if (g <= 0 || g % modalGap !== 0) return null;
   }
 
-  // Rebuild the trimmed series with updated cadence + season range.
+  // Rebuild the trimmed series with updated cadence + season range. When the
+  // master is removed we still want the cluster's modal time-of-day on the
+  // new top-level start — falling back to '00:00' would mis-render the
+  // suggestion sort key and the prefilled new-event time.
   const seasonStart = slim[0].date;
   const seasonEnd = slim[slim.length - 1].date;
+  const originalTod = cluster.start.length > 10 ? cluster.start.slice(11, 16) : undefined;
   return {
     ...cluster,
     start: masterRemoved
-      ? `${seasonStart}T${slim[0].start_time ?? '00:00'}:00`
+      ? `${seasonStart}T${slim[0].start_time ?? originalTod ?? '00:00'}:00`
       : cluster.start,
     series: {
       ...cluster.series,

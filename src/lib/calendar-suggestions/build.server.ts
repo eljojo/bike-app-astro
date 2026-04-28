@@ -207,10 +207,12 @@ function trimSeriesAgainstRepo(
   if (!e.series.overrides || e.series.overrides.length === 0) return [e];
   const trimmed = revalidateClusterAfterTrim(e, repoUids, siteTz);
   if (trimmed) return [trimmed];
-  // Cluster dissolves into one-offs for surviving occurrences.
+  // Cluster dissolves into one-offs for surviving real occurrences.
+  // Cancelled-skip rows (synthetic placeholders for missed weeks) are not
+  // source VEVENTs and must not surface as importable suggestions.
   const overrides = e.series.overrides;
   return overrides
-    .filter(o => !o.uid || !repoUids.has(o.uid))
+    .filter(o => !o.cancelled && (!o.uid || !repoUids.has(o.uid)))
     .map(o => ({
       uid: o.uid ?? `${e.uid}-${o.date}`,
       summary: e.summary,

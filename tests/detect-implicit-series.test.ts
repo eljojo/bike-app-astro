@@ -645,3 +645,45 @@ describe('detectImplicitSeries — codex-found bugs', () => {
 
   // Caller-side dissolve bug is captured in build-suggestions-trim.test.ts.
 });
+
+// ---------------------------------------------------------------------------
+// Codex second-pass bug reproductions
+// ---------------------------------------------------------------------------
+
+describe('codex 2nd-pass bugs in revalidateClusterAfterTrim', () => {
+  it('BUG: synthetic cancelled-skip rows are counted as real surviving occurrences', () => {
+    // Detection produces 4 real occurrences + 1 cancelled-skip on 5/20.
+    // Removing the master ("a") leaves 3 real (b, c, d) — below
+    // MIN_CLUSTER_SIZE — so revalidate should return null. With the bug,
+    // the cancelled-skip row inflates the surviving count to 4 and the
+    // below-threshold cluster is incorrectly accepted.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },
+      // 5/20 missing → detection adds { date: '2026-05-20', cancelled: true }
+      { uid: 'c', summary: 'X', dtstart: '20260527T140000Z' },
+      { uid: 'd', summary: 'X', dtstart: '20260603T140000Z' },
+    ]);
+    const cluster = detectImplicitSeries(loadMasters(ics), 'America/Toronto').clusters[0];
+    const trimmed = revalidateClusterAfterTrim(cluster, new Set(['a']), 'America/Toronto');
+    expect(trimmed).toBeNull();
+  });
+
+  it('BUG: trimmed cluster start time falls back to midnight when master is removed', () => {
+    // 5 real Wednesdays (so 4 survive after removing master) at 10:00 local.
+    // After removing master "a", the cluster's start should still report
+    // 10:00 (the modal time), not 00:00.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z' },
+      { uid: 'e', summary: 'X', dtstart: '20260603T140000Z' },
+    ]);
+    const cluster = detectImplicitSeries(loadMasters(ics), 'America/Toronto').clusters[0];
+    expect(cluster.start).toBe('2026-05-06T10:00:00');
+    const trimmed = revalidateClusterAfterTrim(cluster, new Set(['a']), 'America/Toronto');
+    expect(trimmed).not.toBeNull();
+    expect(trimmed!.start.endsWith('T10:00:00')).toBe(true);
+  });
+});

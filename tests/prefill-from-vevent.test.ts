@@ -177,6 +177,30 @@ describe('buildCopyDataFromVevent', () => {
   });
 });
 
+describe('buildCopyDataFromVevent — top-level registration_url passthrough', () => {
+  test('BUG: top-level registration_url is dropped when present on the master event', () => {
+    // The implicit-series detector now produces a top-level
+    // registration_url on cluster masters (modal-promoted RidewithGPS link).
+    // prefill must preserve it on the copyData so the new-event form is
+    // pre-filled and the saved event keeps the link.
+    const v: ParsedVEvent = {
+      uid: 'master',
+      summary: 'Wednesday Coffee Ride',
+      start: '2026-05-06T10:00:00',
+      registration_url: 'https://ridewithgps.com/events/12345',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-27',
+      },
+    };
+    const data = buildCopyDataFromVevent(v, 'obc');
+    expect((data as Record<string, unknown>).registration_url).toBe('https://ridewithgps.com/events/12345');
+  });
+});
+
 describe('buildCopyDataFromVevent — implicit series overrides pass through', () => {
   test('forwards uid, event_url, map_url, registration_url on each override', () => {
     const v: ParsedVEvent = {

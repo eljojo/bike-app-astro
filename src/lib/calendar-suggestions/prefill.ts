@@ -33,6 +33,7 @@ export function buildCopyDataFromVevent(v: ParsedVEvent, organizerSlug: string):
     event_url: v.url,
     organizer: organizerSlug,
     ics_uid: v.uid,
+    ...(v.registration_url && { registration_url: v.registration_url }),
     ...(mapUrl && { map_url: mapUrl }),
   };
   if (!v.series) return base;

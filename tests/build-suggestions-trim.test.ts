@@ -296,4 +296,49 @@ describe('buildSuggestions — partial-import dedupe (Task 8)', () => {
     // MIN_CLUSTER_SIZE and dissolves into 2 one-offs.
     expect(suggestions.map(s => s.uid).sort()).toEqual(['a', 'd']);
   });
+
+  test('BUG: dissolve emits cancelled-skip rows as one-off suggestions', async () => {
+    // Cluster with one cancelled-skip row (5/20, no uid) plus 4 real
+    // occurrences. Repo has a, b, c imported. Trim should leave one
+    // surviving real occurrence (d). The cancelled-skip row must NOT be
+    // emitted as a one-off suggestion — it represents a missed week,
+    // not a ride to import.
+    const cluster: ParsedVEvent = {
+      uid: 'a',
+      summary: 'Cluster With Skip',
+      start: '2026-05-06T10:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-06-03',
+        overrides: [
+          { date: '2026-05-06', uid: 'a' },
+          { date: '2026-05-13', uid: 'b' },
+          { date: '2026-05-20', cancelled: true },
+          { date: '2026-05-27', uid: 'c' },
+          { date: '2026-06-03', uid: 'd' },
+        ],
+      },
+    };
+    const importedA = buildAdminEvent({ id: '2026/imp-a', ics_uid: 'a' });
+    const importedB = buildAdminEvent({ id: '2026/imp-b', ics_uid: 'b' });
+    const importedC = buildAdminEvent({ id: '2026/imp-c', ics_uid: 'c' });
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [importedA, importedB, importedC],
+      feedCache: inMemoryFeedCache({
+        fetched_at: new Date().toISOString(),
+        source_url: 'https://example.com/feed.ics',
+        events: [cluster],
+      }),
+      fetcher: async () => { throw new Error('cache should serve'); },
+      siteTz: 'America/Toronto',
+      now: new Date('2026-04-30T00:00:00Z'),
+    });
+    // Only d should survive; the cancelled-skip row is not a real occurrence.
+    expect(suggestions.map(s => s.uid)).toEqual(['d']);
+  });
 });
