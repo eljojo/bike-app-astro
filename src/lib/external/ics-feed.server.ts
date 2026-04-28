@@ -92,12 +92,16 @@ export function parseIcs(text: string, sourceUrl: string, siteTz: string, now?: 
 function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
   if (!ev.uid || !ev.summary || !ev.startDate) return null;
   const isAllDay = ev.startDate.isDate;
+  // Some upstream feeds emit SUMMARY/LOCATION with leading or trailing
+  // whitespace. Trim at the parser boundary so the rest of the pipeline
+  // (prefill into the editor form, suggestion display, downstream YAML)
+  // never has to defensively re-trim.
   return {
     uid: ev.uid,
-    summary: ev.summary,
+    summary: ev.summary.trim(),
     start: renderEventStart(ev.startDate, siteTz, isAllDay),
     end: ev.endDate ? renderEventStart(ev.endDate, siteTz, isAllDay) : undefined,
-    location: ev.location || undefined,
+    location: ev.location?.trim() || undefined,
     description: ev.description || undefined,
     url: stringPropOrUndefined(ev.component, 'url'),
     last_modified: extractLastModified(ev.component),

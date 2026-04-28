@@ -6,6 +6,34 @@ import { parseIcs } from '../src/lib/external/ics-feed.server';
 const fixture = (name: string): string =>
   readFileSync(resolve(__dirname, 'fixtures/ics', name), 'utf8');
 
+describe('parseIcs — SUMMARY/LOCATION trimming', () => {
+  // Some upstream feeds emit SUMMARY with leading or trailing whitespace
+  // (e.g. " Ask a Tech - Bushtukah Orleans"). Without trimming at the parser
+  // boundary, that whitespace ends up in the prefilled editor form and gets
+  // committed to YAML as part of the event name.
+  const FEED = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//test//EN',
+    'BEGIN:VEVENT',
+    'UID:padded-summary',
+    'SUMMARY:  Ask a Tech - Bushtukah Orleans  ',
+    'LOCATION:  Bushtukah Orleans  ',
+    'DTSTART:20260521T213000Z',
+    'DTEND:20260521T223000Z',
+    'DTSTAMP:20260101T000000Z',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  it('strips leading/trailing whitespace from SUMMARY and LOCATION on one-offs', () => {
+    const feed = parseIcs(FEED, 'https://example.com/events.ics', 'America/Toronto');
+    expect(feed.events).toHaveLength(1);
+    expect(feed.events[0].summary).toBe('Ask a Tech - Bushtukah Orleans');
+    expect(feed.events[0].location).toBe('Bushtukah Orleans');
+  });
+});
+
 describe('parseIcs — implicit series detection', () => {
   it('collapses 4 weekly Wednesday VEVENTs into one ParsedVEvent with kind: recurrence', () => {
     const feed = parseIcs(
