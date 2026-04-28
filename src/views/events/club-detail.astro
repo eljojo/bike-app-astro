@@ -484,8 +484,14 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 <Fragment>
                   {' \u00b7 '}
                   {/^https?:\/\//i.test(nextOccurrence.location)
-                    ? <a href={nextOccurrence.location} target="_blank" rel="noopener noreferrer" title={nextOccurrence.location}>\ud83c\udf10</a>
+                    ? <a href={nextOccurrence.location} target="_blank" rel="noopener noreferrer" title={nextOccurrence.location}>{'\u{1F5FA}\u{FE0F}'}</a>
                     : nextOccurrence.location}
+                  {nextOccurrence.event_url && (
+                    <Fragment>
+                      {' '}
+                      <a href={nextOccurrence.event_url} target="_blank" rel="noopener noreferrer" title={nextOccurrence.event_url}>{'\u{1F310}'}</a>
+                    </Fragment>
+                  )}
                 </Fragment>
               )}
             </div>
@@ -515,7 +521,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
               <Fragment>
                 <dt>{t('events.location', locale)}</dt>
                 <dd>{/^https?:\/\//i.test(data.location)
-                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location}>🌐</a>
+                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location}>{'\u{1F5FA}\u{FE0F}'}</a>
                   : data.location}</dd>
               </Fragment>
             )}
@@ -724,8 +730,9 @@ function editionDateLabel(startDate: string, loc?: string): string {
                   <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
                   {occTime && <span class="event-series-date-time">{formatTime(occTime, locale)}</span>}
                   {occ.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
-                    ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>🌐</a>
+                    ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>{'\u{1F5FA}\u{FE0F}'}</a>
                     : occ.location}</span>}
+                  {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url}>{'\u{1F310}'}</a></span>}
                   {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                   {occ.rescheduled_from && (
                     <span class="event-series-date-note">
@@ -747,8 +754,9 @@ function editionDateLabel(startDate: string, loc?: string): string {
                   <li class={`event-series-date-item event-series-date-item--past ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                     <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
                     {occ.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
-                      ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>🌐</a>
+                      ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>{'\u{1F5FA}\u{FE0F}'}</a>
                       : occ.location}</span>}
+                    {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url}>{'\u{1F310}'}</a></span>}
                     {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                     {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
                   </li>

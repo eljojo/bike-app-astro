@@ -14,18 +14,27 @@ const DAY_NAMES: DayName[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thurs
 /**
  * Render a location string as either plain text or — when it's a URL (e.g.
  * Google Calendar puts a Maps URL in LOCATION when an event is bound to a
- * Google Place) — a 🌐 emoji link. Keeps the badge compact when the value
+ * Google Place) — a 🗺️ emoji link. Keeps the badge compact when the value
  * is unreadable raw URL text.
  */
 function LocationBadge({ value, className }: { value: string; className: string }) {
   if (/^https?:\/\//i.test(value)) {
     return (
       <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
-        🌐
+        {'\u{1F5FA}\u{FE0F}'}
       </a>
     );
   }
   return <span class={className}>{value}</span>;
+}
+
+/** Render a per-occurrence event_url override as a 🌐 emoji link. */
+function EventUrlBadge({ value, className }: { value: string; className: string }) {
+  return (
+    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
+      {'\u{1F310}'}
+    </a>
+  );
 }
 
 /** Build localized day option labels using Intl */
@@ -85,6 +94,7 @@ interface OverrideEntry {
   note?: string;
   cancelled?: boolean;
   rescheduled_from?: string;
+  event_url?: string;
 }
 
 interface PopoverState {
@@ -488,6 +498,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                         <span>{o.date}</span>
                         {o.cancelled && <span class="series-override-badge series-override-badge--cancelled">cancelled</span>}
                         {o.location && <LocationBadge value={o.location} className="series-override-badge" />}
+                        {o.event_url && <EventUrlBadge value={o.event_url} className="series-override-badge" />}
                         {o.note && <span class="series-override-badge">{o.note}</span>}
                         <button type="button" class="btn-link" onClick={() => setOverrides(overrides.filter(x => x.date !== o.date))}>
                           remove
