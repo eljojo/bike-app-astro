@@ -1,6 +1,80 @@
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
+// --- Cover hero ---
+// Sits at the top of the page, full content width on desktop. On mobile,
+// `width: 100vw` does the bleed; the negative margins are defensive in case
+// a future change constrains the parent below the viewport.
+.community-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  margin-bottom: 0;
+  border-radius: $border-radius;
+  overflow: hidden;
+  background: $color-card-bg;
+  @include image-frame;
+
+  @include dark-mode {
+    background: $color-card-bg-dark;
+  }
+
+  @media (max-width: $breakpoint-mobile) {
+    border-radius: 0;
+    margin-left: calc((100vw - 100%) / -2);
+    margin-right: calc((100vw - 100%) / -2);
+    width: 100vw;
+  }
+}
+
+.community-cover-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+// When a cover is present, raise the avatar so it overlaps the cover's bottom-left
+// and grow it from 80px to 112px for a more confident profile feel.
+.community-detail--has-cover {
+  .community-detail-header {
+    margin-top: -56px; // half the avatar height — overlap
+    align-items: flex-end;
+
+    @media (max-width: $breakpoint-mobile) {
+      margin-top: -40px;
+    }
+  }
+
+  .community-detail-photo,
+  .community-detail-initials {
+    width: 112px;
+    height: 112px;
+    border: 5px solid $color-bg;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+    @include dark-mode {
+      border-color: $color-bg-dark;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    @media (max-width: $breakpoint-mobile) {
+      width: 80px;
+      height: 80px;
+      border-width: 4px;
+    }
+  }
+
+  .community-detail-initials {
+    font-size: 2rem;
+  }
+
+  .community-detail-header-info {
+    padding-bottom: 0.5rem; // align baseline with the bottom of the avatar circle
+  }
+}
+
 .community-detail {
   max-width: 900px;
 }

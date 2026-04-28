@@ -60,7 +60,7 @@ const locations = allPlaces
 const isShop = isBikeShop(organizer);
 
 // Breadcrumbs: Home → Communities/Bike Shops → Name
-import { breadcrumbJsonLd } from '@/lib/json-ld';
+import { breadcrumbJsonLd, organizerJsonLd } from '@/lib/json-ld';
 const parentLabel = isShop ? t('bike_shops.heading', locale) : t('nav.people', locale);
 const parentUrl = isShop ? paths.bikeShops(locale) : paths.communities(locale);
 const breadcrumbs = breadcrumbJsonLd([
@@ -127,14 +127,32 @@ function socialLinkLabel(link: { platform: string; url: string }): string {
   return labels[link.platform] || link.platform;
 }
 
-// Media gallery
-const mediaItems = (data.media ?? []).map(m => ({
+// Media: cover (if flagged) renders as hero; everything else feeds the gallery.
+const allMedia = data.media ?? [];
+const cover = allMedia.find(m => m.cover);
+const coverUrl = cover ? imageUrl(cover.key, { width: 1200, height: 628, fit: 'cover' }) : undefined;
+const coverAlt = cover?.caption || data.name;
+const galleryMedia = allMedia.filter(m => !m.cover);
+const mediaItems = galleryMedia.map(m => ({
   type: m.type || 'photo',
   key: m.key,
   caption: m.caption,
   width: m.width,
   height: m.height,
 }));
+
+// JSON-LD for community page
+const pageUrl = `${config.url}${paths.community(organizer.id, locale)}`;
+const orgJsonLd = organizerJsonLd(
+  {
+    name: data.name,
+    tagline: data.tagline,
+    website: data.website,
+    social_links: data.social_links,
+    photo_key: data.photo_key,
+  },
+  { coverUrl, isShop, url: pageUrl },
+);
 
 const contactPlatforms = new Set(['telephone', 'email', 'booking']);
 const contactLinks = socialLinks.filter(l => contactPlatforms.has(l.platform));
@@ -143,13 +161,34 @@ const socialOnlyLinks = socialLinks.filter(l => !contactPlatforms.has(l.platform
 const PAST_EVENTS_INITIAL = 4;
 ---
 
-<Base title={`${data.name} | ${config.display_name}`} description={data.tagline} breadcrumbs={breadcrumbs}>
+<Base
+  title={`${data.name} | ${config.display_name}`}
+  description={data.tagline}
+  ogImage={coverUrl}
+  ogImageAlt={coverAlt}
+  ogType="website"
+  jsonLd={orgJsonLd}
+  breadcrumbs={breadcrumbs}
+>
   <SubTabToggle items={[
     { label: t('nav.calendar', locale), href: localePath('/calendar', locale), active: false },
     { label: t('nav.people', locale), href: paths.communities(locale), active: !isShop },
     { label: t('nav.bike_shops', locale), href: paths.bikeShops(locale), active: isShop },
   ]} />
-  <article class="community-detail">
+  <article class:list={['community-detail', { 'community-detail--has-cover': !!cover }]}>
+    {cover && (
+      <div class="community-cover">
+        <ResponsiveImage
+          blobKey={cover.key}
+          alt={coverAlt}
+          widths={[800, 1170, 2340]}
+          width={1170}
+          height={390}
+          loading="eager"
+          class="community-cover-photo"
+        />
+      </div>
+    )}
     <header class="community-detail-header">
       <div class="community-detail-avatar">
         {data.photo_key ? (
