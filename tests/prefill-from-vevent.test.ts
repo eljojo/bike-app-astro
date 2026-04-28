@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import type { ParsedVEvent } from '../src/lib/calendar-suggestions/types';
-import { buildCopyDataFromVevent } from '../src/lib/calendar-suggestions/prefill';
+import type { ParsedVEvent, ParsedFeed } from '../src/lib/calendar-suggestions/types';
+import { buildCopyDataFromVevent, findVeventForPrefill } from '../src/lib/calendar-suggestions/prefill';
 
 describe('buildCopyDataFromVevent', () => {
   test('one-off with time — date/time split', () => {
@@ -174,5 +174,142 @@ describe('buildCopyDataFromVevent', () => {
     });
     // schedule-series also has season_start? probably not — fall back to slicing start
     expect(cd.start_date).toBe('2026-05-03');
+  });
+});
+
+describe('findVeventForPrefill — dissolved-cluster uid resolution', () => {
+  test('BUG: uid that lives only in cluster overrides is unfindable via top-level lookup', () => {
+    // After Task 8 dissolves a cluster into one-offs, a suggestion may carry
+    // the per-occurrence uid 'g' (one of the cluster's surviving overrides).
+    // event-new.astro's prefill currently does feed.events.find(e => e.uid),
+    // which only sees the cluster master ('a'). Looking up 'g' returns
+    // undefined and the admin sees "no longer in source calendar" — even
+    // though the data is right there inside cluster.series.overrides.
+    const feed: ParsedFeed = {
+      fetched_at: '2026-04-28T00:00:00Z',
+      source_url: 'https://example.com/feed.ics',
+      events: [{
+        uid: 'a',
+        summary: 'Wednesday Coffee Ride',
+        start: '2026-05-06T10:00:00',
+        location: 'Sportsplex',
+        description: 'Standard ride',
+        url: 'https://example.com/master',
+        series: {
+          kind: 'recurrence',
+          recurrence: 'weekly',
+          recurrence_day: 'wednesday',
+          season_start: '2026-05-06',
+          season_end: '2026-06-24',
+          overrides: [
+            { date: '2026-05-06', uid: 'a' },
+            { date: '2026-05-13', uid: 'b' },
+            { date: '2026-05-20', uid: 'c' },
+            { date: '2026-05-27', uid: 'd' },
+            { date: '2026-06-03', uid: 'e' },
+            { date: '2026-06-10', uid: 'f' },
+            { date: '2026-06-17', uid: 'g', event_url: 'https://example.com/g' },
+            { date: '2026-06-24', uid: 'h' },
+          ],
+        },
+      }],
+    };
+    // The bug: top-level find can't see dissolved-cluster uids.
+    expect(feed.events.find(e => e.uid === 'g')).toBeUndefined();
+    // The fix: findVeventForPrefill walks cluster overrides and synthesizes
+    // a one-off ParsedVEvent.
+    const v = findVeventForPrefill(feed, 'g');
+    expect(v).toBeDefined();
+    expect(v?.uid).toBe('g');
+    expect(v?.summary).toBe('Wednesday Coffee Ride');
+    expect(v?.start).toBe('2026-06-17T10:00:00');
+    // Override-level event_url wins over master url.
+    expect(v?.url).toBe('https://example.com/g');
+    // Master fields fill in unset override fields.
+    expect(v?.location).toBe('Sportsplex');
+    expect(v?.description).toBe('Standard ride');
+  });
+
+  test('findVeventForPrefill skips cancelled-skip rows (no real VEVENT to import)', () => {
+    const feed: ParsedFeed = {
+      fetched_at: '2026-04-28T00:00:00Z',
+      source_url: 'https://example.com/feed.ics',
+      events: [{
+        uid: 'a',
+        summary: 'Coffee Ride',
+        start: '2026-05-06T10:00:00',
+        series: {
+          kind: 'recurrence',
+          season_start: '2026-05-06',
+          season_end: '2026-05-13',
+          overrides: [
+            { date: '2026-05-06', uid: 'a' },
+            { date: '2026-05-20', cancelled: true },  // missed-week placeholder
+          ],
+        },
+      }],
+    };
+    // No uid on the cancelled row, but if a stray request supplied a synthetic
+    // uid that happens to match a cancelled date, we should not synthesize.
+    expect(findVeventForPrefill(feed, 'nonexistent')).toBeUndefined();
+  });
+});
+
+describe('buildCopyDataFromVevent — top-level registration_url passthrough', () => {
+  test('BUG: top-level registration_url is dropped when present on the master event', () => {
+    // The implicit-series detector now produces a top-level
+    // registration_url on cluster masters (modal-promoted RidewithGPS link).
+    // prefill must preserve it on the copyData so the new-event form is
+    // pre-filled and the saved event keeps the link.
+    const v: ParsedVEvent = {
+      uid: 'master',
+      summary: 'Wednesday Coffee Ride',
+      start: '2026-05-06T10:00:00',
+      registration_url: 'https://ridewithgps.com/events/12345',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-27',
+      },
+    };
+    const data = buildCopyDataFromVevent(v, 'obc');
+    expect((data as Record<string, unknown>).registration_url).toBe('https://ridewithgps.com/events/12345');
+  });
+});
+
+describe('buildCopyDataFromVevent — implicit series overrides pass through', () => {
+  test('forwards uid, event_url, map_url, registration_url on each override', () => {
+    const v: ParsedVEvent = {
+      uid: 'master-uid',
+      summary: 'Wednesday Coffee Ride',
+      start: '2026-05-06T14:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-13',
+        overrides: [
+          {
+            date: '2026-05-13',
+            uid: 'occ-2',
+            event_url: 'https://example.com/2',
+            map_url: 'https://maps.app.goo.gl/abc',
+            registration_url: 'https://register.com/2',
+            note: 'West Carleton',
+          },
+        ],
+      },
+    };
+    const data = buildCopyDataFromVevent(v, 'obc');
+    const series = data.series as Record<string, unknown>;
+    const overrides = series.overrides as Array<Record<string, unknown>>;
+    expect(overrides[0].uid).toBe('occ-2');
+    expect(overrides[0].event_url).toBe('https://example.com/2');
+    expect(overrides[0].map_url).toBe('https://maps.app.goo.gl/abc');
+    expect(overrides[0].registration_url).toBe('https://register.com/2');
+    expect(overrides[0].note).toBe('West Carleton');
   });
 });

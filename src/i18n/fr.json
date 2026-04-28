@@ -220,6 +220,7 @@
   "events.date": "Date",
   "events.distance": "Distance",
   "events.location": "Lieu",
+  "events.view_on_map": "Voir le lieu sur la carte",
   "events.no_upcoming": "Aucun événement à venir.",
   "events.upcoming": "Événements à venir",
   "events.past": "Événements passés",

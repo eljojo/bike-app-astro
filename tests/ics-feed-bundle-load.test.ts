@@ -25,6 +25,26 @@ const projectRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 const chunksDir = path.join(projectRoot, 'dist', 'server', 'chunks');
 const distExists = existsSync(chunksDir);
 
+/**
+ * Locate `parseIcs` in the bundled chunk's exports. Rollup may expose it as
+ * a top-level export OR (when the chunk wraps the module via namespace
+ * imports — e.g. when a callsite does `await import('...').then(({...}) =>`)
+ * inside a frozen `icsFeed_server` namespace whose alias is minified to a
+ * single letter. Walk both shapes so a future bundler change doesn't break
+ * this smoke test.
+ */
+function findExportedFn(mod: Record<string, unknown>, name: string): ((...args: unknown[]) => unknown) | undefined {
+  const direct = mod[name];
+  if (typeof direct === 'function') return direct as (...args: unknown[]) => unknown;
+  for (const v of Object.values(mod)) {
+    if (v && typeof v === 'object') {
+      const nested = (v as Record<string, unknown>)[name];
+      if (typeof nested === 'function') return nested as (...args: unknown[]) => unknown;
+    }
+  }
+  return undefined;
+}
+
 describe.skipIf(!distExists)('built ics-feed chunk loads on a Node-like runtime', () => {
   test('parseIcs in the bundled chunk does not throw on module init', async () => {
     const matches = readdirSync(chunksDir).filter(f => /^ics-feed\.server_.*\.mjs$/.test(f));
@@ -32,13 +52,14 @@ describe.skipIf(!distExists)('built ics-feed chunk loads on a Node-like runtime'
 
     const chunkPath = path.join(chunksDir, matches[0]);
     const mod = await import(chunkPath);
-    expect(typeof mod.parseIcs, 'bundle must export parseIcs').toBe('function');
+    const parseIcs = findExportedFn(mod as Record<string, unknown>, 'parseIcs');
+    expect(parseIcs, 'bundle must export parseIcs (directly or via namespace)').toBeTypeOf('function');
 
     // Any RRULE-bearing fixture exercises the parse path end-to-end. If the
     // bundled chunk had a module-init failure we'd have thrown at the import
     // above; reaching this point means the build is loadable.
     const text = readFileSync(path.join(projectRoot, 'tests/fixtures/ics/series-weekly-until.ics'), 'utf-8');
-    const feed = mod.parseIcs(text, 'https://example.test/', 'America/Toronto');
+    const feed = parseIcs!(text, 'https://example.test/', 'America/Toronto') as { events: Array<{ uid: string }> };
     expect(feed.events.length).toBeGreaterThan(0);
     expect(feed.events[0].uid).toBe('test-weekly@example.com');
   });

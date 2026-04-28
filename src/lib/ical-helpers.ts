@@ -75,7 +75,11 @@ export function buildVEventLines(
       }
       lines.push(`SUMMARY:${escapeIcal(e.name as string)}`);
       if (occ.location) lines.push(`LOCATION:${escapeIcal(occ.location)}`);
-      if (e.registration_url) lines.push(`URL:${e.registration_url as string}`);
+      const occUrl = occ.event_url
+        ?? (occ as { registration_url?: string }).registration_url
+        ?? (e.registration_url as string | undefined)
+        ?? (e.event_url as string | undefined);
+      if (occUrl) lines.push(`URL:${occUrl}`);
 
       const descParts: string[] = [];
       if (occ.meet_time && occ.start_time) {

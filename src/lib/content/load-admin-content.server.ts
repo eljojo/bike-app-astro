@@ -191,6 +191,9 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
       routes: cached.routes ?? e.routes,
       organizer: cached.organizer ?? e.organizer,
       ics_uid: cached.ics_uid ?? e.ics_uid,
+      // Pass `series` through so calendar-suggestions dedupe can match
+      // per-occurrence override UIDs (Task 8: trim-and-revalidate).
+      series: cached.series ?? e.series,
       hasBody: (cached.body?.trim().length ?? 0) > 50,
       mediaCount: cached.media?.length ?? e.mediaCount,
       waypointCount: cached.waypoints?.length ?? e.waypointCount,
@@ -209,6 +212,7 @@ export async function loadAdminEventList(buildTimeEvents: AdminEvent[]): Promise
         organizer: cached.organizer,
         ics_uid: cached.ics_uid,
         poster_key: cached.poster_key,
+        series: cached.series,
         hasBody: (cached.body?.trim().length ?? 0) > 50,
         mediaCount: cached.media?.length ?? 0,
         waypointCount: cached.waypoints?.length ?? 0,

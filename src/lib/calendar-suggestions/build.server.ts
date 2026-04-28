@@ -1,5 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { listDismissedKeys, NEVER_EXPIRES } from './dismissals.server';
+import { revalidateClusterAfterTrim } from './detect-implicit-series';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay, Suggestion } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
@@ -15,7 +16,7 @@ export interface BuildArgs {
   db: Database;
   city: string;
   organizers: Array<Pick<AdminOrganizer, 'slug' | 'name' | 'ics_url'>>;
-  repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer'>>;
+  repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer' | 'series'>>;
   feedCache: CalendarFeedCache;
   /**
    * Required. Caller binds `siteTz` (and any other context the parser needs)
@@ -49,6 +50,17 @@ export interface BuildArgs {
  * the upstream VEVENT ("updated suggestions"). See
  * ~/code/bike-app/docs/plans/2026-04-21-calendar-suggestions-design.md under
  * Future work.
+ *
+ * Also planned (slots into the same "updated suggestions" surface): auto-extend
+ * an imported implicit series when the feed grows beyond its season_end. When
+ * a fresh feed pull contains occurrences past the imported event's season_end
+ * that match its modal DOW + cadence (and gap from season_end ≤ 60d), surface
+ * an admin-confirmable "extend series" suggestion that appends those
+ * occurrences as overrides and updates season_end. The per-occurrence `uid`
+ * field on series.overrides — added by the implicit-series-detection feature —
+ * is the prerequisite that lets dedupe absorb the extension cleanly. See
+ * ~/code/bike-app/docs/plans/2026-04-28-implicit-series-detection-design.md
+ * under Future work.
  */
 export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   const { db, city, organizers, repoEvents, feedCache, fetcher, siteTz } = args;
@@ -61,7 +73,14 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
 
   const withFeed = organizers.filter(o => o.ics_url);
 
-  const repoUids = new Set(repoEvents.flatMap(e => e.ics_uid ? [e.ics_uid] : []));
+  // Includes BOTH the top-level `ics_uid` AND each per-occurrence override
+  // UID. Without the override UIDs, a partially-imported series would
+  // re-suggest its non-overlapping occurrences as one-offs (Task 8).
+  const repoUids = new Set(repoEvents.flatMap(e => {
+    const top = e.ics_uid ? [e.ics_uid] : [];
+    const overrides = e.series?.overrides?.flatMap(o => o.uid ? [o.uid] : []) ?? [];
+    return [...top, ...overrides];
+  }));
   const repoOrgDates = new Set(
     repoEvents.flatMap(e => {
       // Inline organizer objects skip the org+date fallback (rare ad-hoc hosts).
@@ -117,7 +136,23 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   const candidates: Candidate[] = feeds.flatMap(r => {
     if (r.status !== 'fulfilled') return [];
     return r.value.feed.events
-      .filter(e => !isAlreadyInRepo(r.value.slug, e))
+      // Bypass top-level isAlreadyInRepo for series WITH per-occurrence
+      // overrides, so trimSeriesAgainstRepo can re-evaluate partial overlap.
+      // (revalidateClusterAfterTrim correctly handles the case where the
+      // master uid is in repoUids: it removes that occurrence and re-emits the
+      // surviving subset, which may or may not still cluster.) Pure RRULE
+      // series with no overrides keep the original top-level dedupe.
+      .filter(e =>
+        (e.series && e.series.kind === 'recurrence' && (e.series.overrides?.length ?? 0) > 0)
+          ? true
+          : !isAlreadyInRepo(r.value.slug, e),
+      )
+      .flatMap(e => trimSeriesAgainstRepo(e, repoUids, siteTz))
+      // After trim, dissolved-cluster outputs may include one-offs that need
+      // to be checked against repoUids/repoOrgDates. Surviving series carry
+      // their original master uid by design, so this catches dissolved
+      // one-offs colliding with unrelated repo entries on org+date.
+      .filter(e => e.series ? true : !isAlreadyInRepo(r.value.slug, e))
       .filter(isInWindow)
       .map((e): Candidate => ({
         sortKey: nextOccurrenceSortKey(e, nowLocalDate),
@@ -141,6 +176,53 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   );
   visible.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   return visible.slice(0, MAX_ITEMS).map(c => c.suggestion);
+}
+
+/**
+ * Given a parsed feed event and the set of UIDs already in the repo, return
+ * the surviving event(s) that still need to be suggested.
+ *
+ * - One-off (no series): pass through unchanged. The caller already verified
+ *   the top-level uid isn't in repo via `isAlreadyInRepo`.
+ * - Recurrence cluster: try to revalidate with the trimmed occurrence set. If
+ *   the trimmed cluster still satisfies clustering rules, return one trimmed
+ *   ParsedVEvent. Otherwise dissolve into one-offs for the surviving
+ *   occurrences (so they can still be suggested individually).
+ *
+ * This is the dedupe-side complement of implicit-series detection: the
+ * detection step at parse time clusters feed occurrences; this step takes
+ * those clusters and removes anything the admin already imported.
+ */
+function trimSeriesAgainstRepo(
+  e: ParsedVEvent,
+  repoUids: Set<string>,
+  siteTz: string,
+): ParsedVEvent[] {
+  if (!e.series || e.series.kind !== 'recurrence') return [e];
+  // Trim only applies to clusters that carry per-occurrence override UIDs
+  // (which detectImplicitSeries emits for every occurrence, see Task 6).
+  // Pure RRULE series with no overrides have nothing to dedupe against, so
+  // we pass them through unchanged — the top-level uid match in
+  // `isAlreadyInRepo` (or its caller-side bypass) is the right tool there.
+  if (!e.series.overrides || e.series.overrides.length === 0) return [e];
+  const trimmed = revalidateClusterAfterTrim(e, repoUids, siteTz);
+  if (trimmed) return [trimmed];
+  // Cluster dissolves into one-offs for surviving real occurrences.
+  // Cancelled-skip rows (synthetic placeholders for missed weeks) are not
+  // source VEVENTs and must not surface as importable suggestions.
+  const overrides = e.series.overrides;
+  return overrides
+    .filter(o => !o.cancelled && (!o.uid || !repoUids.has(o.uid)))
+    .map(o => ({
+      uid: o.uid ?? `${e.uid}-${o.date}`,
+      summary: e.summary,
+      start: o.start_time
+        ? `${o.date}T${o.start_time}:00`
+        : `${o.date}T${e.start.length > 10 ? e.start.slice(11) : '00:00:00'}`,
+      location: o.location ?? e.location,
+      description: o.note ?? e.description,
+      url: o.event_url ?? e.url,
+    }));
 }
 
 /**

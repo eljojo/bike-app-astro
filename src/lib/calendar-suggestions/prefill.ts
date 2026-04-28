@@ -1,5 +1,5 @@
 import { NodeHtmlMarkdown } from 'node-html-markdown';
-import type { ParsedVEvent } from './types';
+import type { ParsedFeed, ParsedVEvent } from './types';
 
 // Extract a route-mapping URL out of free-form description text. Today this
 // catches RidewithGPS only — the feeds we see in production overwhelmingly
@@ -33,6 +33,7 @@ export function buildCopyDataFromVevent(v: ParsedVEvent, organizerSlug: string):
     event_url: v.url,
     organizer: organizerSlug,
     ics_uid: v.uid,
+    ...(v.registration_url && { registration_url: v.registration_url }),
     ...(mapUrl && { map_url: mapUrl }),
   };
   if (!v.series) return base;
@@ -52,4 +53,39 @@ export function buildCopyDataFromVevent(v: ParsedVEvent, organizerSlug: string):
     series = v.series.schedule ? { schedule: v.series.schedule } : {};
   }
   return { ...base, series };
+}
+
+/**
+ * Find the VEvent matching `icsUid` for prefill. After Task 8 dissolves a
+ * cluster into one-offs, the suggestion's uid lives inside
+ * `feed.events[i].series.overrides[].uid` — never as a top-level uid. A
+ * naive `feed.events.find(e => e.uid === icsUid)` misses it and the admin
+ * sees "no longer in source calendar". This walks both shapes:
+ *
+ *   - Top-level event uid (one-off, RRULE series, cluster master).
+ *   - Cluster override uid → synthesize a one-off ParsedVEvent from the
+ *     override row + master fallback (location/description/url) so prefill
+ *     can copy from it as if it were a real one-off VEvent.
+ *
+ * Cancelled-skip override rows are not real source VEvents and never match.
+ */
+export function findVeventForPrefill(feed: ParsedFeed, icsUid: string): ParsedVEvent | undefined {
+  const top = feed.events.find(e => e.uid === icsUid);
+  if (top) return top;
+  for (const e of feed.events) {
+    const ovr = e.series?.overrides?.find(o => o.uid === icsUid);
+    if (ovr && !ovr.cancelled) {
+      const masterTime = e.start.length > 10 ? e.start.slice(11) : '00:00:00';
+      return {
+        uid: icsUid,
+        summary: e.summary,
+        start: ovr.start_time ? `${ovr.date}T${ovr.start_time}:00` : `${ovr.date}T${masterTime}`,
+        location: ovr.location ?? e.location,
+        description: ovr.note ?? e.description,
+        url: ovr.event_url ?? e.url,
+        registration_url: ovr.registration_url ?? e.registration_url,
+      };
+    }
+  }
+  return undefined;
 }

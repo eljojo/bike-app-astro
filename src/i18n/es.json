@@ -211,6 +211,7 @@
   "events.date": "Fecha",
   "events.distance": "Distancia",
   "events.location": "Ubicación",
+  "events.view_on_map": "Ver ubicación en el mapa",
   "events.no_upcoming": "No hay eventos próximos.",
   "events.upcoming": "Próximos eventos",
   "events.past": "Eventos pasados",

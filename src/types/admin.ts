@@ -1,5 +1,6 @@
 // Detail types (RouteDetail, EventDetail, AdminMediaItem, AdminVariant) are
 // canonical in src/lib/models/route-model.ts and src/lib/models/event-model.ts
+import type { EventSeries } from '../lib/models/event-model';
 
 export interface AdminRoute {
   slug: string;
@@ -33,6 +34,12 @@ export interface AdminEvent {
   is_series?: boolean;
   meet_time?: string;
   series_label?: string;
+  /**
+   * Full series block (recurrence rule + per-occurrence overrides). Carried on
+   * the lightweight admin-list shape so calendar-suggestions dedupe can read
+   * `series.overrides[].uid` for partial-import overlap detection.
+   */
+  series?: EventSeries;
   hasBody: boolean;
   mediaCount: number;
   waypointCount: number;

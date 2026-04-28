@@ -4,12 +4,48 @@ import { expandSeriesOccurrences, type SeriesOccurrence } from '../../lib/series
 import { parseLocalDate, formatDateStr } from '../../lib/date-utils';
 import { fullLocale, defaultLocale as getDefaultLocale } from '../../lib/i18n/locale-utils';
 import type { EventSeries, SeriesOccurrenceOverride } from '../../lib/models/event-model';
+import { mergeOverrideForPopover } from './series-editor-merge';
 
 type SeriesMode = 'recurring' | 'schedule';
 type RecurrenceFrequency = 'weekly' | 'biweekly';
 type DayName = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 const DAY_NAMES: DayName[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/**
+ * Render a location string as either plain text or — when it's a URL (e.g.
+ * Google Calendar puts a Maps URL in LOCATION when an event is bound to a
+ * Google Place) — a 🗺️ emoji link. Keeps the badge compact when the value
+ * is unreadable raw URL text.
+ */
+function LocationBadge({ value, className }: { value: string; className: string }) {
+  if (/^https?:\/\//i.test(value)) {
+    return (
+      <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value} aria-label="View location on map">
+        {'\u{1F5FA}\u{FE0F}'}
+      </a>
+    );
+  }
+  return <span class={className}>{value}</span>;
+}
+
+/** Render a per-occurrence event_url override as a 🌐 emoji link. */
+function EventUrlBadge({ value, className }: { value: string; className: string }) {
+  return (
+    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value} aria-label="Event website">
+      {'\u{1F310}'}
+    </a>
+  );
+}
+
+/** Render a per-occurrence registration_url override as a 🎟️ emoji link. */
+function RegistrationUrlBadge({ value, className }: { value: string; className: string }) {
+  return (
+    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value} aria-label="Register for this ride">
+      {'\u{1F39F}\u{FE0F}'}
+    </a>
+  );
+}
 
 /** Build localized day option labels using Intl */
 function buildDayOptions(intlLocale: string): { value: DayName; label: string }[] {
@@ -68,6 +104,10 @@ interface OverrideEntry {
   note?: string;
   cancelled?: boolean;
   rescheduled_from?: string;
+  uid?: string;             // source VEVENT UID (preserved across edits for dedupe)
+  event_url?: string;
+  map_url?: string;
+  registration_url?: string;
 }
 
 interface PopoverState {
@@ -310,11 +350,11 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
           setSkipDates(skipDates.filter(d => d !== date));
           setOverrides(prev => {
             const existing = prev.find(o => o.date === date);
-            const entry: OverrideEntry = {
+            const entry = mergeOverrideForPopover(existing, {
               date,
-              ...(popoverLocation && { location: popoverLocation }),
-              ...(popoverNote && { note: popoverNote }),
-            };
+              location: popoverLocation,
+              note: popoverNote,
+            }) as OverrideEntry;
             if (existing) return prev.map(o => o.date === date ? entry : o);
             return [...prev, entry];
           });
@@ -470,7 +510,9 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                       <div key={o.date} class="series-override-item">
                         <span>{o.date}</span>
                         {o.cancelled && <span class="series-override-badge series-override-badge--cancelled">cancelled</span>}
-                        {o.location && <span class="series-override-badge">{o.location}</span>}
+                        {o.location && <LocationBadge value={o.location} className="series-override-badge" />}
+                        {o.event_url && <EventUrlBadge value={o.event_url} className="series-override-badge" />}
+                        {o.registration_url && <RegistrationUrlBadge value={o.registration_url} className="series-override-badge" />}
                         {o.note && <span class="series-override-badge">{o.note}</span>}
                         <button type="button" class="btn-link" onClick={() => setOverrides(overrides.filter(x => x.date !== o.date))}>
                           remove
@@ -515,7 +557,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                   {schedule.map(s => (
                     <div key={s.date} class={`series-schedule-item${s.cancelled ? ' series-schedule-item--cancelled' : ''}`}>
                       <span class="series-schedule-date">{s.date}</span>
-                      {s.location && <span class="series-schedule-location">{s.location}</span>}
+                      {s.location && <LocationBadge value={s.location} className="series-schedule-location" />}
                       {s.cancelled && <span class="series-override-badge series-override-badge--cancelled">cancelled</span>}
                       {s.note && <span class="series-override-badge">{s.note}</span>}
                       <button type="button" class="btn-link" onClick={() => setSchedule(schedule.filter(x => x.date !== s.date))}>

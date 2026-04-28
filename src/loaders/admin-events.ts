@@ -19,7 +19,7 @@ import yaml from 'js-yaml';
 import { cityDir } from '../lib/config/config.server';
 import type { AdminEvent } from '../types/admin';
 import { eventDetailFromGit, computeEventContentHash } from '../lib/models/event-model.server';
-import type { EventDetail } from '../lib/models/event-model';
+import type { EventDetail, EventSeries } from '../lib/models/event-model';
 
 const CITY_DIR = cityDir;
 
@@ -81,6 +81,7 @@ function loadFlatEvent(yearDir: string, slug: string, filePath: string): {
     is_series: !!fm.series,
     meet_time: fm.meet_time as string | undefined,
     series_label: buildSeriesLabel(fm.series),
+    series: fm.series as EventSeries | undefined,
   };
 
   const detail = eventDetailFromGit(id, fm, body.trim());
@@ -134,6 +135,7 @@ function loadDirectoryEvent(yearDir: string, slug: string, eventDir: string): {
     is_series: !!fm.series,
     meet_time: fm.meet_time as string | undefined,
     series_label: buildSeriesLabel(fm.series),
+    series: fm.series as EventSeries | undefined,
   };
 
   const detail = eventDetailFromGit(id, fm, body.trim(), mediaYml);

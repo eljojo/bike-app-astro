@@ -77,7 +77,7 @@ let icsMissing = false;
 if (fromFeed && icsUid && !copyFromId) {
   const { calendarFeedCache } = await import('../../lib/env/env.service');
   const { fetchIcsFeed } = await import('../../lib/external/ics-feed.server');
-  const { buildCopyDataFromVevent } = await import('../../lib/calendar-suggestions/prefill');
+  const { buildCopyDataFromVevent, findVeventForPrefill } = await import('../../lib/calendar-suggestions/prefill');
   const { isGoogleMapsUrl } = await import('../../lib/google-maps-url');
   const { searchPlace } = await import('../api/places-prefill');
 
@@ -99,7 +99,7 @@ if (fromFeed && icsUid && !copyFromId) {
           console.warn(`calendar feed cache write failed for ${fromFeed}:`, err);
         }
       }
-      const vevent = feed.events.find(e => e.uid === icsUid);
+      const vevent = findVeventForPrefill(feed, icsUid);
       if (!vevent) {
         icsMissing = true;
       } else {
