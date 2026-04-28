@@ -86,16 +86,18 @@ a.community-card {
     }
   }
 
-  // The tagline can extend past the frost into the photo zone — keep it white
-  // with a subtle shadow so it reads against any cover. Apply the same to the
-  // name so the two lines share a visual treatment.
+  // The text can extend past the frost into the photo zone, so it needs
+  // contrast against any cover. Light mode: black text with a soft white halo
+  // so it stays readable when it crosses onto the photo. Dark mode: white text
+  // with a dark shadow so it doesn't disappear into the saturated gradient.
   .community-card-name,
   .community-card-tagline {
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    color: #000;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.65);
 
     @include dark-mode {
       color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
     }
   }
 }
