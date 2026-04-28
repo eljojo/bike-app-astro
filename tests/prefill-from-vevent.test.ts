@@ -176,3 +176,38 @@ describe('buildCopyDataFromVevent', () => {
     expect(cd.start_date).toBe('2026-05-03');
   });
 });
+
+describe('buildCopyDataFromVevent — implicit series overrides pass through', () => {
+  test('forwards uid, event_url, map_url, registration_url on each override', () => {
+    const v: ParsedVEvent = {
+      uid: 'master-uid',
+      summary: 'Wednesday Coffee Ride',
+      start: '2026-05-06T14:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-13',
+        overrides: [
+          {
+            date: '2026-05-13',
+            uid: 'occ-2',
+            event_url: 'https://example.com/2',
+            map_url: 'https://maps.app.goo.gl/abc',
+            registration_url: 'https://register.com/2',
+            note: 'West Carleton',
+          },
+        ],
+      },
+    };
+    const data = buildCopyDataFromVevent(v, 'obc');
+    const series = data.series as Record<string, unknown>;
+    const overrides = series.overrides as Array<Record<string, unknown>>;
+    expect(overrides[0].uid).toBe('occ-2');
+    expect(overrides[0].event_url).toBe('https://example.com/2');
+    expect(overrides[0].map_url).toBe('https://maps.app.goo.gl/abc');
+    expect(overrides[0].registration_url).toBe('https://register.com/2');
+    expect(overrides[0].note).toBe('West Carleton');
+  });
+});
