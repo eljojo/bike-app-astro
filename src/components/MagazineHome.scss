@@ -12,13 +12,44 @@
   }
 }
 
-// Section spacing
-.magazine-main > section + section {
-  margin-top: 2.5rem;
+// Section spacing — use flex column with gap so the WeatherNudge section
+// (which is `hidden` until JS lights it up, and may also reposition to
+// the top of main when prominent) doesn't break adjacent-sibling rules.
+// Gap applies between every visible section regardless of how the DOM
+// is reordered or which sections happen to be hidden.
+.magazine-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
 }
 
-.magazine-sidebar > section + section {
-  margin-top: 2rem;
+.magazine-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+// Mobile: flatten the two-column wrappers into the layout grid via
+// display:contents so we can interleave sidebar sections with main ones
+// in scroll-optimised order. Upcoming events lifts above explore so a
+// reader scrolling the homepage on a phone hits "what's on this week"
+// before "routes to ride one day". Desktop layout (the @media above)
+// keeps the two-column main/sidebar split, with desktop section margins
+// still applying.
+@media (max-width: ($breakpoint-tablet - 1px)) {
+  .magazine-main,
+  .magazine-sidebar {
+    display: contents;
+  }
+  // Sections become direct children of the layout grid; the grid's own
+  // `gap: 2.5rem` provides spacing.
+  .magazine-featured    { order: 1; }
+  .magazine-weather     { order: 2; }
+  .magazine-video       { order: 3; }
+  .magazine-events      { order: 4; }
+  .magazine-explore     { order: 5; }
+  .magazine-communities { order: 6; }
+  .magazine-facts       { order: 7; }
 }
 
 // Section headings with accent underline

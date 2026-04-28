@@ -72,6 +72,8 @@ const locale = Astro.currentLocale;
         </section>
       )}
 
+      <WeatherNudge locale={locale} />
+
       {video && (
         <section class="magazine-video">
           <a href={paths.route(video.localeRouteSlug, locale)} class="magazine-video-link">
@@ -238,7 +240,6 @@ const locale = Astro.currentLocale;
         </section>
       )}
 
-      <WeatherNudge locale={locale} />
     </aside>
   </div>
 </div>
