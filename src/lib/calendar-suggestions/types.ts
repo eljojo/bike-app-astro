@@ -37,7 +37,8 @@ export interface ParsedVEvent {
   end?: string;
   location?: string;
   description?: string;
-  url?: string;
+  url?: string;                // event_url (ICS URL property)
+  registration_url?: string;   // typically extracted from DESCRIPTION (e.g. RidewithGPS)
   series?: ParsedSeries;
 }
 

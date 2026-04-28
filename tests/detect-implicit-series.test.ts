@@ -594,3 +594,54 @@ describe('revalidateClusterAfterTrim', () => {
     expect(r).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Codex-found bug reproductions (currently failing — to be fixed)
+// ---------------------------------------------------------------------------
+
+describe('detectImplicitSeries — codex-found bugs', () => {
+  it('emits a cancelled override for a missed cadence date in a weekly cluster', () => {
+    // 4 Wednesdays with 5/20 missing. The multiples-of-modal cadence rule
+    // accepts the 14-day gap as a missed week, so the cluster forms; the
+    // missed week surfaces as a cancelled override (we use the override
+    // mechanism rather than series.skip_dates so the public schedule renders
+    // it with a cancellation badge instead of silently dropping the date).
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },
+      // 5/20 missing
+      { uid: 'c', summary: 'X', dtstart: '20260527T140000Z' },
+      { uid: 'd', summary: 'X', dtstart: '20260603T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.season_start).toBe('2026-05-06');
+    expect(cluster.series?.season_end).toBe('2026-06-03');
+    const missed = cluster.series?.overrides?.find(o => o.date === '2026-05-20');
+    expect(missed).toEqual({ date: '2026-05-20', cancelled: true });
+  });
+
+  it('BUG: clean cluster with no field divergence loses per-occurrence UIDs needed for dedupe', () => {
+    // 4 identical weekly Wednesdays — every field matches the modal, so no
+    // override row "needs" to be emitted for divergence. But losing the
+    // per-occurrence UIDs breaks partial-import dedupe: if the admin imports
+    // b and c as one-offs, the next feed pull has no way to find their UIDs
+    // on the cluster, so the whole series re-suggests including b and c.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    const overrideUids = (cluster.series?.overrides ?? [])
+      .flatMap(o => o.uid ? [o.uid] : [])
+      .sort();
+    expect(overrideUids).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  // Caller-side dissolve bug is captured in build-suggestions-trim.test.ts.
+});

@@ -203,4 +203,97 @@ describe('buildSuggestions — partial-import dedupe (Task 8)', () => {
     expect(suggestions.every(s => s.kind === 'one-off')).toBe(true);
     expect(suggestions.map(s => s.uid).sort()).toEqual(['g', 'h']);
   });
+
+  // -------------------------------------------------------------------------
+  // Codex-found bug reproductions
+  // -------------------------------------------------------------------------
+
+  test('cluster with one divergent occurrence dissolves to one-offs for the rest', async () => {
+    // After the parser fix, every cluster carries a per-occurrence override
+    // row (with at least date+uid) so partial-import dedupe finds every
+    // source UID. Here only b carries a divergent field, but a, c, d still
+    // appear in overrides[] with date+uid only. With b imported, trim
+    // produces 3 surviving one-offs for a, c, d.
+    const cluster: ParsedVEvent = {
+      uid: 'a',
+      summary: 'Sparse Cluster',
+      start: '2026-05-06T10:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-27',
+        overrides: [
+          { date: '2026-05-06', uid: 'a' },
+          { date: '2026-05-13', uid: 'b', location: 'OVERRIDE_PLACE' },
+          { date: '2026-05-20', uid: 'c' },
+          { date: '2026-05-27', uid: 'd' },
+        ],
+      },
+    };
+    const importedB = buildAdminEvent({
+      id: '2026/imported-b',
+      ics_uid: 'b',
+    });
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [importedB],
+      feedCache: inMemoryFeedCache({
+        fetched_at: new Date().toISOString(),
+        source_url: 'https://example.com/feed.ics',
+        events: [cluster],
+      }),
+      fetcher: async () => { throw new Error('cache should serve'); },
+      siteTz: 'America/Toronto',
+      now: new Date('2026-04-30T00:00:00Z'),
+    });
+    // a (master), c, d should each surface as a one-off after the cluster
+    // dissolves below MIN_CLUSTER_SIZE.
+    expect(suggestions.map(s => s.uid).sort()).toEqual(['a', 'c', 'd']);
+  });
+
+  test('clean cluster with all UIDs in overrides dedupes already-imported occurrences', async () => {
+    // After the parser fix, even a "clean" cluster (no diverging fields)
+    // emits one override row per occurrence carrying date+uid. With b and c
+    // imported, trim produces 2 surviving one-offs for a and d.
+    const cleanCluster: ParsedVEvent = {
+      uid: 'a',
+      summary: 'Clean Cluster',
+      start: '2026-05-06T10:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-27',
+        overrides: [
+          { date: '2026-05-06', uid: 'a' },
+          { date: '2026-05-13', uid: 'b' },
+          { date: '2026-05-20', uid: 'c' },
+          { date: '2026-05-27', uid: 'd' },
+        ],
+      },
+    };
+    const importedB = buildAdminEvent({ id: '2026/imp-b', ics_uid: 'b' });
+    const importedC = buildAdminEvent({ id: '2026/imp-c', ics_uid: 'c' });
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [importedB, importedC],
+      feedCache: inMemoryFeedCache({
+        fetched_at: new Date().toISOString(),
+        source_url: 'https://example.com/feed.ics',
+        events: [cleanCluster],
+      }),
+      fetcher: async () => { throw new Error('cache should serve'); },
+      siteTz: 'America/Toronto',
+      now: new Date('2026-04-30T00:00:00Z'),
+    });
+    // Only a and d should remain — b and c were imported.
+    // The cluster has 4 occurrences; trimmed to 2 it falls below
+    // MIN_CLUSTER_SIZE and dissolves into 2 one-offs.
+    expect(suggestions.map(s => s.uid).sort()).toEqual(['a', 'd']);
+  });
 });

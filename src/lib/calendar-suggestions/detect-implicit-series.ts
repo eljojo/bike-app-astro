@@ -252,7 +252,7 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
   const masterLocation = (modalLocation && modalLocationCount / entries.length >= MODAL_PROMOTION_THRESHOLD)
     ? modalLocation : undefined;
 
-  // Modal URL
+  // Modal URL (event_url)
   const urlCounts = new Map<string, number>();
   for (const e of entries) {
     const url = stringPropOrUndefined(e.master.component, 'url');
@@ -267,15 +267,30 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
   const extracted = entries.map(e => extractDescription(e.master.description || undefined));
   const masterDescription = pickModalDescription(extracted) ?? undefined;
 
-  // Build overrides
+  // Per-occurrence registration_url: extracted from DESCRIPTION (e.g.
+  // RidewithGPS event/route links that OBC embeds per-occurrence).
+  const ridewithGpsUrls = entries.map(e => extractRidewithGpsUrl(e.master.description || undefined));
+  const rwgCounts = new Map<string, number>();
+  for (const url of ridewithGpsUrls) if (url) rwgCounts.set(url, (rwgCounts.get(url) ?? 0) + 1);
+  let modalRwg: string | undefined;
+  let modalRwgCount = 0;
+  for (const [u, n] of rwgCounts) if (n > modalRwgCount) { modalRwgCount = n; modalRwg = u; }
+  const masterRegistrationUrl = (modalRwg && modalRwgCount / entries.length >= MODAL_PROMOTION_THRESHOLD)
+    ? modalRwg : undefined;
+
+  // Build per-occurrence overrides — ALWAYS one row per occurrence with at
+  // least date+uid, so partial-import dedupe (build.server.ts repoUids) can
+  // find every source UID. Field-level emission is still selective: a field
+  // only appears on the override when it diverges from the master, so
+  // overrides stay compact when a cluster is "boring".
   type Override = NonNullable<NonNullable<ParsedVEvent['series']>['overrides']>[number];
-  const overrides: Array<{ ovr: Override; outOfCadence: boolean }> = entries.map((e, i) => {
+  const overrideRows: Override[] = entries.map((e, i) => {
     const tod = e.zdt.toPlainTime().toString({ smallestUnit: 'minute' });
     const loc = e.master.location || '';
     const url = stringPropOrUndefined(e.master.component, 'url');
     const desc = extracted[i];
+    const rwg = ridewithGpsUrls[i];
     const cancellation = detectCancellation(e.master.summary, e.master.description || undefined);
-    const outOfCadence = (e.zdt.dayOfWeek % 7) !== modalDow;
     const ovr: Override = {
       date: e.zdt.toPlainDate().toString(),
       uid: e.master.uid,
@@ -283,6 +298,7 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
     if (tod !== modalTod) ovr.start_time = tod;
     if (loc && loc !== masterLocation) ovr.location = loc;
     if (url && url !== masterUrl) ovr.event_url = url;
+    if (rwg && rwg !== masterRegistrationUrl) ovr.registration_url = rwg;
     if (cancellation) {
       ovr.cancelled = true;
       const reasonLabel = cancellation.reason ? ` — ${cancellation.reason}` : '';
@@ -292,21 +308,8 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
     } else if (desc && desc !== masterDescription) {
       ovr.note = desc;
     }
-    return { ovr, outOfCadence };
+    return ovr;
   });
-
-  // Drop overrides that have only date+uid (no actual divergence). Out-of-cadence
-  // entries are kept regardless: their date itself is the divergence.
-  const meaningfulOverrides = overrides
-    .filter(({ ovr, outOfCadence }) =>
-      outOfCadence ||
-      ovr.start_time !== undefined ||
-      ovr.location !== undefined ||
-      ovr.event_url !== undefined ||
-      ovr.note !== undefined ||
-      ovr.cancelled !== undefined,
-    )
-    .map(({ ovr }) => ovr);
 
   const recurrence: 'weekly' | 'biweekly' = modalGap === WEEKLY_DAYS ? 'weekly' : 'biweekly';
   const recurrence_day: RecurrenceDay = DOW_INDEX_TO_NAME[modalDow];
@@ -315,6 +318,21 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
   const seasonStart = first.zdt.toPlainDate().toString();
   const seasonEnd = last.zdt.toPlainDate().toString();
 
+  // Add cancelled overrides for missed cadence dates within the season —
+  // weeks where the cycle says an occurrence should exist but the feed has
+  // none. We use the override mechanism rather than `series.skip_dates` so
+  // the public schedule renders them with a cancellation badge instead of
+  // silently dropping them.
+  const presentDates = new Set(overrideRows.map(o => o.date));
+  for (const cycleDate of cadenceDatesInSeason(seasonStart, seasonEnd, modalGap)) {
+    if (!presentDates.has(cycleDate)) {
+      overrideRows.push({ date: cycleDate, cancelled: true });
+    }
+  }
+
+  // Sort chronologically — cancelled-skip rows landed at the end above.
+  overrideRows.sort((a, b) => a.date.localeCompare(b.date));
+
   return {
     uid: first.master.uid,
     summary: first.master.summary.replace(STATUS_STRIP_RE, '').trim(),
@@ -322,13 +340,14 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
     location: masterLocation,
     description: masterDescription,
     url: masterUrl,
+    registration_url: masterRegistrationUrl,
     series: {
       kind: 'recurrence',
       recurrence,
       recurrence_day,
       season_start: seasonStart,
       season_end: seasonEnd,
-      overrides: meaningfulOverrides.length > 0 ? meaningfulOverrides : undefined,
+      overrides: overrideRows,
     },
   };
 }
@@ -337,6 +356,39 @@ function stringPropOrUndefined(comp: ICAL.Component, name: string): string | und
   const v = comp.getFirstPropertyValue(name);
   if (v == null) return undefined;
   return String(v);
+}
+
+const RIDEWITHGPS_RE = /https?:\/\/(?:www\.)?ridewithgps\.com\/(?:routes|events)\/\d+/i;
+
+/**
+ * Extract a RidewithGPS event/route URL from a per-occurrence DESCRIPTION.
+ * OBC and similar feeds embed the per-week registration link in description
+ * HTML; this becomes the override's registration_url when it diverges from
+ * the master. Returns the first match (descriptions rarely carry more
+ * than one).
+ */
+function extractRidewithGpsUrl(description: string | undefined): string | undefined {
+  if (!description) return undefined;
+  const match = description.match(RIDEWITHGPS_RE);
+  return match ? match[0] : undefined;
+}
+
+/**
+ * Yield each cadence date within `[seasonStart, seasonEnd]` rolled forward
+ * from `seasonStart` in `gapDays` steps. Lexicographic comparison on
+ * YYYY-MM-DD strings matches chronological order. UTC iteration is safe for
+ * 7- and 14-day gaps because integer-day arithmetic on UTC midnights stays
+ * on the same calendar date in any siteTz.
+ */
+function cadenceDatesInSeason(seasonStart: string, seasonEnd: string, gapDays: number): string[] {
+  const out: string[] = [];
+  let cur = seasonStart;
+  while (cur <= seasonEnd) {
+    out.push(cur);
+    const t = new Date(cur + 'T00:00:00Z').getTime() + gapDays * 24 * 3600 * 1000;
+    cur = new Date(t).toISOString().slice(0, 10);
+  }
+  return out;
 }
 
 /**
