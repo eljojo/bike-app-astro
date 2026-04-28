@@ -105,12 +105,20 @@ const locale = Astro.currentLocale;
       }
     }
 
-    function emit() {
+    // `meta` carries which tag the user touched and what kind of change it
+    // was, so consumers can fire analytics only on adds (or distinguish
+    // 'init' from real interactions).
+    function emit(meta) {
       const activeTags = getActiveTags();
       const enabledSlugs = computeEnabledSlugs(activeTags);
       applyDimming(activeTags, enabledSlugs);
       root.dispatchEvent(new CustomEvent('tagfilter:change', {
-        detail: { enabledSlugs, activeTags },
+        detail: {
+          enabledSlugs,
+          activeTags,
+          action: meta?.action ?? 'init',
+          lastChangedTag: meta?.lastChangedTag,
+        },
         bubbles: false,
       }));
     }
@@ -119,23 +127,34 @@ const locale = Astro.currentLocale;
       const btn = e.target.closest('.tag-filter--btn');
       if (!btn) return;
 
+      let action;
+      let lastChangedTag;
       if (btn.classList.contains('tag-filter--all')) {
         // "All" clears every other filter.
         for (const b of root.querySelectorAll('.tag-filter--btn')) b.classList.remove('active');
         btn.classList.add('active');
+        action = 'clear';
       } else {
+        const wasActive = btn.classList.contains('active');
         btn.classList.toggle('active');
         allBtn?.classList.remove('active');
         if (getActiveTags().length === 0) allBtn?.classList.add('active');
+        action = wasActive ? 'remove' : 'add';
+        lastChangedTag = btn.dataset.tag;
       }
       syncUrl(getActiveTags());
-      emit();
+      emit({ action, lastChangedTag });
     });
 
     // Initial paint: consumers attach their listener in <script> tags later
-    // in the document. Microtasks drain between synchronous script blocks
-    // (so they'd fire too early); defer to a macrotask via setTimeout so we
-    // emit AFTER the rest of the page's inline scripts have run.
-    setTimeout(emit, 0);
+    // in the document. Wait for DOMContentLoaded so every inline listener
+    // has had a chance to register before we fire the first event —
+    // otherwise a deep-link like /calendar?tags=gravel would set the pill
+    // active but never tell the consumer to filter.
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', emit, { once: true });
+    } else {
+      emit();
+    }
   })();
 </script>

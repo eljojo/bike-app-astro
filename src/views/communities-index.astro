@@ -9,6 +9,8 @@ import { getCityConfig } from '@/lib/config/city-config';
 import { t, localePath } from '@/i18n';
 import { paths } from '@/lib/paths';
 import { hasDetailPage, isBikeShop } from '@/lib/models/organizer-model';
+import TagFilter from '@/components/TagFilter.astro';
+import { canonicalTags } from '@/lib/event-tags';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -37,6 +39,42 @@ const sorted = organizers
 
 const communities = sorted.filter(org => !isBikeShop(org));
 
+// Build the filter's items map: per organizer, the union of their own
+// `tags` field and the tags carried by any event they host. Canonicalised
+// so synonyms collapse (e.g. social → social-ride). Org-level tags are
+// curated (a community signals its identity); event-level tags are richer
+// but noisier — combining them gives a useful "communities that do X"
+// surface without depending on every org filling out a tag list.
+const eventsByOrgSlug = new Map<string, string[][]>();
+for (const event of events) {
+  const orgId = typeof event.data.organizer === 'string' ? event.data.organizer : undefined;
+  if (!orgId) continue;
+  const list = eventsByOrgSlug.get(orgId) ?? [];
+  list.push(event.data.tags ?? []);
+  eventsByOrgSlug.set(orgId, list);
+}
+
+const orgTagsBySlug: Record<string, string[]> = {};
+for (const org of communities) {
+  const own = org.data.tags ?? [];
+  const fromEvents = (eventsByOrgSlug.get(org.id) ?? []).flat();
+  orgTagsBySlug[org.id] = canonicalTags([...own, ...fromEvents]);
+}
+
+const COMMUNITY_FILTER_TAGS_TO_AVOID = ['bike-shop', 'featured', 'hidden', 'seasonal'];
+const communityTagCounts = new Map<string, number>();
+for (const tags of Object.values(orgTagsBySlug)) {
+  for (const tag of tags) {
+    communityTagCounts.set(tag, (communityTagCounts.get(tag) ?? 0) + 1);
+  }
+}
+const communityFilterTags = [...communityTagCounts.entries()]
+  .sort((a, b) => a[1] - b[1])
+  .map(([tag]) => tag)
+  .filter(tag => !COMMUNITY_FILTER_TAGS_TO_AVOID.includes(tag))
+  .slice(-14)
+  .sort();
+
 import { breadcrumbJsonLd } from '@/lib/json-ld';
 const breadcrumbs = breadcrumbJsonLd([
   { name: t('nav.home', locale), url: `${config.url}${localePath('/', locale)}` },
@@ -53,9 +91,37 @@ const breadcrumbs = breadcrumbJsonLd([
   <h1>{t('communities.title', locale)}</h1>
   <p class="communities-intro">{t('communities.intro', locale)}</p>
 
+  {communityFilterTags.length > 0 && (
+    <TagFilter id="communities-filter" tags={communityFilterTags} items={orgTagsBySlug} urlParam="tags" />
+  )}
+
   <div class="communities-grid">
     {communities.map(org => (
       <CommunityCard org={org} locale={locale} eventCount={eventCounts.get(org.id) || 0} />
     ))}
   </div>
+
+  <script>
+    const filterRoot = document.getElementById('communities-filter');
+    filterRoot?.addEventListener('tagfilter:change', (e: Event) => {
+      const detail = (e as CustomEvent<{
+        enabledSlugs: string[];
+        activeTags: string[];
+        action: 'init' | 'add' | 'remove' | 'clear';
+        lastChangedTag?: string;
+      }>).detail;
+      const enabled = new Set(detail.enabledSlugs);
+      document.querySelectorAll<HTMLElement>('.communities-grid .community-card').forEach(card => {
+        const slug = card.dataset.organizerSlug ?? '';
+        card.style.display = enabled.has(slug) ? '' : 'none';
+      });
+      if (detail.action === 'add' && detail.lastChangedTag) {
+        window.BikeApp?.tE?.('Communities: Tag Filter', { props: { tagName: detail.lastChangedTag } });
+      } else if (detail.action === 'init') {
+        for (const tag of detail.activeTags) {
+          window.BikeApp?.tE?.('Communities: Tag Filter', { props: { tagName: tag } });
+        }
+      }
+    });
+  </script>
 </Base>

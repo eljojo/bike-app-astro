@@ -33,6 +33,7 @@ const handle = showHandle ? organizerInstagram(org.data) : undefined;
 <a
   href={link}
   class:list={['community-card', { 'community-card--has-cover': !!cover }]}
+  data-organizer-slug={org.id}
   {...(isExternal ? { target: '_blank', rel: 'noopener' } : {})}
 >
   {cover && (

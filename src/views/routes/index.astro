@@ -78,10 +78,14 @@ const suggestKey = published.length < 5
     document.querySelectorAll<HTMLElement>('.route-card').forEach(card => {
       card.style.display = enabled.has(card.dataset.slug ?? '') ? '' : 'none';
     });
-    if (detail.activeTags.length > 0) {
-      // Last-clicked tag isn't carried in the event detail; report the most
-      // recent active tag for analytics. Empty string when nothing's active.
-      window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: detail.activeTags[detail.activeTags.length - 1] } });
+    if (detail.action === 'add' && detail.lastChangedTag) {
+      window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: detail.lastChangedTag } });
+    } else if (detail.action === 'init') {
+      // Visiting /routes?tags=foo,bar fires one event per pre-enabled tag —
+      // the URL is effectively a series of "tag enabled" actions.
+      for (const tag of detail.activeTags) {
+        window.BikeApp?.tE?.('Routes: Tag Filter', { props: { tagName: tag } });
+      }
     }
   });
 </script>

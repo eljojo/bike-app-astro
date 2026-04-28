@@ -30,7 +30,7 @@ const startLabel = start.toLocaleDateString(fmtLocale, { month: 'long', day: 'nu
   <a href={paths.event(eventId, locale)} class={`seasonal-banner ${isActive ? 'seasonal-banner--active' : 'seasonal-banner--upcoming'}`}>
     <div class="seasonal-banner-content">
       <strong class="seasonal-banner-title">
-        {isActive ? name : t('calendar.seasonal_starts', locale, { date: startLabel })}
+        {isActive ? name : t('calendar.seasonal_starts', locale, { name, date: startLabel })}
       </strong>
       {bannerText && <span class="seasonal-banner-text">{bannerText}</span>}
     </div>

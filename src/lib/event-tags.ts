@@ -35,6 +35,32 @@ export function tagPillColor(tag: string): TagColor {
 	return TAG_COLORS[tag] ?? FALLBACK;
 }
 
+/**
+ * Synonyms for filtering and counting purposes only — the underlying YAML
+ * keeps whatever tag the author wrote, so `social` and `social-ride` stay
+ * literal in `event.data.tags`. The filter UI collapses them onto the
+ * canonical form on the right-hand side of this map so a click on the
+ * canonical pill matches events tagged with either form.
+ *
+ * Add an entry when two tags are clearly the same idea expressed differently
+ * (writer drift). Don't use this to merge near-relatives that should stay
+ * distinct (`brevet` vs `gran-fondo` are similar but not synonyms).
+ */
+export const TAG_SYNONYMS: Record<string, string> = {
+	'social': 'social-ride',
+	'youth': 'family-friendly',
+};
+
+/** Map a raw tag onto its canonical form for filtering/counting purposes. */
+export function canonicalTag(tag: string): string {
+	return TAG_SYNONYMS[tag] ?? tag;
+}
+
+/** Apply `canonicalTag` across an array, deduping the result. */
+export function canonicalTags(tags: string[]): string[] {
+	return [...new Set(tags.map(canonicalTag))];
+}
+
 export type EventSection = 'seasonal' | 'community' | 'learn-connect' | 'general';
 
 const COMMUNITY_TAGS = new Set(['social', 'group-ride', 'critical-mass']);
