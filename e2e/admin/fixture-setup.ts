@@ -324,6 +324,36 @@ A fun cycling festival for the whole family.
 `
   );
 
+  // dup-source: owned by events.spec.ts (Event Duplication test).
+  // Carries every field the duplicate flow is supposed to forward, so the
+  // test can assert each one survives copyData → EventCreator → save. Name
+  // ("Dup Source") slugifies back to its filename so duplicating with the
+  // same name forces the slug-collision path.
+  fs.writeFileSync(
+    path.join(eventDir, 'dup-source.md'),
+    `---
+name: Dup Source
+start_date: "2099-10-01"
+start_time: "10:00"
+meet_time: "09:30"
+location: Hilltop Plaza
+distances: "50km, 100km"
+registration_url: https://example.com/register
+review_url: https://example.com/review
+event_url: https://example.com/event
+map_url: https://example.com/map
+edition: "5th"
+organizer: cycling-club
+tags:
+  - test-tag-alpha
+  - test-tag-beta
+previous_event: 2099/dup-source-prior
+---
+
+A rich event used to verify duplicate-flow field forwarding.
+`
+  );
+
   // event-edit: owned by events.spec.ts (edit test)
   fs.writeFileSync(
     path.join(eventDir, 'event-edit.md'),

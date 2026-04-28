@@ -243,6 +243,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       media: (source.media as EventDetail['media']) || [],
       series: source.series as EventDetail['series'],
       ics_uid: source.ics_uid as string | undefined,
+      previous_event: source.previous_event as string | undefined,
       isNew: true,
     };
   }

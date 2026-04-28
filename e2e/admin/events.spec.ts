@@ -155,12 +155,15 @@ test.describe('Event Duplication', () => {
   });
 
   test.beforeEach(() => {
-    // Source ("Bike Fest" → bike-fest) is read-only; reset its commit state and
-    // anything our save side-effects may have left behind across retries.
+    // Sources are read-only; reset cache + duplicate-target slots so retries
+    // and prior runs don't bleed into the next attempt.
     clearContentEdits('events', '2099/bike-fest');
     clearContentEdits('events', '2099/bike-fest-2');
+    clearContentEdits('events', '2099/dup-source');
+    clearContentEdits('events', '2099/dup-source-2');
     cleanupCreatedFiles([
       'demo/events/2099/bike-fest-2.md',
+      'demo/events/2099/dup-source-2.md',
       // Leftover from earlier broken-test runs that picked the wrong source
       'demo/events/2099/editable-event.md',
     ]);
@@ -212,10 +215,57 @@ test.describe('Event Duplication', () => {
     const { data: fm } = matter(fs.readFileSync(newPath, 'utf-8'));
     expect(fm.name).toBe('Bike Fest');
     expect(fm.start_date).toBe('2099-08-15');
+    // Codex finding: server-side copyData sets previous_event = source id, but
+    // EventCreator was dropping it on the way to EventEditor. The new event must
+    // record its lineage back to the source.
+    expect(fm.previous_event).toBe('2099/bike-fest');
 
     // Original must remain untouched
     const sourcePath = path.join(FIXTURE_DIR, 'demo/events/2099/bike-fest.md');
     const { data: sourceFm } = matter(fs.readFileSync(sourcePath, 'utf-8'));
     expect(sourceFm.start_date).toBe('2099-06-15');
+  });
+
+  test('duplicate forwards meet_time, review_url, tags, distances, edition, and URLs into the new event', async ({ page }) => {
+    await loginAs(page, token);
+
+    await page.goto('/admin/events');
+    await page.waitForLoadState('networkidle');
+
+    const row = page.locator('.event-list-item', {
+      has: page.locator('a.event-list-link[href="/admin/events/2099/dup-source"]'),
+    });
+    await row.locator('.event-copy-btn').click();
+
+    await page.waitForURL(/\/admin\/events\/new\?.*\bfull=1\b/);
+    await waitForHydration(page);
+
+    await expect(page.locator('#event-name')).toHaveValue('Dup Source');
+    await page.locator('#event-start-date').fill('2099-11-15');
+
+    await page.locator('button.btn-primary', { hasText: 'Save' }).click();
+    await page.waitForURL('**/admin/events/2099/dup-source-2', { timeout: 10000 });
+
+    const newPath = path.join(FIXTURE_DIR, 'demo/events/2099/dup-source-2.md');
+    const { data: fm } = matter(fs.readFileSync(newPath, 'utf-8'));
+
+    // Fields that copyData previously dropped — these all came from the source
+    expect(fm.meet_time).toBe('09:30');
+    expect(fm.review_url).toBe('https://example.com/review');
+    expect(fm.tags).toEqual(['test-tag-alpha', 'test-tag-beta']);
+    expect(fm.distances).toBe('50km, 100km');
+    expect(fm.edition).toBe('5th');
+    expect(fm.event_url).toBe('https://example.com/event');
+    expect(fm.map_url).toBe('https://example.com/map');
+    expect(fm.start_time).toBe('10:00');
+    expect(fm.location).toBe('Hilltop Plaza');
+    expect(fm.registration_url).toBe('https://example.com/register');
+
+    // Lineage points to the source we duplicated from, not the source's own
+    // previous_event chain (the new event starts a new branch from this source).
+    expect(fm.previous_event).toBe('2099/dup-source');
+
+    // Date came from user input, not from source
+    expect(fm.start_date).toBe('2099-11-15');
   });
 });
