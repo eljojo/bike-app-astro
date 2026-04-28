@@ -117,7 +117,14 @@ export function pickModalDescription(descriptions: Array<string | null>): string
 
 const MIN_CLUSTER_SIZE = 4;
 const MODAL_DOW_THRESHOLD = 0.8;
-const MAX_GAP_DAYS = 60;
+// 42 days = 6 weeks. Splits at gaps that signal an off-season break while
+// preserving runs with up to two consecutive missed biweekly cycles
+// (max plausible "missed" gap before the absence reads as off-season).
+// Original 60d was too lenient: it merged biweekly winter + weekly spring
+// in calendars that have a short off-season (e.g. #ottbikesocial 2026:
+// 2/19 → 4/16 = 56d gap), classifying the whole thing as weekly with
+// phantom cancelled-skip rows for both off-weeks and off-season weeks.
+const MAX_GAP_DAYS = 42;
 const WEEKLY_DAYS = 7;
 const BIWEEKLY_DAYS = 14;
 
