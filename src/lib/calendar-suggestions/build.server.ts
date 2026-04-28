@@ -73,13 +73,17 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
 
   const withFeed = organizers.filter(o => o.ics_url);
 
-  // Includes BOTH the top-level `ics_uid` AND each per-occurrence override
-  // UID. Without the override UIDs, a partially-imported series would
-  // re-suggest its non-overlapping occurrences as one-offs (Task 8).
+  // Includes the top-level `ics_uid` AND each per-occurrence UID carried on
+  // either `series.overrides[].uid` (recurrence-style series) or
+  // `series.schedule[].uid` (explicit schedule, e.g. a Bushtukah workshop
+  // series with two listed dates). Without this, a partially-imported series
+  // re-suggests its non-overlapping occurrences as one-offs and the admin
+  // unknowingly creates duplicates of dates already covered by the series.
   const repoUids = new Set(repoEvents.flatMap(e => {
     const top = e.ics_uid ? [e.ics_uid] : [];
     const overrides = e.series?.overrides?.flatMap(o => o.uid ? [o.uid] : []) ?? [];
-    return [...top, ...overrides];
+    const schedule = e.series?.schedule?.flatMap(s => s.uid ? [s.uid] : []) ?? [];
+    return [...top, ...overrides, ...schedule];
   }));
   const repoOrgDates = new Set(
     repoEvents.flatMap(e => {

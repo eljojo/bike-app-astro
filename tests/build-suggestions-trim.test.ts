@@ -125,6 +125,46 @@ describe('buildSuggestions — partial-import dedupe (Task 8)', () => {
     expect(suggestions).toEqual([]);
   });
 
+  test('hides one-off suggestions whose UID is on the repo series.schedule (not just overrides)', async () => {
+    // Repro for the Bushtukah workshop bug: the upstream feed emits each
+    // occurrence as a separate one-off VEVENT (Tockify-style — no RRULE).
+    // The repo carries them under series.schedule with their UIDs. Without
+    // schedule-UID dedupe the second occurrence re-suggests as a one-off and
+    // the admin creates a duplicate event file.
+    const importedSeries = buildAdminEvent({
+      id: '2026/flat-repair-workshop',
+      slug: 'flat-repair-workshop',
+      ics_uid: 'tkf-493',
+      organizer: 'bushtukah',
+      series: {
+        schedule: [
+          { date: '2026-05-07', uid: 'tkf-493' },
+          { date: '2026-06-04', uid: 'tkf-494' },
+        ],
+      },
+    });
+    const oneOffsFeed: ParsedFeed = {
+      fetched_at: new Date().toISOString(),
+      source_url: 'https://example.com/feed.ics',
+      events: [
+        { uid: 'tkf-493', summary: 'Flat Repair Workshop', start: '2026-05-07T17:30:00' },
+        { uid: 'tkf-494', summary: 'Flat Repair Workshop', start: '2026-06-04T17:30:00' },
+      ],
+    };
+    const suggestions = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'bushtukah', name: 'Bushtukah', ics_url: 'https://example.com/feed.ics' }],
+      repoEvents: [importedSeries],
+      feedCache: inMemoryFeedCache(oneOffsFeed),
+      fetcher: async () => { throw new Error('cache should serve'); },
+      siteTz: 'America/Toronto',
+      now: new Date('2026-04-30T00:00:00Z'),
+    });
+    // Both occurrences are already represented by the schedule series; neither
+    // should re-surface as a suggestion.
+    expect(suggestions).toEqual([]);
+  });
+
   test('emits a trimmed series when the repo only covers some occurrence UIDs (every other → biweekly)', async () => {
     // Imported event has uids a,c,e,g (every other Wednesday). The feed
     // cluster's top-level uid is 'a', so isAlreadyInRepo would short-circuit
