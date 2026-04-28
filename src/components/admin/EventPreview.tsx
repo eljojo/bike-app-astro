@@ -49,11 +49,11 @@ export default function EventPreview({
       : startDate;
     facts.push(['Date', dateStr]);
   }
+  if (meetTime) facts.push(['Meet time', meetTime]);
   if (startTime) {
     const timeStr = endTime ? `${startTime} — ${endTime}` : startTime;
-    facts.push(['Time', timeStr]);
+    facts.push([meetTime ? 'Ride time' : 'Start time', timeStr]);
   }
-  if (meetTime) facts.push(['Meet time', meetTime]);
   if (location) facts.push(['Location', location]);
   if (organizer) facts.push(['Organizer', organizer]);
   if (distances) facts.push(['Distances', distances]);

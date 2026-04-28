@@ -315,7 +315,8 @@ function seriesPatternLabel(): string | undefined {
       // Find first occurrence to get a real date for this day name
       seriesOccurrences[0]?.date || '2026-01-01'
     ).toLocaleString(locale || 'en-CA', { weekday: 'long' });
-    const timeStr = data.start_time ? formatTime(data.start_time, locale) : '';
+    const summaryTime = data.meet_time || data.start_time;
+    const timeStr = summaryTime ? formatTime(summaryTime, locale) : '';
     const key = series.recurrence === 'biweekly' ? 'events.series_every_two_weeks' : 'events.series_every_week';
     return t(key, locale, { day: localizedDay, time: timeStr });
   }
@@ -472,14 +473,17 @@ function editionDateLabel(startDate: string, loc?: string): string {
           </ul>
         )}
 
-        {nextOccurrence && (
-          <div class="event-series-next-ride">
-            <strong>{eventNextLabel(tags, locale)}:</strong>{' '}
-            {formatOccurrenceDateLong(nextOccurrence.date)}
-            {nextOccurrence.start_time && ` \u00b7 ${formatTime(nextOccurrence.start_time, locale)}`}
-            {nextOccurrence.location && ` \u00b7 ${nextOccurrence.location}`}
-          </div>
-        )}
+        {nextOccurrence && (() => {
+          const summaryTime = nextOccurrence.meet_time || nextOccurrence.start_time;
+          return (
+            <div class="event-series-next-ride">
+              <strong>{eventNextLabel(tags, locale)}:</strong>{' '}
+              {formatOccurrenceDateLong(nextOccurrence.date)}
+              {summaryTime && ` \u00b7 ${formatTime(summaryTime, locale)}`}
+              {nextOccurrence.location && ` \u00b7 ${nextOccurrence.location}`}
+            </div>
+          );
+        })()}
 
         <div class="event-detail-facts">
           <dl class="event-detail-facts-grid">
@@ -704,10 +708,12 @@ function editionDateLabel(startDate: string, loc?: string): string {
 
           {upcomingOccurrences.length > 0 && (
             <ul class="event-series-dates">
-              {upcomingOccurrences.map((occ: SeriesOccurrence) => (
+              {upcomingOccurrences.map((occ: SeriesOccurrence) => {
+                const occTime = occ.meet_time || occ.start_time;
+                return (
                 <li class={`event-series-date-item ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                   <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
-                  {occ.start_time && <span class="event-series-date-time">{formatTime(occ.start_time, locale)}</span>}
+                  {occTime && <span class="event-series-date-time">{formatTime(occTime, locale)}</span>}
                   {occ.location && <span class="event-series-date-location">{occ.location}</span>}
                   {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                   {occ.rescheduled_from && (
@@ -717,7 +723,8 @@ function editionDateLabel(startDate: string, loc?: string): string {
                   )}
                   {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
 

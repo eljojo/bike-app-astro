@@ -8,7 +8,7 @@ vi.mock('../src/lib/auth/rate-limit', () => ({ checkRateLimit: vi.fn(), recordAt
 vi.mock('../src/lib/media/storage.adapter-r2', () => ({ generateMediaKey: vi.fn(), confirmUpload: vi.fn() }));
 vi.mock('../src/lib/content/load-admin-content.server', () => ({ fetchJson: vi.fn() }));
 
-import { buildDraft, htmlToText, extractSeriesFromText } from '../src/views/api/event-draft';
+import { buildDraft, htmlToText, extractSeriesFromText, parseAiResponse } from '../src/views/api/event-draft';
 
 const organizers = [
   { slug: 'ottawa-bicycle-club', name: 'Ottawa Bicycle Club', website: 'https://ottawabicycleclub.ca', instagram: 'ottawabicycleclub' },
@@ -16,67 +16,81 @@ const organizers = [
 ];
 
 describe('buildDraft organizer resolution', () => {
-  it('preserves extracted website when organizer matches a known slug', () => {
+  it('emits a bare slug string when AI matches a known organizer', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Spring Ride', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      organizer: { slug: 'ottawa-bicycle-club', name: 'Ottawa Bicycle Club', c: 9 },
+    }, organizers);
+
+    expect(draft.organizer).toBe('ottawa-bicycle-club');
+  });
+
+  it('uses the slug from organizers registry even when AI name differs', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Some Race', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      organizer: { slug: 'bike-ottawa', name: 'Bike Ottawa Coalition', c: 9 },
+    }, organizers);
+
+    expect(draft.organizer).toBe('bike-ottawa');
+  });
+
+  it('rejects unknown slug from AI and falls back to fuzzy match by name', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Spring Ride', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      organizer: { slug: 'nonexistent-slug', name: 'Ottawa Bicycle Club', c: 9 },
+    }, organizers);
+
+    expect(draft.organizer).toBe('ottawa-bicycle-club');
+  });
+
+  it('falls back to fuzzy match when AI provides only a legacy {value, c} shape', () => {
     const { draft } = buildDraft({
       name: { value: 'Spring Ride', c: 9 },
       start_date: { value: '2026-05-01', c: 9 },
       organizer: { value: 'Ottawa Bicycle Club', c: 8 },
+    }, organizers);
+
+    expect(draft.organizer).toBe('ottawa-bicycle-club');
+  });
+
+  it('does not overlay AI-extracted website on a matched organizer', () => {
+    // Saving a matched organizer would write fields back to its canonical file
+    // (event-save.ts:188+). A page-specific URL must not leak into the global org.
+    const { draft } = buildDraft({
+      name: { value: 'Spring Ride', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      organizer: { slug: 'ottawa-bicycle-club', name: 'Ottawa Bicycle Club', c: 9 },
       organizer_website: { value: 'https://springride.ca', c: 7 },
+      organizer_instagram: { value: 'springride', c: 7 },
     }, organizers);
 
-    // The organizer should be an inline object, not a bare slug string
-    expect(typeof draft.organizer).not.toBe('string');
-    const org = draft.organizer as Record<string, string>;
-    expect(org.name).toBe('Ottawa Bicycle Club');
-    expect(org.website).toBe('https://springride.ca');
+    expect(draft.organizer).toBe('ottawa-bicycle-club');
   });
 
-  it('preserves extracted instagram when organizer matches a known slug', () => {
-    const { draft } = buildDraft({
-      name: { value: 'Fall Ride', c: 9 },
-      start_date: { value: '2026-10-01', c: 9 },
-      organizer: { value: 'Bike Ottawa', c: 8 },
-      organizer_instagram: { value: 'bikeottawa', c: 7 },
-    }, organizers);
-
-    expect(typeof draft.organizer).not.toBe('string');
-    const org = draft.organizer as Record<string, string>;
-    expect(org.name).toBe('Bike Ottawa');
-    expect(org.instagram).toBe('bikeottawa');
-  });
-
-  it('includes known organizer fields when no extracted fields provided', () => {
-    const { draft } = buildDraft({
-      name: { value: 'Summer Ride', c: 9 },
-      start_date: { value: '2026-07-01', c: 9 },
-      organizer: { value: 'Ottawa Bicycle Club', c: 8 },
-    }, organizers);
-
-    expect(typeof draft.organizer).not.toBe('string');
-    const org = draft.organizer as Record<string, string>;
-    expect(org.name).toBe('Ottawa Bicycle Club');
-    expect(org.website).toBe('https://ottawabicycleclub.ca');
-  });
-
-  it('builds inline object for unmatched organizer', () => {
+  it('builds inline object for unmatched organizer with extracted contact info', () => {
     const { draft } = buildDraft({
       name: { value: 'New Event', c: 9 },
       start_date: { value: '2026-06-01', c: 9 },
-      organizer: { value: 'Some New Club', c: 8 },
+      organizer: { name: 'Some Brand New Club', c: 8 },
       organizer_website: { value: 'https://newclub.ca', c: 7 },
+      organizer_instagram: { value: 'newclub', c: 7 },
     }, organizers);
 
-    expect(typeof draft.organizer).not.toBe('string');
+    expect(typeof draft.organizer).toBe('object');
     const org = draft.organizer as Record<string, string>;
-    expect(org.name).toBe('Some New Club');
+    expect(org.name).toBe('Some Brand New Club');
     expect(org.website).toBe('https://newclub.ca');
+    expect(org.instagram).toBe('newclub');
   });
 
-  it('does not leak organizer_website or organizer_instagram to draft', () => {
+  it('does not leak organizer_website or organizer_instagram to top-level draft', () => {
     const { draft } = buildDraft({
       name: { value: 'Test Event', c: 9 },
       start_date: { value: '2026-06-01', c: 9 },
-      organizer: { value: 'Some Club', c: 8 },
+      organizer: { name: 'Some Club', c: 8 },
       organizer_website: { value: 'https://example.com', c: 7 },
       organizer_instagram: { value: 'someclub', c: 7 },
     }, organizers);
@@ -97,14 +111,24 @@ describe('buildDraft tag extraction', () => {
     expect(draft.tags).toEqual(['gravel', 'race']);
   });
 
-  it('filters out invalid tags', () => {
+  it('accepts tags from knownTags in addition to EVENT_TAG_SLUGS', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Family BMX Day', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      tags: ['race', 'family-friendly', 'bmx'],
+    }, organizers, ['family-friendly', 'bmx', 'mountain-bike']);
+
+    expect(draft.tags).toEqual(['race', 'family-friendly', 'bmx']);
+  });
+
+  it('filters out tags that are not in EVENT_TAG_SLUGS or knownTags', () => {
     const { draft } = buildDraft({
       name: { value: 'Fun Ride', c: 9 },
       start_date: { value: '2026-05-01', c: 9 },
-      tags: ['social', 'invented-tag', 'group-ride'],
-    }, organizers);
+      tags: ['social', 'invented-tag', 'group-ride', 'family-friendly'],
+    }, organizers, ['family-friendly']);
 
-    expect(draft.tags).toEqual(['social', 'group-ride']);
+    expect(draft.tags).toEqual(['social', 'group-ride', 'family-friendly']);
   });
 
   it('omits tags field when no valid tags', () => {
@@ -445,5 +469,48 @@ Stage 2: May 24 \u2013 Park B`;
     const schedule = extractSeriesFromText(text, '2026');
     expect(schedule).toHaveLength(2);
     expect(schedule![0]).toEqual({ date: '2026-05-10', location: 'Park A' });
+  });
+});
+
+describe('buildDraft organizer edge cases', () => {
+  it('treats fake-slug + unmatched name as a custom organizer', () => {
+    const { draft } = buildDraft({
+      name: { value: 'Some Event', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      organizer: { slug: 'nonexistent-slug', name: 'Brand New Mystery Org', c: 7 },
+    }, organizers);
+
+    expect(typeof draft.organizer).toBe('object');
+    const org = draft.organizer as Record<string, string>;
+    expect(org.name).toBe('Brand New Mystery Org');
+  });
+
+  it('keeps short ambiguous names as custom (no acronym expansion)', () => {
+    // Fuzzy match does not expand acronyms; "OBC" should not auto-resolve to
+    // "Ottawa Bicycle Club". It stays custom and gets flagged as uncertain.
+    const { draft, uncertain } = buildDraft({
+      name: { value: 'Some Race', c: 9 },
+      start_date: { value: '2026-05-01', c: 9 },
+      organizer: { name: 'OBC', c: 5 },
+    }, organizers);
+
+    expect(typeof draft.organizer).toBe('object');
+    const org = draft.organizer as Record<string, string>;
+    expect(org.name).toBe('OBC');
+    expect(uncertain).toContain('organizer');
+  });
+});
+
+describe('parseAiResponse organizer recovery in malformed JSON', () => {
+  it('recovers the new {slug, name, c} shape from malformed JSON', () => {
+    const malformed = '{"name":{"value":"Race","c":9},"organizer":{"slug":"nepean-bmx","name":"Nepean BMX","c":9},,,broken}';
+    const result = parseAiResponse(malformed);
+    expect(result.organizer).toEqual({ slug: 'nepean-bmx', name: 'Nepean BMX', c: 9 });
+  });
+
+  it('recovers the legacy {value, c} shape from malformed JSON', () => {
+    const malformed = '{"name":{"value":"Race","c":9},"organizer":{"value":"Ottawa Bicycle Club","c":8},,,broken}';
+    const result = parseAiResponse(malformed);
+    expect(result.organizer).toEqual({ name: 'Ottawa Bicycle Club', c: 8 });
   });
 });

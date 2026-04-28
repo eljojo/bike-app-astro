@@ -21,13 +21,14 @@ const TEXT_MODEL = VISION_MODEL;
 
 const FIELD_SPEC = `Return this exact JSON structure (omit fields you cannot find at all):
 
-{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"meet_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"value":"organizer name","c":6},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4},"tags":["tag1","tag2"],"series":{"schedule":[{"date":"YYYY-MM-DD","location":"optional"}],"recurrence":"weekly or biweekly","recurrence_day":"day name","season_start":"YYYY-MM-DD","season_end":"YYYY-MM-DD"}}
+{"name":{"value":"event name","c":9},"start_date":{"value":"YYYY-MM-DD","c":8},"end_date":{"value":"YYYY-MM-DD","c":7},"start_time":{"value":"HH:MM","c":6},"end_time":{"value":"HH:MM","c":5},"meet_time":{"value":"HH:MM","c":5},"location":{"value":"location","c":8},"distances":{"value":"e.g. 50km, 100km","c":7},"organizer":{"slug":"matching-organizer-slug","name":"organizer name","c":7},"organizer_website":{"value":"URL","c":5},"organizer_instagram":{"value":"handle without @","c":5},"registration_url":{"value":"signup URL","c":5},"event_url":{"value":"event homepage URL","c":5},"map_url":{"value":"route map URL","c":5},"edition":{"value":"e.g. 53rd, 2026","c":5},"review_url":{"value":"ride report or review URL","c":4},"tags":["tag1","tag2"],"series":{"schedule":[{"date":"YYYY-MM-DD","location":"optional"}],"recurrence":"weekly or biweekly","recurrence_day":"day name","season_start":"YYYY-MM-DD","season_end":"YYYY-MM-DD"}}
 
 Rules:
 - "c" is your confidence from 0 to 10 (integer)
 - Dates must be YYYY-MM-DD, times must be HH:MM in 24h format
 - Omit fields entirely if not found (do NOT use empty strings or "null")
-- "tags" is a plain array of tag slugs (not {value,c}). Only use tags from the provided list. Omit if none clearly apply.
+- "organizer": always include "name". ONLY include "slug" if it is one of the slugs listed in the Known organizers section below — if the organizer matches one, set "slug" to that exact slug verbatim. Do NOT invent, transform, or guess slugs. If you are unsure or the organizer is not on that list, omit "slug" and leave "name" as the extracted text.
+- "tags" is a plain array of tag slugs (not {value,c}). Use ONLY tags from the provided Known tags list. Be conservative — only include a tag when it is a clear, unambiguous match for the event. When in doubt, omit it.
 - URLs must have proper JSON escaping (escape backslashes and quotes)
 - "meet_time" is separate from "start_time" — e.g. "meet 6:45, roll 7:00" means meet_time=18:45, start_time=19:00
 - "series" — IMPORTANT: include this whenever the page lists 2 or more dates for related events (race stages, weekly rides, a multi-day series, etc.):
@@ -42,17 +43,17 @@ Rules:
 
 Examples:
 
-1) Simple one-off event:
-{"name":{"value":"Spring Bike Day","c":9},"start_date":{"value":"2026-05-23","c":9},"start_time":{"value":"10:00","c":8},"end_time":{"value":"15:00","c":7},"location":{"value":"City Hall Plaza","c":9},"organizer":{"value":"City Cycling Coalition","c":8},"tags":["family-friendly"]}
+1) Simple one-off event with an organizer NOT in the known list (omit slug):
+{"name":{"value":"Spring Bike Day","c":9},"start_date":{"value":"2026-05-23","c":9},"start_time":{"value":"10:00","c":8},"end_time":{"value":"15:00","c":7},"location":{"value":"City Hall Plaza","c":9},"organizer":{"name":"City Cycling Coalition","c":8},"tags":["family-friendly"]}
 
-2) Recurring weekly event with a season range (no individual dates listed):
-{"name":{"value":"BMX Gate Practice","c":9},"start_date":{"value":"2026-05-05","c":9},"end_date":{"value":"2026-08-25","c":8},"start_time":{"value":"18:15","c":8},"meet_time":{"value":"18:30","c":7},"location":{"value":"BMX Track, 93 Houlahan St","c":9},"organizer":{"value":"Nepean BMX","c":8},"tags":["bmx","family-friendly"],"series":{"recurrence":"weekly","recurrence_day":"tuesday","season_start":"2026-05-05","season_end":"2026-08-25"}}
+2) Recurring weekly event whose organizer IS in the known list (include slug):
+{"name":{"value":"BMX Gate Practice","c":9},"start_date":{"value":"2026-05-05","c":9},"end_date":{"value":"2026-08-25","c":8},"meet_time":{"value":"18:15","c":7},"start_time":{"value":"18:30","c":8},"location":{"value":"BMX Track, 93 Houlahan St","c":9},"organizer":{"slug":"nepean-bmx","name":"Nepean BMX","c":9},"tags":["bmx","family-friendly"],"series":{"recurrence":"weekly","recurrence_day":"tuesday","season_start":"2026-05-05","season_end":"2026-08-25"}}
 
 3) Event series with specific dates and varying locations (no recurrence rule):
-{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"value":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}
+{"name":{"value":"Winter Social Ride","c":9},"start_date":{"value":"2026-01-08","c":9},"end_date":{"value":"2026-03-19","c":8},"start_time":{"value":"19:00","c":9},"meet_time":{"value":"18:45","c":7},"distances":{"value":"~10km","c":8},"organizer":{"name":"Social Ride Club","c":7},"tags":["social"],"series":{"schedule":[{"date":"2026-01-08","location":"Overbrook CC, 33 Quill"},{"date":"2026-01-22","location":"Hintonburg CC, 1064 Wellington W."},{"date":"2026-02-05","location":"Ottawa South CC, 260 Sunnyside"},{"date":"2026-02-19","location":"Overbrook CC, 33 Quill"},{"date":"2026-03-19","location":"Ottawa South CC, 260 Sunnyside"}]}}
 
 4) Multi-stage race series with numbered stages at different venues (page lists "Stage 1: May 6 | Park A", "Stage 2: May 20 | Park B", etc.):
-{"name":{"value":"Sunset MTB Race Series","c":9},"start_date":{"value":"2026-05-06","c":9},"end_date":{"value":"2026-08-19","c":8},"start_time":{"value":"18:30","c":8},"meet_time":{"value":"18:00","c":7},"location":{"value":"Various locations","c":7},"organizer":{"value":"Valley Trail Runners","c":9},"registration_url":{"value":"https://example.com/series/sunset-mtb-2026","c":8},"tags":["race"],"series":{"schedule":[{"date":"2026-05-06","location":"Pine Ridge Park"},{"date":"2026-05-20","location":"Pine Ridge Park"},{"date":"2026-06-03","location":"Cedar Hills"},{"date":"2026-06-17","location":"Cedar Hills"},{"date":"2026-07-22","location":"Maple Grove"},{"date":"2026-08-19","location":"Maple Grove"}],"recurrence":"biweekly","recurrence_day":"wednesday","season_start":"2026-05-06","season_end":"2026-08-19"}}`;
+{"name":{"value":"Sunset MTB Race Series","c":9},"start_date":{"value":"2026-05-06","c":9},"end_date":{"value":"2026-08-19","c":8},"start_time":{"value":"18:30","c":8},"meet_time":{"value":"18:00","c":7},"location":{"value":"Various locations","c":7},"organizer":{"name":"Valley Trail Runners","c":9},"registration_url":{"value":"https://example.com/series/sunset-mtb-2026","c":8},"tags":["race"],"series":{"schedule":[{"date":"2026-05-06","location":"Pine Ridge Park"},{"date":"2026-05-20","location":"Pine Ridge Park"},{"date":"2026-06-03","location":"Cedar Hills"},{"date":"2026-06-17","location":"Cedar Hills"},{"date":"2026-07-22","location":"Maple Grove"},{"date":"2026-08-19","location":"Maple Grove"}],"recurrence":"biweekly","recurrence_day":"wednesday","season_start":"2026-05-06","season_end":"2026-08-19"}}`;
 
 const POSTER_PROMPT = `Extract event information from this poster image. Return ONLY a valid JSON object.
 
@@ -67,7 +68,9 @@ const MAX_TEXT_LENGTH = 24_000; // Characters of page text to send
 const HIGH_CONFIDENCE = 7; // 0-10 scale
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'meet_time', 'location', 'distances', 'organizer', 'organizer_website', 'organizer_instagram', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const;
+// Scalar fields with the {value, c} shape. Organizer is handled separately
+// (its shape is {slug?, name, c}).
+const FIELD_NAMES = ['name', 'start_date', 'end_date', 'start_time', 'end_time', 'meet_time', 'location', 'distances', 'organizer_website', 'organizer_instagram', 'registration_url', 'event_url', 'map_url', 'edition', 'review_url'] as const;
 
 /** Unwrap a field from the AI response, which may be {value, c} or a flat string. */
 function unwrap(field: unknown): { value: string; confidence: number } | null {
@@ -83,12 +86,35 @@ function unwrap(field: unknown): { value: string; confidence: number } | null {
 }
 
 /**
+ * Unwrap the organizer field. Accepts the canonical {slug?, name, c} shape
+ * and the legacy {value, c} shape (where value is treated as the name).
+ */
+function unwrapOrganizer(field: unknown): { slug?: string; name?: string; confidence: number } | null {
+  if (!field) return null;
+  if (typeof field === 'string') {
+    return field !== 'null' ? { name: field, confidence: 6 } : null;
+  }
+  if (typeof field !== 'object') return null;
+  const o = field as Record<string, unknown>;
+  const confidence = typeof o.c === 'number' ? o.c
+    : typeof o.confidence === 'number' ? o.confidence * 10
+    : 6;
+  const slug = (typeof o.slug === 'string' && o.slug && o.slug !== 'null') ? o.slug : undefined;
+  const name = (typeof o.name === 'string' && o.name && o.name !== 'null') ? o.name
+    : (typeof o.value === 'string' && o.value && o.value !== 'null') ? o.value
+    : undefined;
+  if (!slug && !name) return null;
+  return { slug, name, confidence };
+}
+
+/**
  * Normalize raw AI output into a clean event draft that matches EventDetail shape,
  * plus a list of field names the user should double-check.
  */
 export function buildDraft(
   raw: Record<string, unknown>,
   organizers: typeof adminOrganizers = adminOrganizers,
+  knownTags: string[] = [],
 ): {
   draft: Record<string, unknown>;
   uncertain: string[];
@@ -100,13 +126,16 @@ export function buildDraft(
     if (parsed) values[field] = parsed;
   }
 
-  if (Object.keys(values).length === 0) {
+  const orgRaw = unwrapOrganizer(raw.organizer);
+
+  if (Object.keys(values).length === 0 && !orgRaw) {
     return { draft: {}, uncertain: [] };
   }
 
   const uncertain = Object.entries(values)
     .filter(([k, v]) => v.confidence < HIGH_CONFIDENCE && !k.startsWith('organizer_'))
     .map(([k]) => k);
+  if (orgRaw && orgRaw.confidence < HIGH_CONFIDENCE) uncertain.push('organizer');
 
   // Build draft in EventDetail shape
   const today = new Date().toISOString().split('T')[0];
@@ -125,26 +154,36 @@ export function buildDraft(
     if (values[field]) draft[field] = values[field].value;
   }
 
-  // Resolve organizer: always produce an inline object so extracted fields aren't lost
-  if (values.organizer) {
-    const orgName = values.organizer.value;
-    const match = fuzzyMatchOrganizer(orgName, organizers);
-    const inline: Record<string, string> = { name: match ? match.name : orgName };
-    // Carry over known organizer fields first, then overlay extracted fields
-    if (match && match.confidence >= 0.7) {
-      const known = organizers.find(o => o.slug === match.slug);
-      if (known?.website) inline.website = known.website;
-      if (known?.instagram) inline.instagram = known.instagram;
+  // Resolve organizer: prefer AI's explicit slug; fuzzy match by name as a fallback.
+  // Match → emit a slug string (the canonical "known reference" shape). The wizard
+  // and editor populate all org fields from their registry. We deliberately do NOT
+  // overlay AI-extracted website/instagram on matched organizers — saving the event
+  // would write those page-specific URLs back to the canonical organizer file.
+  // Miss → emit an inline object with name + any extracted contact info.
+  if (orgRaw) {
+    let matched = orgRaw.slug ? organizers.find(o => o.slug === orgRaw.slug) : undefined;
+    if (!matched && orgRaw.name) {
+      const fuzzy = fuzzyMatchOrganizer(orgRaw.name, organizers);
+      if (fuzzy && fuzzy.confidence >= 0.7) {
+        matched = organizers.find(o => o.slug === fuzzy.slug);
+      }
     }
-    if (values.organizer_website) inline.website = values.organizer_website.value;
-    if (values.organizer_instagram) inline.instagram = values.organizer_instagram.value;
-    draft.organizer = inline;
+
+    if (matched) {
+      draft.organizer = matched.slug;
+    } else if (orgRaw.name) {
+      const inline: Record<string, string> = { name: orgRaw.name };
+      if (values.organizer_website) inline.website = values.organizer_website.value;
+      if (values.organizer_instagram) inline.instagram = values.organizer_instagram.value;
+      draft.organizer = inline;
+    }
   }
 
-  // Tags: plain array, validated against known slugs
+  // Tags: validated against EVENT_TAG_SLUGS ∪ knownTags.
   if (Array.isArray(raw.tags)) {
+    const validSet = new Set<string>([...EVENT_TAG_SLUGS, ...knownTags]);
     const validTags = (raw.tags as unknown[])
-      .filter((t): t is string => typeof t === 'string' && EVENT_TAG_SLUGS.includes(t as typeof EVENT_TAG_SLUGS[number]));
+      .filter((t): t is string => typeof t === 'string' && validSet.has(t));
     if (validTags.length > 0) draft.tags = validTags;
   }
 
@@ -271,8 +310,8 @@ export function extractSeriesFromText(
   });
 }
 
-/** Build context suffix for the AI prompt (date, city, locales, organizers). */
-function buildContextSuffix(): string {
+/** Build context suffix for the AI prompt (date, city, locales, organizers, tags). */
+function buildContextSuffix(knownTags: string[] = []): string {
   const cityConfig = getCityConfig();
   const now = new Date();
   const dateFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -289,12 +328,13 @@ function buildContextSuffix(): string {
   }
   ctx += `\n- If dates reference a day of the week without a specific date, resolve to the next upcoming occurrence.`;
 
-  const organizerNames = adminOrganizers.map(o => o.name);
-  if (organizerNames.length > 0) {
-    ctx += `\n\nKnown organizers (try to match one if applicable): ${organizerNames.join(', ')}`;
+  if (adminOrganizers.length > 0) {
+    const list = adminOrganizers.map(o => `  - ${o.slug} → ${o.name}`).join('\n');
+    ctx += `\n\nKnown organizers (slug → display name). If the event organizer matches one of these, set "organizer.slug" to that exact slug. Otherwise omit "organizer.slug" and just provide "organizer.name":\n${list}`;
   }
 
-  ctx += `\n\nEvent tags (use only if clearly applicable): ${EVENT_TAG_SLUGS.join(', ')}`;
+  const tagPool = [...new Set<string>([...EVENT_TAG_SLUGS, ...knownTags])].sort();
+  ctx += `\n\nKnown tags (use ONLY tags from this list, and only when they clearly apply to the event — when in doubt, omit): ${tagPool.join(', ')}`;
 
   return ctx;
 }
@@ -332,7 +372,7 @@ export function htmlToText(html: string): string {
 }
 
 /** Parse the AI response (string or object) into a record. */
-function parseAiResponse(raw: unknown): Record<string, unknown> {
+export function parseAiResponse(raw: unknown): Record<string, unknown> {
   if (typeof raw === 'object' && raw !== null) {
     return raw as Record<string, unknown>;
   }
@@ -353,6 +393,24 @@ function parseAiResponse(raw: unknown): Record<string, unknown> {
     const re = new RegExp(`"${field}"\\s*:\\s*\\{\\s*"value"\\s*:\\s*"([^"]*)"\\s*,\\s*"(?:c|confidence)"\\s*:\\s*([\\d.]+)`);
     const m = jsonMatch[0].match(re);
     if (m) result[field] = { value: m[1], c: parseFloat(m[2]) };
+  }
+  // Organizer has its own shape ({slug?, name, c}) — recover it separately.
+  // Also accept the legacy {value, c} shape so old in-flight responses still parse.
+  const orgMatch = jsonMatch[0].match(/"organizer"\s*:\s*\{([^{}]*)\}/);
+  if (orgMatch) {
+    const inner = orgMatch[1];
+    const slugM = inner.match(/"slug"\s*:\s*"([^"]+)"/);
+    const nameM = inner.match(/"name"\s*:\s*"([^"]+)"/);
+    const valueM = inner.match(/"value"\s*:\s*"([^"]+)"/);
+    const cM = inner.match(/"(?:c|confidence)"\s*:\s*([\d.]+)/);
+    if (slugM || nameM || valueM) {
+      const org: Record<string, unknown> = {};
+      if (slugM) org.slug = slugM[1];
+      if (nameM) org.name = nameM[1];
+      else if (valueM) org.name = valueM[1];
+      if (cM) org.c = parseFloat(cM[1]);
+      result.organizer = org;
+    }
   }
   if (Object.keys(result).length > 0) {
     console.log(`[event-draft] Recovered ${Object.keys(result).length} fields from malformed JSON`);
@@ -378,7 +436,7 @@ type AiBinding = { run(model: string, input: unknown): Promise<{ response?: stri
 
 /** Extract event data from a poster image stored in R2. */
 async function extractFromPoster(
-  ai: AiBinding, model: string, posterKey: string,
+  ai: AiBinding, model: string, posterKey: string, knownTags: string[],
 ): Promise<{ extracted: Record<string, unknown>; durationMs: number }> {
   const cdnUrl = env.R2_PUBLIC_URL || getCityConfig().cdn_url;
   const imageUrl = `${cdnUrl}/${posterKey}`;
@@ -394,7 +452,7 @@ async function extractFromPoster(
 
   const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
   const base64 = arrayBufferToBase64(imageBuffer);
-  const prompt = POSTER_PROMPT + buildContextSuffix();
+  const prompt = POSTER_PROMPT + buildContextSuffix(knownTags);
 
   const start = Date.now();
   const result = await ai.run(model, {
@@ -412,13 +470,13 @@ async function extractFromPoster(
 
 /** Extract event data from webpage HTML text. */
 async function extractFromHtml(
-  ai: AiBinding, model: string, pageText: string, sourceUrl: string,
+  ai: AiBinding, model: string, pageText: string, sourceUrl: string, knownTags: string[],
 ): Promise<{ extracted: Record<string, unknown>; durationMs: number }> {
   const truncated = pageText.length > MAX_TEXT_LENGTH
     ? pageText.substring(0, MAX_TEXT_LENGTH) + '\n\n[content truncated]'
     : pageText;
 
-  const prompt = WEBPAGE_PROMPT + buildContextSuffix()
+  const prompt = WEBPAGE_PROMPT + buildContextSuffix(knownTags)
     + `\n\nSource URL: ${sourceUrl}`
     + `\n\n--- PAGE CONTENT ---\n${truncated}`;
 
@@ -446,7 +504,10 @@ async function stageImage(imageBuffer: ArrayBuffer): Promise<{ key: string; cont
 }
 
 export async function POST({ request, locals }: APIContext) {
-  const { organizers } = await fetchJson<{ organizers: typeof adminOrganizers }>(new URL('/admin/data/events.json', request.url));
+  const [{ organizers }, knownTags] = await Promise.all([
+    fetchJson<{ organizers: typeof adminOrganizers }>(new URL('/admin/data/events.json', request.url)),
+    fetchJson<string[]>(new URL('/admin/data/known-tags.json', request.url)),
+  ]);
   adminOrganizers = organizers;
 
   const user = authorize(locals, 'event-draft');
@@ -486,8 +547,8 @@ export async function POST({ request, locals }: APIContext) {
 
     // Mode 1: Extract from an already-uploaded poster image
     if (body.poster_key) {
-      const { extracted, durationMs } = await extractFromPoster(ai, VISION_MODEL, body.poster_key);
-      const { draft, uncertain } = buildDraft(extracted);
+      const { extracted, durationMs } = await extractFromPoster(ai, VISION_MODEL, body.poster_key, knownTags);
+      const { draft, uncertain } = buildDraft(extracted, organizers, knownTags);
       return jsonResponse({ draft, uncertain, durationMs });
     }
 
@@ -521,8 +582,8 @@ export async function POST({ request, locals }: APIContext) {
         }
 
         const staged = await stageImage(imageBuffer);
-        const { extracted, durationMs } = await extractFromPoster(ai, VISION_MODEL, staged.key);
-        const { draft, uncertain } = buildDraft(extracted);
+        const { extracted, durationMs } = await extractFromPoster(ai, VISION_MODEL, staged.key, knownTags);
+        const { draft, uncertain } = buildDraft(extracted, organizers, knownTags);
         return jsonResponse({
           draft, uncertain, durationMs,
           poster_key: staged.key,
@@ -539,8 +600,8 @@ export async function POST({ request, locals }: APIContext) {
         return jsonError('Page has too little content to extract from', 400);
       }
 
-      const { extracted, durationMs } = await extractFromHtml(ai, TEXT_MODEL, pageText, body.url);
-      const { draft, uncertain } = buildDraft(extracted);
+      const { extracted, durationMs } = await extractFromHtml(ai, TEXT_MODEL, pageText, body.url, knownTags);
+      const { draft, uncertain } = buildDraft(extracted, organizers, knownTags);
 
       // If the AI didn't detect a series, try extracting one from the page text
       if (!draft.series) {
