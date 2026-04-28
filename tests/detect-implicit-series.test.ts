@@ -229,6 +229,27 @@ describe('detectImplicitSeries — clustering rules', () => {
     expect(result.orphans).toHaveLength(4);
   });
 
+  it('keeps a "<base> - CANCELLED DUE TO X" occurrence in its series cluster (cancelled override)', () => {
+    // Real OBC pattern: " - CANCELLED DUE TO RLCT" uses a space-separated
+    // multi-word reason. Without proper stripping, the bucket key would carry
+    // the suffix and split this occurrence into its own bucket — losing it
+    // from the series and leaving an orphan one-off in suggestions.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Sunday Ride',                      dtstart: '20260503T140000Z' }, // Sun
+      { uid: 'b', summary: 'Sunday Ride - CANCELLED DUE TO RLCT', dtstart: '20260510T140000Z' },
+      { uid: 'c', summary: 'Sunday Ride',                      dtstart: '20260517T140000Z' },
+      { uid: 'd', summary: 'Sunday Ride',                      dtstart: '20260524T140000Z' },
+      { uid: 'e', summary: 'Sunday Ride',                      dtstart: '20260531T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.series?.overrides).toHaveLength(5);
+    const cancelled = cluster.series?.overrides?.find(o => o.date === '2026-05-10');
+    expect(cancelled?.cancelled).toBe(true);
+    expect(result.orphans).toEqual([]);
+  });
+
   it('clusters 5 occurrences with 80% modal DOW; outlier becomes override with its date', () => {
     // 4 Tue + 1 Wed = 80% Tuesday.
     const ics = makeIcs([
@@ -401,6 +422,53 @@ describe('detectImplicitSeries — per-field override emission', () => {
     ]);
     for (const ovr of overrides) expect(ovr.event_url).toBeUndefined();
     expect(result.clusters[0].url).toBeUndefined();  // no master URL since all distinct
+  });
+
+  it('folds "<base> - <variant>" buckets into the base when variant entries align with base DOW', () => {
+    // OBC pattern: 4 "15km Open TT" Thursdays + 2 "15km Open TT - Road Bike Night"
+    // Thursdays in the same season. Without folding, the variant rides become
+    // either an irregular tiny cluster (rejected → orphaned) or split into
+    // separate suggestions. With folding, all 6 dates form one cluster and the
+    // variant suffix shows up as a note on those specific occurrences.
+    const ics = makeIcs([
+      { uid: 'a', summary: '15km Open TT',                    dtstart: '20260507T220000Z' }, // Thu
+      { uid: 'b', summary: '15km Open TT',                    dtstart: '20260514T220000Z' },
+      { uid: 'c', summary: '15km Open TT',                    dtstart: '20260521T220000Z' },
+      { uid: 'd', summary: '15km Open TT - Road Bike Night',  dtstart: '20260528T220000Z' }, // variant
+      { uid: 'e', summary: '15km Open TT',                    dtstart: '20260604T220000Z' },
+      { uid: 'f', summary: '15km Open TT - Road Bike Night',  dtstart: '20260625T220000Z' }, // variant
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.summary).toBe('15km Open TT');
+    expect(cluster.series?.recurrence_day).toBe('thursday');
+    const variantDates = (cluster.series?.overrides ?? [])
+      .filter(o => o.note?.includes('Road Bike Night'))
+      .map(o => o.date);
+    expect(variantDates.sort()).toEqual(['2026-05-28', '2026-06-25']);
+    // Non-variant dates carry no synthetic note.
+    const plainOvr = cluster.series?.overrides?.find(o => o.date === '2026-05-07');
+    expect(plainOvr?.note).toBeUndefined();
+  });
+
+  it('does NOT fold a variant bucket whose entries land on a different DOW', () => {
+    // Same prefix but the variant runs on Saturdays — clearly a separate
+    // series; folding would merge unrelated events.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Group Ride',          dtstart: '20260507T140000Z' }, // Thu
+      { uid: 'b', summary: 'Group Ride',          dtstart: '20260514T140000Z' },
+      { uid: 'c', summary: 'Group Ride',          dtstart: '20260521T140000Z' },
+      { uid: 'd', summary: 'Group Ride',          dtstart: '20260528T140000Z' },
+      { uid: 'e', summary: 'Group Ride - Gravel', dtstart: '20260509T140000Z' }, // Sat — no fold
+      { uid: 'f', summary: 'Group Ride - Gravel', dtstart: '20260516T140000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    const baseCluster = result.clusters.find(c => c.summary === 'Group Ride');
+    expect(baseCluster?.series?.overrides).toHaveLength(4);
+    // The Gravel pair didn't fold and didn't form their own cluster (only 2 entries),
+    // so they fall through as orphans for the caller's one-off path.
+    expect(result.orphans.map(o => o.uid).sort()).toEqual(['e', 'f']);
   });
 
   it('promotes shared event_url to master when all occurrences share one', () => {

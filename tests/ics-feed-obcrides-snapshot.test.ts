@@ -54,6 +54,24 @@ describe('parseIcs — OBC 2026 snapshot', () => {
     expect(tt?.series?.recurrence_day).toBe('thursday');
   });
 
+  it('folds "15km Open TT - Road Bike Night" variants into the Open TT cluster', () => {
+    // Without the suffix-fold pass, "15km Open TT - Road Bike Night" Thursdays
+    // would either form a tiny irregular cluster (rejected) or fragment into
+    // orphan one-off suggestions. With folding, they ride along as override
+    // notes on the main TT cluster — same series, with a thematic label.
+    const tt = feed.events.find(e =>
+      e.summary === '15km Open TT' && e.series?.kind === 'recurrence',
+    );
+    const variantOverrides = (tt?.series?.overrides ?? [])
+      .filter(o => o.note?.includes('Road Bike Night'));
+    expect(variantOverrides.length).toBeGreaterThanOrEqual(2);
+    // No "Road Bike Night" suggestions should leak as separate orphan events.
+    const roadBikeOrphans = feed.events.filter(e =>
+      e.summary === '15km Open TT - Road Bike Night',
+    );
+    expect(roadBikeOrphans).toEqual([]);
+  });
+
   it('preserves Almonte Paris-Roubaix as a one-off (not in a series)', () => {
     const apr = feed.events.find(e => e.summary === '2026 Almonte Paris-Roubaix');
     expect(apr).toBeDefined();

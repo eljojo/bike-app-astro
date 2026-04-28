@@ -133,11 +133,23 @@ const DOW_INDEX_TO_NAME: RecurrenceDay[] = [
   'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
 ];
 
-const STATUS_STRIP_RE = /\s*-\s*(?:CANCELLED|CANCELED|NO RIDE|WX RESCHEDULED)(?:\s*-\s*[A-Z0-9]+)?\s*$/i;
+// Strips a trailing status suffix like " - CANCELLED", " - CANCELLED - WX",
+// or " - CANCELLED DUE TO RLCT" so that a cancelled occurrence still buckets
+// with its series siblings rather than fragmenting into an orphan one-off.
+// `.*$` greedily consumes any reason text after the keyword on the SUMMARY
+// line (ICS SUMMARY is single-line; `.` does not match newlines without the
+// `s` flag).
+const STATUS_STRIP_RE = /\s*-\s*(?:CANCELLED|CANCELED|NO RIDE|WX RESCHEDULED)\b.*$/i;
 
 interface BucketEntry {
   master: ICAL.Event;
   zdt: Temporal.ZonedDateTime;
+  /**
+   * Set when this entry was folded in from a "<base> - <variant>" sibling
+   * bucket. The cluster builder surfaces this as part of the override's
+   * note, so the schedule UI shows e.g. "Road Bike Night" on those dates.
+   */
+  variantNote?: string;
 }
 
 /**
@@ -164,6 +176,15 @@ export function detectImplicitSeries(
     buckets.set(key, list);
   }
 
+  // Suffix-fold pass: an OBC-style "15km Open TT - Road Bike Night" bucket
+  // lives alongside the main "15km Open TT" bucket. Without folding it'd
+  // either form a tiny irregular cluster or fragment into orphan one-offs in
+  // the suggestions sidebar, even though it's the same series with a thematic
+  // note on those dates. Fold the variant bucket into the base when the
+  // variant's entries land on the base's modal day-of-week — the variant
+  // suffix rides along as a per-occurrence note.
+  foldVariantBuckets(buckets);
+
   const clusters: ParsedVEvent[] = [];
   const orphans: ICAL.Event[] = [];
 
@@ -178,6 +199,56 @@ export function detectImplicitSeries(
   }
 
   return { clusters, orphans };
+}
+
+/**
+ * Fold "<base> - <variant>" buckets into the matching "<base>" bucket when
+ * the variant's entries align with the base's modal day-of-week. Mutates
+ * the buckets map in place: variant entries are appended to the base bucket
+ * with `variantNote` set to the trimmed suffix, and the variant bucket is
+ * deleted. Sorted longest-key first so nested variants (e.g. "A - B - C"
+ * before "A - B") fold deepest-first into their immediate parent — at most
+ * one fold per pass.
+ */
+function foldVariantBuckets(buckets: Map<string, BucketEntry[]>): void {
+  const SEPARATOR_RE = /\s+-\s+/;
+  // Iterate longest-first so a deeper variant gets folded before its parent
+  // potentially disappears into a shallower base.
+  const keys = [...buckets.keys()].sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    const variantBucket = buckets.get(key);
+    if (!variantBucket) continue;
+    const parts = key.split(SEPARATOR_RE);
+    if (parts.length < 2) continue;
+    const variantNote = parts[parts.length - 1].trim();
+    const baseKey = parts.slice(0, -1).join(' - ').trim();
+    if (!variantNote || !baseKey) continue;
+    const baseBucket = buckets.get(baseKey);
+    if (!baseBucket || baseBucket === variantBucket) continue;
+    // Alignment guard: every variant entry must land on the base bucket's
+    // modal day-of-week. Without this check the fold could merge unrelated
+    // sub-events that happen to share a name prefix.
+    const baseModalDow = modalDayOfWeek(baseBucket);
+    if (baseModalDow == null) continue;
+    if (!variantBucket.every(e => (e.zdt.dayOfWeek % 7) === baseModalDow)) continue;
+    for (const e of variantBucket) {
+      e.variantNote = variantNote;
+      baseBucket.push(e);
+    }
+    buckets.delete(key);
+  }
+}
+
+function modalDayOfWeek(entries: BucketEntry[]): number | null {
+  const counts = new Map<number, number>();
+  for (const e of entries) {
+    const dow = e.zdt.dayOfWeek % 7;
+    counts.set(dow, (counts.get(dow) ?? 0) + 1);
+  }
+  let modalDow: number | null = null;
+  let modalCount = 0;
+  for (const [d, n] of counts) if (n > modalCount) { modalCount = n; modalDow = d; }
+  return modalDow;
 }
 
 function splitByYearAndGap(entries: BucketEntry[]): BucketEntry[][] {
@@ -331,6 +402,11 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
         : `Cancelled${reasonLabel}.`;
     } else if (desc && desc !== masterDescription) {
       ovr.note = desc;
+    }
+    if (e.variantNote) {
+      // Variant suffix (folded from a sibling SUMMARY bucket) rides along as
+      // a note. Prepended so the variant label is the first thing a reader sees.
+      ovr.note = ovr.note ? `${e.variantNote} — ${ovr.note}` : e.variantNote;
     }
     return ovr;
   });
