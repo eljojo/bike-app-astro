@@ -669,6 +669,32 @@ describe('codex 2nd-pass bugs in revalidateClusterAfterTrim', () => {
     expect(trimmed).toBeNull();
   });
 
+  it('BUG: trimmed cluster keeps stale master uid even after the master was removed', () => {
+    // Detection produces a 5-week Wednesday cluster. Master uid is "a"
+    // (chronologically earliest). Admin imports just "a" as a one-off;
+    // repoUids = {"a"}. Trim re-evaluates: 4 real survivors (b, c, d, e) ≥
+    // MIN_CLUSTER_SIZE → returns a trimmed cluster. But the trimmed
+    // cluster still carries cluster.uid = "a" — the uid that was just
+    // removed. Surfacing this suggestion with uid "a" creates an
+    // ics_uid collision in the repo (the original imported event already
+    // claims "a"; the new save would claim it too).
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z' },
+      { uid: 'e', summary: 'X', dtstart: '20260603T140000Z' },
+    ]);
+    const cluster = detectImplicitSeries(loadMasters(ics), 'America/Toronto').clusters[0];
+    expect(cluster.uid).toBe('a');
+    const trimmed = revalidateClusterAfterTrim(cluster, new Set(['a']), 'America/Toronto');
+    expect(trimmed).not.toBeNull();
+    // The trimmed cluster's uid must NOT be the removed master's uid; it
+    // should adopt the first surviving real occurrence's uid.
+    expect(trimmed!.uid).not.toBe('a');
+    expect(trimmed!.uid).toBe('b');
+  });
+
   it('BUG: trimmed cluster start time falls back to midnight when master is removed', () => {
     // 5 real Wednesdays (so 4 survive after removing master) at 10:00 local.
     // After removing master "a", the cluster's start should still report

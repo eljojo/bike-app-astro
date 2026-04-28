@@ -4,6 +4,7 @@ import { expandSeriesOccurrences, type SeriesOccurrence } from '../../lib/series
 import { parseLocalDate, formatDateStr } from '../../lib/date-utils';
 import { fullLocale, defaultLocale as getDefaultLocale } from '../../lib/i18n/locale-utils';
 import type { EventSeries, SeriesOccurrenceOverride } from '../../lib/models/event-model';
+import { mergeOverrideForPopover } from './series-editor-merge';
 
 type SeriesMode = 'recurring' | 'schedule';
 type RecurrenceFrequency = 'weekly' | 'biweekly';
@@ -20,7 +21,7 @@ const DAY_NAMES: DayName[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thurs
 function LocationBadge({ value, className }: { value: string; className: string }) {
   if (/^https?:\/\//i.test(value)) {
     return (
-      <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
+      <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value} aria-label="View location on map">
         {'\u{1F5FA}\u{FE0F}'}
       </a>
     );
@@ -31,7 +32,7 @@ function LocationBadge({ value, className }: { value: string; className: string 
 /** Render a per-occurrence event_url override as a 🌐 emoji link. */
 function EventUrlBadge({ value, className }: { value: string; className: string }) {
   return (
-    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
+    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value} aria-label="Event website">
       {'\u{1F310}'}
     </a>
   );
@@ -40,7 +41,7 @@ function EventUrlBadge({ value, className }: { value: string; className: string 
 /** Render a per-occurrence registration_url override as a 🎟️ emoji link. */
 function RegistrationUrlBadge({ value, className }: { value: string; className: string }) {
   return (
-    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
+    <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value} aria-label="Register for this ride">
       {'\u{1F39F}\u{FE0F}'}
     </a>
   );
@@ -103,7 +104,9 @@ interface OverrideEntry {
   note?: string;
   cancelled?: boolean;
   rescheduled_from?: string;
+  uid?: string;             // source VEVENT UID (preserved across edits for dedupe)
   event_url?: string;
+  map_url?: string;
   registration_url?: string;
 }
 
@@ -347,11 +350,11 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
           setSkipDates(skipDates.filter(d => d !== date));
           setOverrides(prev => {
             const existing = prev.find(o => o.date === date);
-            const entry: OverrideEntry = {
+            const entry = mergeOverrideForPopover(existing, {
               date,
-              ...(popoverLocation && { location: popoverLocation }),
-              ...(popoverNote && { note: popoverNote }),
-            };
+              location: popoverLocation,
+              note: popoverNote,
+            }) as OverrideEntry;
             if (existing) return prev.map(o => o.date === date ? entry : o);
             return [...prev, entry];
           });

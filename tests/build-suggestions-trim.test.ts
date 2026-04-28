@@ -162,7 +162,11 @@ describe('buildSuggestions — partial-import dedupe (Task 8)', () => {
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].kind).toBe('series');
     expect(suggestions[0].name).toBe('Wednesday Coffee Ride');
-    expect(suggestions[0].uid).toBe('a');  // master uid preserved (master not removed)
+    // The original master uid 'a' was removed from the surviving set, so the
+    // trimmed cluster adopts the first surviving real occurrence's uid (b).
+    // Keeping 'a' would create an ics_uid collision with the already-imported
+    // event in the repo.
+    expect(suggestions[0].uid).toBe('b');
     expect(suggestions[0].series_label).toBe('Every other Wednesday');
   });
 

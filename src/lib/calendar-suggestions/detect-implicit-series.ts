@@ -474,12 +474,19 @@ export function revalidateClusterAfterTrim(
   // Rebuild the trimmed series with updated cadence + season range. When the
   // master is removed we still want the cluster's modal time-of-day on the
   // new top-level start — falling back to '00:00' would mis-render the
-  // suggestion sort key and the prefilled new-event time.
+  // suggestion sort key and the prefilled new-event time. We also reassign
+  // cluster.uid to the first surviving real occurrence's uid; keeping the
+  // removed master's uid would cause an ics_uid collision when the trimmed
+  // suggestion is later imported (the original repo event already claims it).
   const seasonStart = slim[0].date;
   const seasonEnd = slim[slim.length - 1].date;
   const originalTod = cluster.start.length > 10 ? cluster.start.slice(11, 16) : undefined;
+  const newUid = masterRemoved
+    ? (realSurviving.find(o => o.uid)?.uid ?? cluster.uid)
+    : cluster.uid;
   return {
     ...cluster,
+    uid: newUid,
     start: masterRemoved
       ? `${seasonStart}T${slim[0].start_time ?? originalTod ?? '00:00'}:00`
       : cluster.start,
