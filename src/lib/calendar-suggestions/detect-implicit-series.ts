@@ -339,6 +339,98 @@ function stringPropOrUndefined(comp: ICAL.Component, name: string): string | und
   return String(v);
 }
 
+/**
+ * Re-evaluate an existing cluster after some occurrences have been removed
+ * (because they're already imported). Returns a new cluster ParsedVEvent if
+ * the trimmed set still satisfies all six rules; otherwise returns null and
+ * the caller should emit each remaining occurrence as a one-off.
+ *
+ * The trimmed set is described by occurrence dates + per-occurrence override
+ * fields; the original ICAL.Event masters aren't passed back through. This
+ * helper rebuilds a synthetic cluster directly from the override + master
+ * fields the original detection produced, so we don't need to re-parse.
+ */
+export function revalidateClusterAfterTrim(
+  cluster: ParsedVEvent,
+  removedUids: Set<string>,
+  _siteTz: string,
+): ParsedVEvent | null {
+  if (!cluster.series || cluster.series.kind !== 'recurrence') return cluster;
+  const overrides = cluster.series.overrides ?? [];
+  const surviving = overrides.filter(o => !o.uid || !removedUids.has(o.uid));
+  // The cluster's master also represents one occurrence (its UID is on the
+  // top-level event). If that UID was removed, we lose the master too.
+  const masterRemoved = cluster.uid ? removedUids.has(cluster.uid) : false;
+  // Detect whether the master is also represented in overrides[] (the original
+  // detection emits one override per occurrence, including the master). When
+  // it is, don't double-count the master row toward `totalSurviving` — the
+  // override entry already accounts for it.
+  const masterInOverrides = cluster.uid
+    ? overrides.some(o => o.uid === cluster.uid)
+    : false;
+  const masterContribution = masterInOverrides ? 0 : (masterRemoved ? 0 : 1);
+  const totalSurviving = masterContribution + surviving.length;
+  if (totalSurviving < MIN_CLUSTER_SIZE) return null;
+
+  // Build a chronologically sorted list of dates from surviving overrides
+  // plus (if not removed AND not already in overrides) the master's date.
+  type Slim = { date: string; start_time?: string };
+  const slim: Slim[] = surviving.map(o => ({ date: o.date, start_time: o.start_time }));
+  if (!masterInOverrides && !masterRemoved) {
+    const masterDate = cluster.start.slice(0, 10);
+    const masterTod = cluster.start.length > 10 ? cluster.start.slice(11, 16) : undefined;
+    slim.push({ date: masterDate, start_time: masterTod });
+  }
+  slim.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Re-check gap rule (≤60d) and cadence (modal gap = 7 or 14 across surviving
+  // occurrences in the modal DOW). For revalidation we don't re-parse DOW —
+  // we trust that all occurrences in the existing cluster were on the modal
+  // DOW or already flagged as overrides; we just check the gap distribution.
+  for (let i = 1; i < slim.length; i++) {
+    const prev = new Date(slim[i - 1].date + 'T00:00:00Z').getTime();
+    const curr = new Date(slim[i].date + 'T00:00:00Z').getTime();
+    const days = Math.round((curr - prev) / (24 * 3600 * 1000));
+    if (days > MAX_GAP_DAYS) return null;
+  }
+
+  // Recompute cadence from the surviving inter-occurrence gaps.
+  const gapCounts = new Map<number, number>();
+  for (let i = 1; i < slim.length; i++) {
+    const prev = new Date(slim[i - 1].date + 'T00:00:00Z').getTime();
+    const curr = new Date(slim[i].date + 'T00:00:00Z').getTime();
+    const days = Math.round((curr - prev) / (24 * 3600 * 1000));
+    gapCounts.set(days, (gapCounts.get(days) ?? 0) + 1);
+  }
+  let modalGap = -1, modalGapCount = 0;
+  for (const [g, n] of gapCounts) if (n > modalGapCount) { modalGap = g; modalGapCount = n; }
+  if (modalGap !== WEEKLY_DAYS && modalGap !== BIWEEKLY_DAYS) return null;
+  // Match tryFormCluster's Task 5 deviation: every other gap must be a positive
+  // multiple of modal (handles missed weeks like [7,14,7]). Without this, a
+  // trim that produces gaps like [7, 10, 7] would falsely qualify (modal=7,
+  // but 10 isn't a multiple of 7).
+  for (const g of gapCounts.keys()) {
+    if (g <= 0 || g % modalGap !== 0) return null;
+  }
+
+  // Rebuild the trimmed series with updated cadence + season range.
+  const seasonStart = slim[0].date;
+  const seasonEnd = slim[slim.length - 1].date;
+  return {
+    ...cluster,
+    start: masterRemoved
+      ? `${seasonStart}T${slim[0].start_time ?? '00:00'}:00`
+      : cluster.start,
+    series: {
+      ...cluster.series,
+      recurrence: modalGap === WEEKLY_DAYS ? 'weekly' : 'biweekly',
+      season_start: seasonStart,
+      season_end: seasonEnd,
+      overrides: surviving.length > 0 ? surviving : undefined,
+    },
+  };
+}
+
 export function icalTimeToSiteZdt(t: ICAL.Time, siteTz: string): Temporal.ZonedDateTime {
   if (t.isDate) {
     return Temporal.PlainDate.from({ year: t.year, month: t.month, day: t.day })

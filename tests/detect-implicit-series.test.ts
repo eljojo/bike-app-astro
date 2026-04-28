@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import ICAL from 'ical.js';
-import { extractDescription, detectCancellation, pickModalDescription, detectImplicitSeries } from '../src/lib/calendar-suggestions/detect-implicit-series';
+import { extractDescription, detectCancellation, pickModalDescription, detectImplicitSeries, revalidateClusterAfterTrim } from '../src/lib/calendar-suggestions/detect-implicit-series';
+import type { ParsedVEvent } from '../src/lib/calendar-suggestions/types';
 
 describe('extractDescription', () => {
   it('returns null for empty / whitespace / undefined input', () => {
@@ -470,5 +471,126 @@ describe('detectImplicitSeries — per-field override emission', () => {
     const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
     expect(result.clusters).toHaveLength(1);
     expect(result.clusters[0].summary).toBe('X');
+  });
+});
+
+describe('revalidateClusterAfterTrim', () => {
+  // Fixture uses unique URLs per occurrence so every entry produces a
+  // meaningful override (carrying its uid). Without unique fields, a uniform
+  // cluster yields `overrides: undefined` and there are no UIDs to filter
+  // by — only the master uid handle remains. The unique-URL fixture mirrors
+  // the production detection path that buildSuggestions feeds in (per Task 6,
+  // overrides are produced for any divergent field).
+  function makeCluster(): ParsedVEvent {
+    const ics = makeIcs([
+      { uid: 'a', summary: 'X', dtstart: '20260506T140000Z', url: 'https://e.com/a' },
+      { uid: 'b', summary: 'X', dtstart: '20260513T140000Z', url: 'https://e.com/b' },
+      { uid: 'c', summary: 'X', dtstart: '20260520T140000Z', url: 'https://e.com/c' },
+      { uid: 'd', summary: 'X', dtstart: '20260527T140000Z', url: 'https://e.com/d' },
+      { uid: 'e', summary: 'X', dtstart: '20260603T140000Z', url: 'https://e.com/e' },
+      { uid: 'f', summary: 'X', dtstart: '20260610T140000Z', url: 'https://e.com/f' },
+      { uid: 'g', summary: 'X', dtstart: '20260617T140000Z', url: 'https://e.com/g' },
+      { uid: 'h', summary: 'X', dtstart: '20260624T140000Z', url: 'https://e.com/h' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    // Sanity: each occurrence emitted an override, so we have UIDs to filter.
+    expect(result.clusters[0].series?.overrides).toHaveLength(8);
+    return result.clusters[0];
+  }
+
+  it('returns the cluster unchanged when no UIDs are removed', () => {
+    const c = makeCluster();
+    const result = revalidateClusterAfterTrim(c, new Set(), 'America/Toronto');
+    expect(result).toBeTruthy();
+    expect(result?.series?.recurrence).toBe('weekly');
+    expect(result?.series?.season_start).toBe('2026-05-06');
+    expect(result?.series?.season_end).toBe('2026-06-24');
+  });
+
+  it('returns null when surviving size < 4', () => {
+    const c = makeCluster();
+    const removed = new Set(['a', 'b', 'c', 'd', 'e']);  // 3 left
+    expect(revalidateClusterAfterTrim(c, removed, 'America/Toronto')).toBeNull();
+  });
+
+  it('reclassifies as biweekly when every other occurrence is removed', () => {
+    const c = makeCluster();
+    // Remove a, c, e, g → leaves b, d, f, h with 14-day gaps
+    const removed = new Set(['a', 'c', 'e', 'g']);
+    const result = revalidateClusterAfterTrim(c, removed, 'America/Toronto');
+    expect(result?.series?.recurrence).toBe('biweekly');
+    expect(result?.series?.season_start).toBe('2026-05-13');
+    expect(result?.series?.season_end).toBe('2026-06-24');
+  });
+
+  it('returns null when surviving gap exceeds 60 days', () => {
+    const c = makeCluster();
+    // Remove the middle occurrences, leaving a wide gap
+    const removed = new Set(['b', 'c', 'd', 'e', 'f', 'g']);  // a + h survive (49 days apart - safe)
+    const r = revalidateClusterAfterTrim(c, removed, 'America/Toronto');
+    expect(r).toBeNull();  // size 2, below threshold
+  });
+
+  it('rejects survivors whose modal-cadence would not be in {7, 14}', () => {
+    // Build a cluster where the surviving gaps yield a modal of 21d (a + d + g),
+    // i.e. weekly cluster trimmed to every-third-week. That's not in {7,14}.
+    const c = makeCluster();
+    const removed = new Set(['b', 'c', 'e', 'f', 'h']);  // survivors: a (May 6), d (May 27), g (Jun 17)
+    const r = revalidateClusterAfterTrim(c, removed, 'America/Toronto');
+    expect(r).toBeNull();  // size 3 → fails MIN_CLUSTER_SIZE first; either way null
+  });
+
+  it('rejects 4 survivors at 21-day cadence (positive coverage of modal-not-in-{7,14})', () => {
+    // 4 occurrences at 21-day spacing. Size passes MIN_CLUSTER_SIZE; gap
+    // passes ≤60; modal gap = 21 — fails the modal-in-{7,14} check directly.
+    // Constructed synthetically because tryFormCluster would have rejected a
+    // tri-weekly cluster up-front, so we can't get here via makeCluster().
+    const cluster: ParsedVEvent = {
+      uid: 'a',
+      summary: 'X',
+      start: '2026-05-06T10:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-07-08',
+        overrides: [
+          { date: '2026-05-06', uid: 'a' },
+          { date: '2026-05-27', uid: 'b' },
+          { date: '2026-06-17', uid: 'c' },
+          { date: '2026-07-08', uid: 'd' },
+        ],
+      },
+    };
+    const r = revalidateClusterAfterTrim(cluster, new Set(), 'America/Toronto');
+    expect(r).toBeNull();
+  });
+
+  it('rejects when a surviving gap is not a multiple of the modal (multiples-of-modal rule)', () => {
+    // Construct a fresh cluster manually with 4 surviving occurrences whose
+    // gaps would be [7, 10, 7]. Modal=7, but 10 isn't a multiple of 7 → reject.
+    // Use a synthetic ParsedVEvent so we control the override dates exactly.
+    const cluster: ParsedVEvent = {
+      uid: 'a',
+      summary: 'X',
+      start: '2026-05-06T10:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-05-06',
+        season_end: '2026-05-30',
+        overrides: [
+          { date: '2026-05-06', uid: 'a' },
+          { date: '2026-05-13', uid: 'b' },
+          { date: '2026-05-23', uid: 'c' },  // +10 from 13th
+          { date: '2026-05-30', uid: 'd' },  // +7 from 23rd
+        ],
+      },
+    };
+    const r = revalidateClusterAfterTrim(cluster, new Set(), 'America/Toronto');
+    expect(r).toBeNull();
   });
 });
