@@ -72,8 +72,20 @@ const breadcrumbs = breadcrumbJsonLd([
   <div class="communities-grid">
     {bikeShops.map(org => {
       const specialties = org.data.tags.filter(tag => tag !== 'bike-shop');
+      const cover = org.data.media?.find(m => m.cover);
       return (
-        <a href={organizerLink(org, locale)} class="community-card">
+        <a href={organizerLink(org, locale)} class:list={['community-card', { 'community-card--has-cover': !!cover }]}>
+          {cover && (
+            <img
+              src={imageUrl(cover.key, { width: 460 })}
+              srcset={`${imageUrl(cover.key, { width: 920 })} 2x`}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              class="community-card-cover"
+            />
+          )}
+          {cover && <div class="community-card-glass" aria-hidden="true"></div>}
           <div class="community-card-avatar">
             {org.data.photo_key ? (
               <img
