@@ -15,7 +15,7 @@ interface Stored {
 
 /**
  * KV-backed calendar feed cache. Reuses the TILE_CACHE binding with a distinct
- * `calfeed:feed:v3:` key prefix so tile and feed entries cannot collide. Per-entry
+ * `calfeed:feed:v4:` key prefix so tile and feed entries cannot collide. Per-entry
  * TTL handles eviction — no background cleanup needed.
  *
  * Bump the `vN:` segment whenever the stored ParsedFeed shape changes in a way
@@ -26,7 +26,7 @@ interface Stored {
 export function createKvCalendarFeedCache(kv: KVNamespace): CalendarFeedCache {
   return {
     async get(slug, expectedSourceUrl) {
-      const raw = await kv.get(`calfeed:feed:v3:${slug}`, 'text');
+      const raw = await kv.get(`calfeed:feed:v4:${slug}`, 'text');
       if (!raw) return null;
       let parsed: Stored;
       try { parsed = JSON.parse(raw) as Stored; }
@@ -36,7 +36,7 @@ export function createKvCalendarFeedCache(kv: KVNamespace): CalendarFeedCache {
     },
     async put(slug, sourceUrl, feed, ttlSeconds) {
       const value: Stored = { source_url: sourceUrl, feed };
-      await kv.put(`calfeed:feed:v3:${slug}`, JSON.stringify(value), { expirationTtl: ttlSeconds });
+      await kv.put(`calfeed:feed:v4:${slug}`, JSON.stringify(value), { expirationTtl: ttlSeconds });
     },
   };
 }

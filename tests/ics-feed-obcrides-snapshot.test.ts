@@ -55,19 +55,35 @@ describe('parseIcs — OBC 2026 snapshot', () => {
   });
 
   it('folds "15km Open TT - Road Bike Night" variants into the Open TT cluster', () => {
-    // Without the suffix-fold pass, "15km Open TT - Road Bike Night" Thursdays
-    // would either form a tiny irregular cluster (rejected) or fragment into
-    // orphan one-off suggestions. With folding, they ride along as override
-    // notes on the main TT cluster — same series, with a thematic label.
+    // The OBC fixture has the SUMMARY "15km Open TT - Road Bike Night" on
+    // exactly four Thursdays in 2026: May 28, Jun 25, Jul 30, Aug 27. Without
+    // the suffix-fold pass these would either form a tiny irregular cluster
+    // (rejected → orphans) or split into separate one-off suggestions in the
+    // admin sidebar. With folding they ride along as override notes on the
+    // main TT cluster — same series, thematic label per occurrence.
     const tt = feed.events.find(e =>
       e.summary === '15km Open TT' && e.series?.kind === 'recurrence',
     );
-    const variantOverrides = (tt?.series?.overrides ?? [])
+    expect(tt).toBeDefined();
+
+    const variantOverrides = (tt!.series!.overrides ?? [])
       .filter(o => o.note?.includes('Road Bike Night'));
-    expect(variantOverrides.length).toBeGreaterThanOrEqual(2);
-    // No "Road Bike Night" suggestions should leak as separate orphan events.
+    // Exact-value assertions against the recorded fixture so a regression in
+    // bucket normalisation or the variant-fold pass fails loudly here, not
+    // silently in production.
+    expect(variantOverrides.map(o => o.date).sort()).toEqual([
+      '2026-05-28',
+      '2026-06-25',
+      '2026-07-30',
+      '2026-08-27',
+    ]);
+    for (const o of variantOverrides) {
+      expect(o.note).toBe('Road Bike Night');
+    }
+
+    // No "Road Bike Night" suggestion should leak as a separate orphan event.
     const roadBikeOrphans = feed.events.filter(e =>
-      e.summary === '15km Open TT - Road Bike Night',
+      e.summary?.includes('Road Bike Night'),
     );
     expect(roadBikeOrphans).toEqual([]);
   });
