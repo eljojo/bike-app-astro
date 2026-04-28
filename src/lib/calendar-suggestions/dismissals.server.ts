@@ -9,39 +9,47 @@ import { calendarSuggestionDismissals } from '../../db/schema';
  */
 export const NEVER_EXPIRES = '9999-12-31';
 
+export interface DismissalRecord {
+  /** ISO-8601 UTC timestamp of when the dismissal was recorded. */
+  dismissed_at: string;
+}
+
 /**
- * Return the keyed Set of dismissals for `city` whose `valid_until >= today`.
+ * Return the keyed Map of dismissals for `city` whose `valid_until >= today`.
  * Single SELECT, no IN-clause — the date predicate naturally filters out
  * dismissals for events that have already passed, so the working set is
  * bounded by "still-relevant dismissals" rather than the cumulative history.
  *
- * Set values are `${organizer_slug}:${uid}` so callers can look up dismissals
+ * Map keys are `${organizer_slug}:${uid}` so callers can look up dismissals
  * scoped per-organizer (two feeds with the same UID string don't collide).
+ * Values carry `dismissed_at` so the suggestion filter can ignore a dismissal
+ * whose source VEVENT has been updated since.
  */
 export async function listDismissedKeys(
   db: Database,
   city: string,
   todayLocalDate: string,
-): Promise<Set<string>> {
+): Promise<Map<string, DismissalRecord>> {
   const rows = await db.select({
       organizer_slug: calendarSuggestionDismissals.organizerSlug,
       uid:            calendarSuggestionDismissals.uid,
+      dismissed_at:   calendarSuggestionDismissals.dismissedAt,
     })
     .from(calendarSuggestionDismissals)
     .where(and(
       eq(calendarSuggestionDismissals.city, city),
       gte(calendarSuggestionDismissals.validUntil, todayLocalDate),
     ));
-  const out = new Set<string>();
-  for (const r of rows) out.add(`${r.organizer_slug}:${r.uid}`);
+  const out = new Map<string, DismissalRecord>();
+  for (const r of rows) out.set(`${r.organizer_slug}:${r.uid}`, { dismissed_at: r.dismissed_at });
   return out;
 }
 
 /**
  * Mark `(city, organizer_slug, uid)` as dismissed until `validUntil` (a
- * YYYY-MM-DD). Idempotent on the PK — re-dismissing updates the date so a
- * suggestion that re-appears later (e.g. extended season) gets a refreshed
- * lifetime instead of being lost.
+ * YYYY-MM-DD). Idempotent on the PK — re-dismissing updates the date and
+ * refreshes `dismissed_at`, so a feed update later than the new timestamp can
+ * still invalidate the dismissal.
  */
 export async function dismissSuggestion(
   db: Database,
@@ -49,16 +57,17 @@ export async function dismissSuggestion(
   organizerSlug: string,
   uid: string,
   validUntil: string,
+  dismissedAt: string = new Date().toISOString(),
 ): Promise<void> {
   await db.insert(calendarSuggestionDismissals)
-    .values({ city, organizerSlug, uid, validUntil })
+    .values({ city, organizerSlug, uid, validUntil, dismissedAt })
     .onConflictDoUpdate({
       target: [
         calendarSuggestionDismissals.city,
         calendarSuggestionDismissals.organizerSlug,
         calendarSuggestionDismissals.uid,
       ],
-      set: { validUntil },
+      set: { validUntil, dismissedAt },
     })
     .run();
 }

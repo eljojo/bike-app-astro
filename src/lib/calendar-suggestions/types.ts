@@ -39,6 +39,12 @@ export interface ParsedVEvent {
   description?: string;
   url?: string;                // event_url (ICS URL property)
   registration_url?: string;   // typically extracted from DESCRIPTION (e.g. RidewithGPS)
+  /**
+   * ISO-8601 UTC timestamp of the upstream VEVENT's last edit, sourced from
+   * LAST-MODIFIED with DTSTAMP as fallback (RFC 5545). Used to invalidate a
+   * stale dismissal when the source event has been updated after dismissal.
+   */
+  last_modified?: string;
   series?: ParsedSeries;
 }
 

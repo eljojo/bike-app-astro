@@ -357,6 +357,15 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
   // Sort chronologically — cancelled-skip rows landed at the end above.
   overrideRows.sort((a, b) => a.date.localeCompare(b.date));
 
+  // Cluster's "last edit" is the most recent edit among any of its members,
+  // so an upstream tweak to a single occurrence still invalidates a stale
+  // dismissal of the whole synthesized series.
+  let clusterLastModified: string | undefined;
+  for (const e of entries) {
+    const lm = extractLastModifiedIso(e.master.component);
+    if (lm && (!clusterLastModified || lm > clusterLastModified)) clusterLastModified = lm;
+  }
+
   return {
     uid: first.master.uid,
     summary: first.master.summary.replace(STATUS_STRIP_RE, '').trim(),
@@ -365,6 +374,7 @@ function tryFormCluster(entries: BucketEntry[]): ParsedVEvent | null {
     description: masterDescription,
     url: masterUrl,
     registration_url: masterRegistrationUrl,
+    last_modified: clusterLastModified,
     series: {
       kind: 'recurrence',
       recurrence,
@@ -380,6 +390,30 @@ function stringPropOrUndefined(comp: ICAL.Component, name: string): string | und
   const v = comp.getFirstPropertyValue(name);
   if (v == null) return undefined;
   return String(v);
+}
+
+/**
+ * Pull LAST-MODIFIED (or DTSTAMP fallback) off an ICAL component as ISO-8601 UTC.
+ * Per RFC 5545 these are required to be UTC; we normalise via `toJSDate()` so
+ * downstream string comparisons are robust against ical.js's two repr forms.
+ */
+function extractLastModifiedIso(comp: ICAL.Component): string | undefined {
+  const lm = comp.getFirstPropertyValue('last-modified') as ICAL.Time | string | null;
+  if (lm) return icalValueToIso(lm);
+  const ds = comp.getFirstPropertyValue('dtstamp') as ICAL.Time | string | null;
+  if (ds) return icalValueToIso(ds);
+  return undefined;
+}
+
+function icalValueToIso(t: ICAL.Time | string): string | undefined {
+  if (typeof t === 'string') {
+    const d = new Date(t);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof (t as ICAL.Time).toJSDate === 'function') {
+    return (t as ICAL.Time).toJSDate().toISOString();
+  }
+  return undefined;
 }
 
 const RIDEWITHGPS_RE = /https?:\/\/(?:www\.)?ridewithgps\.com\/(?:routes|events)\/\d+/i;

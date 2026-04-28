@@ -60,15 +60,19 @@ describe('parseIcs — OBC 2026 snapshot', () => {
     expect(apr?.series).toBeUndefined();
   });
 
-  it('emits per-occurrence event_url overrides on the Wed Coffee Ride cluster', () => {
+  it('emits per-occurrence registration_url overrides on the Wed Coffee Ride cluster', () => {
+    // Each obcrides.ca/events/N URL is the RSVP page for that specific
+    // Wednesday, so the import maps the per-occurrence ICS URL to
+    // registration_url. event_url is reserved for the season landing page.
     const cluster = feed.events.find(e =>
       e.summary === 'Wednesday Coffee Ride' && e.series?.kind === 'recurrence',
     );
     const overrides = cluster?.series?.overrides ?? [];
-    const withUrls = overrides.filter(o => o.event_url);
+    const withUrls = overrides.filter(o => o.registration_url);
     expect(withUrls.length).toBeGreaterThan(0);
     for (const o of withUrls) {
-      expect(o.event_url).toMatch(/^https:\/\/obcrides\.ca\/events\/\d+$/);
+      expect(o.registration_url).toMatch(/^https:\/\/obcrides\.ca\/events\/\d+$/);
+      expect(o.event_url).toBeUndefined();
       expect(o.uid).toMatch(/^https:\/\/obcrides\.ca\/events\/\d+$/);
     }
   });

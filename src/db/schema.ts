@@ -239,6 +239,10 @@ export const calendarSuggestionDismissals = sqliteTable('calendar_suggestion_dis
   organizerSlug:  text('organizer_slug').notNull(),
   uid:            text('uid').notNull(),
   validUntil:     text('valid_until').notNull(),
+  // ISO-8601 UTC timestamp of when the dismissal was recorded. Compared
+  // against the source VEVENT's LAST-MODIFIED so an upstream edit
+  // automatically re-surfaces the suggestion.
+  dismissedAt:    text('dismissed_at').notNull(),
 }, (table) => [
   primaryKey({ columns: [table.city, table.organizerSlug, table.uid] }),
   index('csd_city_valid_until_idx').on(table.city, table.validUntil),

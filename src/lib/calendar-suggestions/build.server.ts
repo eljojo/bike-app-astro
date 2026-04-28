@@ -171,9 +171,24 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
   });
 
   const dismissed = await dismissedPromise;
-  const visible = candidates.filter(c =>
-    !dismissed.has(`${c.suggestion.organizer_slug}:${c.suggestion.uid}`),
-  );
+  // Index source events by org-scoped UID so the dismissal filter can compare
+  // each candidate's last_modified against the dismissal's recorded timestamp.
+  const eventLastModifiedByKey = new Map<string, string | undefined>();
+  for (const r of feeds) {
+    if (r.status !== 'fulfilled') continue;
+    for (const e of r.value.feed.events) {
+      eventLastModifiedByKey.set(`${r.value.slug}:${e.uid}`, e.last_modified);
+    }
+  }
+  const visible = candidates.filter(c => {
+    const key = `${c.suggestion.organizer_slug}:${c.suggestion.uid}`;
+    const dismissal = dismissed.get(key);
+    if (!dismissal) return true;
+    // Upstream edit after dismissal invalidates it — surface the suggestion again.
+    const lm = eventLastModifiedByKey.get(key);
+    if (lm && lm > dismissal.dismissed_at) return true;
+    return false;
+  });
   visible.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   return visible.slice(0, MAX_ITEMS).map(c => c.suggestion);
 }

@@ -100,7 +100,34 @@ function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
     location: ev.location || undefined,
     description: ev.description || undefined,
     url: stringPropOrUndefined(ev.component, 'url'),
+    last_modified: extractLastModified(ev.component),
   };
+}
+
+/**
+ * Extract the upstream VEVENT's last-edit timestamp as ISO-8601 UTC.
+ * Per RFC 5545 LAST-MODIFIED is the canonical "last edit time" of the event
+ * itself; DTSTAMP is the calendar object's "creation/modification time" and is
+ * a reasonable fallback when LAST-MODIFIED is absent (many feeds only emit
+ * DTSTAMP). Both properties are required by the spec to be UTC ICAL.Time.
+ */
+function extractLastModified(comp: ICAL.Component): string | undefined {
+  const lm = comp.getFirstPropertyValue('last-modified') as ICAL.Time | string | null;
+  if (lm) return icalTimeToIsoUtc(lm);
+  const ds = comp.getFirstPropertyValue('dtstamp') as ICAL.Time | string | null;
+  if (ds) return icalTimeToIsoUtc(ds);
+  return undefined;
+}
+
+function icalTimeToIsoUtc(t: ICAL.Time | string): string | undefined {
+  if (typeof t === 'string') {
+    const d = new Date(t);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof (t as ICAL.Time).toJSDate === 'function') {
+    return (t as ICAL.Time).toJSDate().toISOString();
+  }
+  return undefined;
 }
 
 function mapSeries(

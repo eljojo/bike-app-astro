@@ -27,7 +27,11 @@ describe('parseIcs — implicit series detection', () => {
     const overrides = ev.series?.overrides ?? [];
     expect(overrides).toHaveLength(4);
     for (const ovr of overrides) {
-      expect(ovr.event_url).toMatch(/^https:\/\/example.com\/events\//);
+      // Per-occurrence ICS URL is the RSVP/sign-up link for that instance,
+      // so it lives in registration_url — not event_url, which is reserved
+      // for the season/series landing page.
+      expect(ovr.registration_url).toMatch(/^https:\/\/example.com\/events\//);
+      expect(ovr.event_url).toBeUndefined();
       expect(ovr.uid).toMatch(/^test-/);
     }
   });
