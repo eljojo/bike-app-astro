@@ -86,14 +86,16 @@ describe('computeInsights', () => {
   });
 
   it('does not flag pages with very few views as strong performers', () => {
+    // 25 views is below the 30-view floor — a single highly-engaged visitor
+    // moves the score too much at this sample size to be trusted.
     const rows = [
-      makeRow({ contentSlug: 'tiny-strong', totalPageviews: 3, engagementScore: 0.99 }),
+      makeRow({ contentSlug: 'small-strong', totalPageviews: 25, engagementScore: 0.99 }),
       makeRow({ contentSlug: 'filler1', totalPageviews: 100, engagementScore: 0.3 }),
       makeRow({ contentSlug: 'filler2', totalPageviews: 200, engagementScore: 0.2 }),
     ];
     const medians = computeMedians(rows);
     const insights = computeInsights(rows, medians);
-    const strong = insights.find(i => i.type === 'strong-performer' && i.contentSlug === 'tiny-strong');
+    const strong = insights.find(i => i.type === 'strong-performer' && i.contentSlug === 'small-strong');
     expect(strong).toBeUndefined();
   });
 
@@ -211,14 +213,31 @@ describe('computeInsights', () => {
   });
 
   it('does not flag low bounce with too few views', () => {
+    // 50 views is below the 100-view floor — at this sample size a few
+    // link-preview crawler hits dominate the bounce signal.
     const rows = [
-      makeRow({ contentSlug: 'tiny', totalPageviews: 5, avgBounceRate: 10 }),
-      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgBounceRate: 50 }),
-      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgBounceRate: 60 }),
+      makeRow({ contentSlug: 'small', totalPageviews: 50, avgBounceRate: 10, avgVisitDuration: 120 }),
+      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgBounceRate: 50, avgVisitDuration: 120 }),
+      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgBounceRate: 60, avgVisitDuration: 120 }),
     ];
     const medians = computeMedians(rows);
     const insights = computeInsights(rows, medians);
-    const lowBounce = insights.find(i => i.type === 'low-bounce' && i.contentSlug === 'tiny');
+    const lowBounce = insights.find(i => i.type === 'low-bounce' && i.contentSlug === 'small');
+    expect(lowBounce).toBeUndefined();
+  });
+
+  it('does not flag low bounce when avg duration is sub-10s', () => {
+    // The bot/preview signature: high views, 0% bounce, ~0s duration. Filter
+    // it out so genuine human-attention pages don't get drowned by crawler
+    // false positives.
+    const rows = [
+      makeRow({ contentSlug: 'crawler-hit', totalPageviews: 200, avgBounceRate: 0, avgVisitDuration: 1 }),
+      makeRow({ contentSlug: 'normal1', totalPageviews: 100, avgBounceRate: 50, avgVisitDuration: 120 }),
+      makeRow({ contentSlug: 'normal2', totalPageviews: 200, avgBounceRate: 60, avgVisitDuration: 120 }),
+    ];
+    const medians = computeMedians(rows);
+    const insights = computeInsights(rows, medians);
+    const lowBounce = insights.find(i => i.type === 'low-bounce' && i.contentSlug === 'crawler-hit');
     expect(lowBounce).toBeUndefined();
   });
 

@@ -123,8 +123,10 @@ function detectNeedsWork(row: EngagementRow, medians: MedianValues, name: string
 }
 
 function detectStrongPerformer(row: EngagementRow, rows: EngagementRow[], name: string): InsightCard | null {
-  // Top 10% by engagement score, need meaningful data
-  if (row.totalPageviews < 10) return null;
+  // Top 10% by engagement score, need a meaningful sample. Below ~30 views,
+  // a single thoroughly-engaged visitor swings the score enough to surface
+  // pages that aren't actually strong performers.
+  if (row.totalPageviews < 30) return null;
   const sorted = [...rows].sort((a, b) => a.engagementScore - b.engagementScore);
   const threshold = sorted[Math.floor(sorted.length * 0.9)]?.engagementScore ?? Infinity;
   if (row.engagementScore < threshold) return null;
@@ -261,8 +263,13 @@ function detectSeasonal(row: EngagementRow, name: string): InsightCard | null {
 }
 
 function detectLowBounce(row: EngagementRow, medians: MedianValues, name: string): InsightCard | null {
-  // Need meaningful traffic and a bounce rate well below median
-  if (row.totalPageviews < 20) return null;
+  // Filter out the dominant noise source: link-preview crawlers (iMessage,
+  // Slack, FB Messenger, Instagram) hit a page plus sub-resources, which
+  // Plausible reads as "engaged session" but with near-zero attention. The
+  // signature is low view count + sub-second avg duration + 0% bounce. Both
+  // floors below have to clear before the insight surfaces.
+  if (row.totalPageviews < 100) return null;
+  if (row.avgVisitDuration < 10) return null;
   if (medians.avgBounceRate === 0) return null;
   if (row.avgBounceRate >= medians.avgBounceRate * 0.5) return null;
 
