@@ -105,7 +105,7 @@ Astro.response.headers.set('Cache-Control', 'no-store');
               <Fragment>
                 <dt>{t('events.location', locale)}</dt>
                 <dd>{/^https?:\/\//i.test(data.location)
-                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location} aria-label="View location on map">{'\u{1F5FA}\u{FE0F}'}</a>
+                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location} aria-label={t('events.view_on_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a>
                   : data.location}</dd>
               </Fragment>
             )}
