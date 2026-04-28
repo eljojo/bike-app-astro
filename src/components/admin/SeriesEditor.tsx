@@ -11,6 +11,23 @@ type DayName = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'sat
 
 const DAY_NAMES: DayName[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+/**
+ * Render a location string as either plain text or — when it's a URL (e.g.
+ * Google Calendar puts a Maps URL in LOCATION when an event is bound to a
+ * Google Place) — a 🌐 emoji link. Keeps the badge compact when the value
+ * is unreadable raw URL text.
+ */
+function LocationBadge({ value, className }: { value: string; className: string }) {
+  if (/^https?:\/\//i.test(value)) {
+    return (
+      <a href={value} target="_blank" rel="noopener noreferrer" class={className} title={value}>
+        🌐
+      </a>
+    );
+  }
+  return <span class={className}>{value}</span>;
+}
+
 /** Build localized day option labels using Intl */
 function buildDayOptions(intlLocale: string): { value: DayName; label: string }[] {
   return DAY_NAMES.map((name, i) => {
@@ -470,7 +487,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                       <div key={o.date} class="series-override-item">
                         <span>{o.date}</span>
                         {o.cancelled && <span class="series-override-badge series-override-badge--cancelled">cancelled</span>}
-                        {o.location && <span class="series-override-badge">{o.location}</span>}
+                        {o.location && <LocationBadge value={o.location} className="series-override-badge" />}
                         {o.note && <span class="series-override-badge">{o.note}</span>}
                         <button type="button" class="btn-link" onClick={() => setOverrides(overrides.filter(x => x.date !== o.date))}>
                           remove
@@ -515,7 +532,7 @@ export default function SeriesEditor({ initialSeries, eventLocation, eventStartT
                   {schedule.map(s => (
                     <div key={s.date} class={`series-schedule-item${s.cancelled ? ' series-schedule-item--cancelled' : ''}`}>
                       <span class="series-schedule-date">{s.date}</span>
-                      {s.location && <span class="series-schedule-location">{s.location}</span>}
+                      {s.location && <LocationBadge value={s.location} className="series-schedule-location" />}
                       {s.cancelled && <span class="series-override-badge series-override-badge--cancelled">cancelled</span>}
                       {s.note && <span class="series-override-badge">{s.note}</span>}
                       <button type="button" class="btn-link" onClick={() => setSchedule(schedule.filter(x => x.date !== s.date))}>

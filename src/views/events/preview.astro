@@ -104,7 +104,9 @@ Astro.response.headers.set('Cache-Control', 'no-store');
             {data.location && (
               <Fragment>
                 <dt>{t('events.location', locale)}</dt>
-                <dd>{data.location}</dd>
+                <dd>{/^https?:\/\//i.test(data.location)
+                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location}>🌐</a>
+                  : data.location}</dd>
               </Fragment>
             )}
           </dl>

@@ -480,7 +480,14 @@ function editionDateLabel(startDate: string, loc?: string): string {
               <strong>{eventNextLabel(tags, locale)}:</strong>{' '}
               {formatOccurrenceDateLong(nextOccurrence.date)}
               {summaryTime && ` \u00b7 ${formatTime(summaryTime, locale)}`}
-              {nextOccurrence.location && ` \u00b7 ${nextOccurrence.location}`}
+              {nextOccurrence.location && (
+                <Fragment>
+                  {' \u00b7 '}
+                  {/^https?:\/\//i.test(nextOccurrence.location)
+                    ? <a href={nextOccurrence.location} target="_blank" rel="noopener noreferrer" title={nextOccurrence.location}>\ud83c\udf10</a>
+                    : nextOccurrence.location}
+                </Fragment>
+              )}
             </div>
           );
         })()}
@@ -507,7 +514,9 @@ function editionDateLabel(startDate: string, loc?: string): string {
             {data.location && (
               <Fragment>
                 <dt>{t('events.location', locale)}</dt>
-                <dd>{data.location}</dd>
+                <dd>{/^https?:\/\//i.test(data.location)
+                  ? <a href={data.location} target="_blank" rel="noopener noreferrer" title={data.location}>🌐</a>
+                  : data.location}</dd>
               </Fragment>
             )}
 
@@ -714,7 +723,9 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 <li class={`event-series-date-item ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                   <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
                   {occTime && <span class="event-series-date-time">{formatTime(occTime, locale)}</span>}
-                  {occ.location && <span class="event-series-date-location">{occ.location}</span>}
+                  {occ.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
+                    ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>🌐</a>
+                    : occ.location}</span>}
                   {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                   {occ.rescheduled_from && (
                     <span class="event-series-date-note">
@@ -735,7 +746,9 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 {pastOccurrences.toReversed().map((occ: SeriesOccurrence) => (
                   <li class={`event-series-date-item event-series-date-item--past ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                     <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
-                    {occ.location && <span class="event-series-date-location">{occ.location}</span>}
+                    {occ.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
+                      ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location}>🌐</a>
+                      : occ.location}</span>}
                     {occ.cancelled && <span class="event-series-date-badge">{t('events.series_cancelled', locale)}</span>}
                     {occ.note && !occ.cancelled && <span class="event-series-date-note">{occ.note}</span>}
                   </li>
