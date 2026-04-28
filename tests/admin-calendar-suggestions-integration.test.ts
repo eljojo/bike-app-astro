@@ -12,6 +12,7 @@
 import { describe, test, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import fs from 'node:fs';
 import { calendarSuggestionDismissals, contentEdits } from '../src/db/schema';
+import { CITY } from '../src/lib/config/config';
 import type { ParsedFeed } from '../src/lib/calendar-suggestions/types';
 import type { CalendarFeedCache } from '../src/lib/calendar-feed-cache/feed-cache.service';
 
@@ -60,7 +61,12 @@ describe('admin calendar suggestions — integration via env.service', () => {
     const { db: getDb } = await import('../src/lib/get-db');
 
     const db = getDb();
-    await dismissSuggestion(db, 'demo', 'qbc', 'gone@x', '2026-05-10');
+    // Insert under the runtime CITY so loadAdminEventList's `WHERE city =
+    // CITY` query matches. Hardcoding 'demo' here is brittle: the local .env
+    // ships with CITY=ottawa, and the dismissals/contentEdits queries inside
+    // loadAdminEventList read CITY from src/lib/config/config.ts at module
+    // load. The test is environment-agnostic when we use the same constant.
+    await dismissSuggestion(db, CITY, 'qbc', 'gone@x', '2026-05-10');
 
     const feed: ParsedFeed = {
       fetched_at: new Date().toISOString(),
@@ -76,7 +82,7 @@ describe('admin calendar suggestions — integration via env.service', () => {
     expect(repoEvents).toEqual([]);  // sanity: D1 cache empty
 
     const suggestions = await buildSuggestions({
-      db, city: 'demo',
+      db, city: CITY,
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents,
       feedCache: inMemoryFeedCache(feed),
@@ -111,7 +117,7 @@ describe('admin calendar suggestions — integration via env.service', () => {
       body: '',
     });
     await db.insert(contentEdits).values({
-      city: 'demo',
+      city: CITY,
       contentType: 'events',
       contentSlug: '2026/imported',
       data: cachedEvent,
@@ -132,7 +138,7 @@ describe('admin calendar suggestions — integration via env.service', () => {
     expect(repoEvents.find(e => e.id === '2026/imported')?.ics_uid).toBe('imported@x');
 
     const suggestions = await buildSuggestions({
-      db, city: 'demo',
+      db, city: CITY,
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],
       repoEvents,
       feedCache: inMemoryFeedCache(feed),
