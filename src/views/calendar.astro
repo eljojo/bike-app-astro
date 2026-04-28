@@ -299,8 +299,10 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
   {Object.keys(upcomingByMonth).length > 0 && (
     <section>
       <h2>{t('calendar.full_calendar', locale)}</h2>
-      <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer"><Icon name="calendar-blank" size={18} /> {t('calendar.google', locale)}</a>
-      <a href={webcalUrl} class="action-button"><Icon name="calendar-blank" size={18} /> {t('calendar.subscribe', locale)}</a>
+      <div class="calendar-subscribe-actions">
+        <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer"><Icon name="calendar-blank" size={18} /> {t('calendar.google', locale)}</a>
+        <a href={webcalUrl} class="action-button"><Icon name="calendar-blank" size={18} /> {t('calendar.subscribe', locale)}</a>
+      </div>
       <div class="calendar-months-grid">
         {Object.entries(upcomingByMonth).map(([month, evts]) => (
           <div class="calendar-month-card">
@@ -398,3 +400,9 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     });
   </script>
 </Base>
+
+<style>
+  .calendar-subscribe-actions {
+    margin-bottom: 1.5rem;
+  }
+</style>
