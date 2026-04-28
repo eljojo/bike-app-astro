@@ -47,8 +47,8 @@ export function tagPillColor(tag: string): TagColor {
  * distinct (`brevet` vs `gran-fondo` are similar but not synonyms).
  */
 export const TAG_SYNONYMS: Record<string, string> = {
-	'social': 'social-ride',
-	'group-ride': 'social-ride',
+	'social-ride': 'social',
+	'group-ride': 'social',
 	'youth': 'family-friendly',
 };
 
