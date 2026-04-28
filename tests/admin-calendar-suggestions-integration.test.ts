@@ -60,7 +60,7 @@ describe('admin calendar suggestions — integration via env.service', () => {
     const { db: getDb } = await import('../src/lib/get-db');
 
     const db = getDb();
-    await dismissSuggestion(db, 'demo', 'qbc', 'gone@x');
+    await dismissSuggestion(db, 'demo', 'qbc', 'gone@x', '2026-05-10');
 
     const feed: ParsedFeed = {
       fetched_at: new Date().toISOString(),

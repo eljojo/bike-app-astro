@@ -1,6 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
-import { listDismissedKeys } from './dismissals.server';
-import type { DismissalKey } from './dismissals.server';
+import { listDismissedKeys, NEVER_EXPIRES } from './dismissals.server';
 import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay, Suggestion } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
@@ -43,8 +42,8 @@ export interface BuildArgs {
  *
  * Feed data is read/written via the injected `feedCache` (KV in prod, filesystem
  * in local dev). Dismissals are read from D1 via `listDismissedKeys` — a single
- * SELECT scoped to the post-filter candidate set, so per-request cost is bounded
- * by the candidates rather than the cumulative dismissal history.
+ * SELECT filtered by `valid_until >= today`, so per-request cost is bounded by
+ * the count of dismissals whose underlying event hasn't passed yet.
  *
  * Planned: extend to surface UID-matched repo events whose fields differ from
  * the upstream VEVENT ("updated suggestions"). See
@@ -109,9 +108,11 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
     return (e.series.schedule ?? []).some(s => s.date >= nowLocalDate);
   }
 
-  // Pre-filter feeds to the candidate set BEFORE querying dismissals, so the
-  // dismissals query is scoped to the few items we might display. This keeps
-  // the read O(visible candidates) rather than O(cumulative dismissals for the city).
+  // Dismissals query is independent of the candidate set — bounded only by
+  // dismissals whose underlying event hasn't passed yet. Run it in parallel
+  // with the per-feed processing.
+  const dismissedPromise = listDismissedKeys(db, city, nowLocalDate);
+
   type Candidate = { sortKey: string; suggestion: Suggestion };
   const candidates: Candidate[] = feeds.flatMap(r => {
     if (r.status !== 'fulfilled') return [];
@@ -129,21 +130,34 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
           start: e.start,
           location: e.location,
           series_label: e.series ? formatSeriesLabel(e.series) : undefined,
+          valid_until: validUntilForEvent(e),
         },
       }));
   });
 
-  const dismissalKeys: DismissalKey[] = candidates.map(c => ({
-    organizer_slug: c.suggestion.organizer_slug,
-    uid:            c.suggestion.uid,
-  }));
-  const dismissed = await listDismissedKeys(db, city, dismissalKeys);
-
+  const dismissed = await dismissedPromise;
   const visible = candidates.filter(c =>
     !dismissed.has(`${c.suggestion.organizer_slug}:${c.suggestion.uid}`),
   );
   visible.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   return visible.slice(0, MAX_ITEMS).map(c => c.suggestion);
+}
+
+/**
+ * The date past which a dismissal of this event can be safely ignored.
+ *   - one-off: the event's calendar date (after that, the event is past)
+ *   - recurrence series with season_end: that end date
+ *   - schedule series: the last scheduled date
+ *   - unbounded series (no season_end, no schedule): NEVER_EXPIRES sentinel
+ */
+function validUntilForEvent(e: ParsedVEvent): string {
+  if (!e.series) return e.start.slice(0, 10);
+  if (e.series.kind === 'recurrence') return e.series.season_end ?? NEVER_EXPIRES;
+  const sched = e.series.schedule ?? [];
+  if (sched.length === 0) return NEVER_EXPIRES;
+  let last = sched[0].date;
+  for (const s of sched) if (s.date > last) last = s.date;
+  return last;
 }
 
 const WEEKDAY_INDEX: Record<RecurrenceDay, number> = {

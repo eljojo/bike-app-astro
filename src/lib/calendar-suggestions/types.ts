@@ -20,6 +20,14 @@ export interface Suggestion {
   start: string;
   location?: string;
   series_label?: string;
+  /**
+   * YYYY-MM-DD past which a dismissal of this suggestion can be ignored. The
+   * dismiss endpoint persists this so future-dated dismissals stay readable
+   * via a single `valid_until >= today` predicate (no D1 IN-clause required).
+   * One-offs use the start date; recurrence series use season_end; other
+   * series fall back to a far-future sentinel.
+   */
+  valid_until: string;
 }
 
 export interface ParsedVEvent {

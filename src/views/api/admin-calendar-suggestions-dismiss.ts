@@ -8,12 +8,15 @@ import { dismissSuggestion } from '../../lib/calendar-suggestions/dismissals.ser
 
 export const prerender = false;
 
-// Body shape: `{ organizer_slug, uid }`. The PK is `(city, organizer_slug, uid)`
-// so two organizer feeds can both dismiss the same UID independently. The sidebar
-// passes both fields as part of the suggestion's `dismissPayload`.
+// Body shape: `{ organizer_slug, uid, valid_until }`. The PK is
+// `(city, organizer_slug, uid)`; `valid_until` is a YYYY-MM-DD date past
+// which the dismissal can be ignored, set by the producing endpoint per
+// suggestion (one-off start date, recurrence season_end, etc.). The sidebar
+// passes all three as part of the suggestion's `dismissPayload`.
 const bodySchema = z.object({
   organizer_slug: z.string().min(1),
   uid:            z.string().min(1),
+  valid_until:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be YYYY-MM-DD'),
 });
 
 export async function POST({ locals, request }: APIContext) {
@@ -28,7 +31,7 @@ export async function POST({ locals, request }: APIContext) {
   }
 
   try {
-    await dismissSuggestion(db(), CITY, body.organizer_slug, body.uid);
+    await dismissSuggestion(db(), CITY, body.organizer_slug, body.uid, body.valid_until);
     return jsonResponse({ ok: true });
   } catch (err: unknown) {
     console.error('calendar suggestion dismiss error:', err);

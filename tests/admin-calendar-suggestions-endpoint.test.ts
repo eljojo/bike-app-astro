@@ -84,7 +84,7 @@ describe('admin calendar suggestions — build logic', () => {
       oneOff('dismissed@x', '2026-05-01T18:00:00.000Z'),
       oneOff('keep@x', '2026-05-08T18:00:00.000Z'),
     ]);
-    await dismissSuggestion(db, 'ottawa', 'qbc', 'dismissed@x');
+    await dismissSuggestion(db, 'ottawa', 'qbc', 'dismissed@x', '2026-05-10');
     const suggestions = await buildSuggestions({
       db, city: 'ottawa', feedCache,
       organizers: [{ slug: 'qbc', name: 'QBC', ics_url: 'https://example.com/feed.ics' }],

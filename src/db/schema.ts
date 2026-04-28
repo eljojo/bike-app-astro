@@ -222,12 +222,15 @@ export const statsCache = sqliteTable('stats_cache', {
 //
 // Stores the set of ICS event UIDs an admin has explicitly dismissed for a given city.
 // PK is (city, organizer_slug, uid): two organizer feeds can emit the same UID string
-// (e.g. a generic 'weekly-ride'), so the organizer is part of identity. Set-membership
-// semantics — no metadata (who/when/snapshot) until a feature demands one.
+// (e.g. a generic 'weekly-ride'), so the organizer is part of identity.
 //
-// The dismissals query is bounded by the current candidate set (single SELECT WITH
-// city = ? AND uid IN (...)), so the table can grow without affecting per-request cost.
-// See src/lib/calendar-suggestions/dismissals.server.ts.
+// `valid_until` is a YYYY-MM-DD beyond which the dismissal can be ignored. For
+// one-offs it's the event's start date; for recurrence series it's the season_end;
+// for unbounded/schedule series it's a far-future sentinel. The suggestions read
+// is `WHERE city = ? AND valid_until >= ?` (today) — bounded by the count of
+// dismissals whose underlying event hasn't passed yet, not by the cumulative
+// dismissal history. This avoids D1's 100-parameter cap that an IN-clause hits
+// when a feed surfaces many candidates in one pageload.
 //
 // The feed cache (parsed upstream ICS) lives in KV under the TILE_CACHE binding, with
 // `calfeed:feed:v3:` key prefix — see src/lib/calendar-feed-cache/.
@@ -235,6 +238,8 @@ export const calendarSuggestionDismissals = sqliteTable('calendar_suggestion_dis
   city:           text('city').notNull(),
   organizerSlug:  text('organizer_slug').notNull(),
   uid:            text('uid').notNull(),
+  validUntil:     text('valid_until').notNull(),
 }, (table) => [
   primaryKey({ columns: [table.city, table.organizerSlug, table.uid] }),
+  index('csd_city_valid_until_idx').on(table.city, table.validUntil),
 ]);

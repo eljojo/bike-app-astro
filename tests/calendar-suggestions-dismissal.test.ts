@@ -5,6 +5,7 @@ import {
   dismissSuggestion,
   listDismissedKeys,
   undismissSuggestion,
+  NEVER_EXPIRES,
 } from '../src/lib/calendar-suggestions/dismissals.server';
 
 describe('calendar suggestion dismissals', () => {
@@ -13,54 +14,57 @@ describe('calendar suggestion dismissals', () => {
   beforeEach(() => { h = createTestDb(); db = h.db as unknown as Database; });
   afterEach(() => { h.cleanup(); });
 
-  test('listDismissedKeys returns an empty set when candidates is empty', async () => {
-    expect(await listDismissedKeys(db, 'ottawa', [])).toEqual(new Set());
+  test('returns an empty set when nothing is dismissed', async () => {
+    expect(await listDismissedKeys(db, 'ottawa', '2026-04-27')).toEqual(new Set());
   });
 
-  test('listDismissedKeys returns only dismissals that match candidates', async () => {
-    // Seed three dismissals across two cities; query with two candidates from one city.
-    await dismissSuggestion(db, 'ottawa', 'qbc', 'uid-1@x');
-    await dismissSuggestion(db, 'ottawa', 'qbc', 'uid-2@x');
-    await dismissSuggestion(db, 'ottawa', 'obmc', 'uid-3@x');
-    await dismissSuggestion(db, 'brevet', 'rcc',  'uid-4@x');
-
-    const keys = await listDismissedKeys(db, 'ottawa', [
-      { organizer_slug: 'qbc',  uid: 'uid-1@x' },
-      { organizer_slug: 'obmc', uid: 'uid-3@x' },
-      { organizer_slug: 'qbc',  uid: 'never-dismissed@x' },
-    ]);
-    // Only the matching pairs are returned. Must NOT include uid-2@x (not in candidates)
-    // or uid-4@x (different city), and must omit the unmatched candidate.
-    expect(keys).toEqual(new Set(['qbc:uid-1@x', 'obmc:uid-3@x']));
+  test('returns dismissals whose valid_until is on or after today', async () => {
+    await dismissSuggestion(db, 'ottawa', 'qbc',  'future@x',  '2026-05-10');
+    await dismissSuggestion(db, 'ottawa', 'qbc',  'today@x',   '2026-04-27');
+    await dismissSuggestion(db, 'ottawa', 'qbc',  'past@x',    '2026-04-26');
+    const keys = await listDismissedKeys(db, 'ottawa', '2026-04-27');
+    expect(keys).toEqual(new Set(['qbc:future@x', 'qbc:today@x']));
   });
 
-  test('listDismissedKeys distinguishes two organizers with the same UID', async () => {
-    // Without organizer_slug in the PK, dismissing one would dismiss the other.
-    await dismissSuggestion(db, 'ottawa', 'qbc',  'weekly-ride');
-    const keys = await listDismissedKeys(db, 'ottawa', [
-      { organizer_slug: 'qbc',  uid: 'weekly-ride' },
-      { organizer_slug: 'obmc', uid: 'weekly-ride' },
-    ]);
-    expect(keys).toEqual(new Set(['qbc:weekly-ride']));
+  test('scopes to the requested city', async () => {
+    await dismissSuggestion(db, 'ottawa', 'qbc',  'a@x', '2026-05-10');
+    await dismissSuggestion(db, 'brevet', 'rcc',  'b@x', '2026-05-10');
+    expect(await listDismissedKeys(db, 'ottawa', '2026-04-27'))
+      .toEqual(new Set(['qbc:a@x']));
+    expect(await listDismissedKeys(db, 'brevet', '2026-04-27'))
+      .toEqual(new Set(['rcc:b@x']));
   });
 
-  test('re-dismissing the same (org, uid) is idempotent', async () => {
-    await dismissSuggestion(db, 'ottawa', 'qbc', 'uid-1@x');
-    await dismissSuggestion(db, 'ottawa', 'qbc', 'uid-1@x');
-    const keys = await listDismissedKeys(db, 'ottawa', [
-      { organizer_slug: 'qbc', uid: 'uid-1@x' },
-    ]);
-    expect(keys.size).toBe(1);
+  test('distinguishes two organizers with the same UID', async () => {
+    // Without organizer_slug in the key, dismissing one would dismiss the other.
+    await dismissSuggestion(db, 'ottawa', 'qbc',  'weekly-ride', '2026-09-30');
+    await dismissSuggestion(db, 'ottawa', 'obmc', 'weekly-ride', '2026-09-30');
+    await undismissSuggestion(db, 'ottawa', 'qbc', 'weekly-ride');
+    const keys = await listDismissedKeys(db, 'ottawa', '2026-04-27');
+    expect(keys).toEqual(new Set(['obmc:weekly-ride']));
   });
 
-  test('undismiss removes the entry for that org+uid only', async () => {
-    await dismissSuggestion(db, 'ottawa', 'qbc',  'uid-1@x');
-    await dismissSuggestion(db, 'ottawa', 'obmc', 'uid-1@x');
+  test('NEVER_EXPIRES keeps a dismissal returned even far in the future', async () => {
+    await dismissSuggestion(db, 'ottawa', 'qbc', 'unbounded@x', NEVER_EXPIRES);
+    const keys = await listDismissedKeys(db, 'ottawa', '2099-01-01');
+    expect(keys).toEqual(new Set(['qbc:unbounded@x']));
+  });
+
+  test('re-dismissing the same (org, uid) updates valid_until in place', async () => {
+    await dismissSuggestion(db, 'ottawa', 'qbc', 'uid-1@x', '2026-04-26');
+    // First dismiss expired yesterday — would not be returned today.
+    expect(await listDismissedKeys(db, 'ottawa', '2026-04-27')).toEqual(new Set());
+    // Re-dismiss with a future valid_until refreshes the lifetime.
+    await dismissSuggestion(db, 'ottawa', 'qbc', 'uid-1@x', '2026-05-10');
+    expect(await listDismissedKeys(db, 'ottawa', '2026-04-27'))
+      .toEqual(new Set(['qbc:uid-1@x']));
+  });
+
+  test('undismiss removes the entry for that (org, uid) only', async () => {
+    await dismissSuggestion(db, 'ottawa', 'qbc',  'uid-1@x', '2026-05-10');
+    await dismissSuggestion(db, 'ottawa', 'obmc', 'uid-1@x', '2026-05-10');
     await undismissSuggestion(db, 'ottawa', 'qbc', 'uid-1@x');
-    const keys = await listDismissedKeys(db, 'ottawa', [
-      { organizer_slug: 'qbc',  uid: 'uid-1@x' },
-      { organizer_slug: 'obmc', uid: 'uid-1@x' },
-    ]);
+    const keys = await listDismissedKeys(db, 'ottawa', '2026-04-27');
     expect(keys).toEqual(new Set(['obmc:uid-1@x']));
   });
 });

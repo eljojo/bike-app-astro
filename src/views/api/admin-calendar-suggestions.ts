@@ -62,7 +62,11 @@ function toSuggestionItem(s: Suggestion, siteTz: string, locale: string): Sugges
     // of `title` matches the spacing the design calls for.
     meta:  s.kind === 'series' ? `${meta} · ${s.organizer_name}` : meta,
     href:  `/admin/events/new?from_feed=${encodeURIComponent(s.organizer_slug)}&uid=${encodeURIComponent(s.uid)}${fullParam}`,
-    dismissPayload: { organizer_slug: s.organizer_slug, uid: s.uid },
+    dismissPayload: {
+      organizer_slug: s.organizer_slug,
+      uid: s.uid,
+      valid_until: s.valid_until,
+    },
   };
 }
 

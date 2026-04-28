@@ -1,31 +1,28 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import type { Database } from '../../db';
 import { calendarSuggestionDismissals } from '../../db/schema';
 
-export interface DismissalKey {
-  organizer_slug: string;
-  uid: string;
-}
+/**
+ * Date string (YYYY-MM-DD) used when a dismissal has no natural expiry — an
+ * unbounded recurrence series, or any case where the producer wants the
+ * dismissal to persist until manually undismissed.
+ */
+export const NEVER_EXPIRES = '9999-12-31';
 
 /**
- * Single SELECT WHERE city = ? AND uid IN (...). Returns a Set keyed by
- * `${organizer_slug}:${uid}` so the caller can match per-organizer dismissals
- * without sending tuple-IN (D1 doesn't support `(col, col) IN ((?, ?), ...)`).
+ * Return the keyed Set of dismissals for `city` whose `valid_until >= today`.
+ * Single SELECT, no IN-clause — the date predicate naturally filters out
+ * dismissals for events that have already passed, so the working set is
+ * bounded by "still-relevant dismissals" rather than the cumulative history.
  *
- * Empty `candidates` short-circuits to an empty Set without querying D1; this is
- * the common path on a city that has no organizers with `ics_url` configured.
- *
- * Cost is bounded by `candidates.length` rows, so the dismissals table can grow
- * without inflating per-request cost — every page load reads at most O(suggestion
- * candidates) rows, never the full dismissal history.
+ * Set values are `${organizer_slug}:${uid}` so callers can look up dismissals
+ * scoped per-organizer (two feeds with the same UID string don't collide).
  */
 export async function listDismissedKeys(
   db: Database,
   city: string,
-  candidates: DismissalKey[],
+  todayLocalDate: string,
 ): Promise<Set<string>> {
-  if (candidates.length === 0) return new Set();
-  const uids = Array.from(new Set(candidates.map(c => c.uid)));
   const rows = await db.select({
       organizer_slug: calendarSuggestionDismissals.organizerSlug,
       uid:            calendarSuggestionDismissals.uid,
@@ -33,29 +30,36 @@ export async function listDismissedKeys(
     .from(calendarSuggestionDismissals)
     .where(and(
       eq(calendarSuggestionDismissals.city, city),
-      inArray(calendarSuggestionDismissals.uid, uids),
+      gte(calendarSuggestionDismissals.validUntil, todayLocalDate),
     ));
-  // Build the Set scoped to the actual (organizer_slug, uid) candidates — a row
-  // sharing only a UID with a candidate (different organizer) must not match.
-  const candidateKeys = new Set(candidates.map(c => `${c.organizer_slug}:${c.uid}`));
   const out = new Set<string>();
-  for (const r of rows) {
-    const key = `${r.organizer_slug}:${r.uid}`;
-    if (candidateKeys.has(key)) out.add(key);
-  }
+  for (const r of rows) out.add(`${r.organizer_slug}:${r.uid}`);
   return out;
 }
 
-/** Mark `(city, organizer_slug, uid)` as dismissed. Idempotent. */
+/**
+ * Mark `(city, organizer_slug, uid)` as dismissed until `validUntil` (a
+ * YYYY-MM-DD). Idempotent on the PK — re-dismissing updates the date so a
+ * suggestion that re-appears later (e.g. extended season) gets a refreshed
+ * lifetime instead of being lost.
+ */
 export async function dismissSuggestion(
   db: Database,
   city: string,
   organizerSlug: string,
   uid: string,
+  validUntil: string,
 ): Promise<void> {
   await db.insert(calendarSuggestionDismissals)
-    .values({ city, organizerSlug, uid })
-    .onConflictDoNothing()
+    .values({ city, organizerSlug, uid, validUntil })
+    .onConflictDoUpdate({
+      target: [
+        calendarSuggestionDismissals.city,
+        calendarSuggestionDismissals.organizerSlug,
+        calendarSuggestionDismissals.uid,
+      ],
+      set: { validUntil },
+    })
     .run();
 }
 
