@@ -115,13 +115,14 @@ export function seedContentEdit(
   contentType: string,
   slug: string,
   data: string,
+  githubSha = 'test-sha',
 ) {
   const db = openDb(dbPath);
   try {
     db.prepare(
       `INSERT OR REPLACE INTO content_edits (city, content_type, content_slug, data, github_sha, updated_at)
-       VALUES ('demo', ?, ?, ?, 'test-sha', datetime('now'))`
-    ).run(contentType, slug, data);
+       VALUES ('demo', ?, ?, ?, ?, datetime('now'))`
+    ).run(contentType, slug, data, githubSha);
   } finally {
     db.close();
   }
