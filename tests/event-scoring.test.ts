@@ -74,75 +74,101 @@ describe('timeScore', () => {
 });
 
 describe('scoreEvent — worked examples from the design spec', () => {
-	it('Black Girls Biking First Ride (May 9, featured org, women-only)', () => {
+	it('Black Girls Biking First Ride (May 9, featured org, women-only, 1.67/yr)', () => {
 		const score = scoreEvent({
 			tags: ['social', 'women-only'],
 			isSeries: false,
 			organizerFeatured: true,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.67,
 			effectiveDate: '2026-05-09',
 			now: NOW,
 		});
-		// 30 (women-only) + 40 (featured) + 26.7 (11 days out) = 96.7
-		expect(score).toBeCloseTo(96.7, 1);
+		// 30 (women-only) + 40 (featured) + 26.7 (11 days) + 20 (rarity ≤2/yr) = 116.7
+		expect(score).toBeCloseTo(116.7, 1);
 	});
 
-	it('OttBike Social weekly (featured org, series, slow-riding)', () => {
+	it('OttBike Social weekly (featured org, series, slow-riding, 1.67/yr)', () => {
 		const score = scoreEvent({
 			tags: ['group-ride', 'slow-riding', 'social'],
 			isSeries: true,
 			organizerFeatured: true,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.67,
 			effectiveDate: '2026-04-30',
 			now: NOW,
 		});
-		// 20 (slow-riding) + 40 (featured) + 29.4 (2 days) + 0 (no penalty for featured series) = 89.4
-		expect(score).toBeCloseTo(89.4, 1);
+		// 20 (slow-riding) + 40 (featured) + 29.4 (2 days) + 0 (featured series, no penalty) + 20 (rarity ≤2/yr) = 109.4
+		expect(score).toBeCloseTo(109.4, 1);
 	});
 
-	it('Coffee Outside Mommas (May 10, featured org, slow-riding)', () => {
+	it('Coffee Outside Mommas (May 10, featured org, slow-riding, 1.5/yr)', () => {
 		const score = scoreEvent({
 			tags: ['social', 'slow-riding'],
 			isSeries: false,
 			organizerFeatured: true,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.5,
 			effectiveDate: '2026-05-10',
 			now: NOW,
 		});
-		// 20 (slow-riding) + 40 (featured) + 26.4 (12 days) = 86.4
-		expect(score).toBeCloseTo(86.4, 1);
+		// 20 (slow-riding) + 40 (featured) + 26.4 (12 days) + 20 (rarity ≤2/yr) = 106.4
+		expect(score).toBeCloseTo(106.4, 1);
 	});
 
-	it('100% Féminin (Aug 16, inline org, women-only)', () => {
+	it('Bike Minds (Apr 29, NOT featured, social+meetup, 1.0/yr)', () => {
+		const score = scoreEvent({
+			tags: ['social', 'meetup'],
+			isSeries: false,
+			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.0,
+			effectiveDate: '2026-04-29',
+			now: NOW,
+		});
+		// 15 (social/meetup) + 0 + 29.7 (1 day) + 15 (imminent meetup) + 30 (rarity ≤1/yr) = 89.7
+		expect(score).toBeCloseTo(89.7, 1);
+	});
+
+	it('100% Féminin (Aug 16, inline org, women-only, 1.0/yr default)', () => {
 		const score = scoreEvent({
 			tags: ['road', 'gravel', 'women-only'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.0,
 			effectiveDate: '2026-08-16',
 			now: NOW,
 		});
-		// 30 (women-only) + 0 + 5 (floor, 110 days out) = 35
-		expect(score).toBe(35);
+		// 30 (women-only) + 0 + 5 (floor, 110 days) + 30 (rarity ≤1/yr) = 65
+		expect(score).toBe(65);
 	});
 
-	it('BMX Open House (May 9, NOT featured, family-friendly)', () => {
+	it('BMX Open House (May 9, NOT featured, family-friendly, 1.5/yr)', () => {
 		const score = scoreEvent({
 			tags: ['bmx', 'family-friendly'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.5,
 			effectiveDate: '2026-05-09',
 			now: NOW,
 		});
-		// 25 (family-friendly) + 0 + 26.7 = 51.7
-		expect(score).toBeCloseTo(51.7, 1);
+		// 25 (family-friendly) + 0 + 26.7 + 20 (rarity ≤2/yr) = 71.7
+		expect(score).toBeCloseTo(71.7, 1);
 	});
 
-	it('OBC Sunday Practice — non-featured weekly series gets penalty', () => {
+	it('OBC Sunday Practice — non-featured weekly series gets penalty (4.75/yr)', () => {
 		const score = scoreEvent({
 			tags: ['social'],
 			isSeries: true,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 4.75,
 			effectiveDate: '2026-05-03',
 			now: NOW,
 		});
-		// 15 (social) + 0 + 28.5 (5 days) + (-10) penalty = 33.5
+		// 15 (social) + 0 + 28.5 (5 days) + (-10) series penalty + 0 (no rarity) = 33.5
 		expect(score).toBeCloseTo(33.5, 1);
 	});
 
@@ -151,20 +177,24 @@ describe('scoreEvent — worked examples from the design spec', () => {
 			tags: ['race'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
 			effectiveDate: '2026-05-26',
 			now: NOW,
 		});
-		// 5 (baseline) + 0 + 21.6 = 26.6
+		// 5 (baseline) + 0 + 21.6 + 0 = 26.6
 		expect(score).toBeCloseTo(26.6, 1);
 	});
 });
 
-describe('scoreEvent — imminent race bonus', () => {
-	it('adds +20 to a race within 3 days', () => {
+describe('scoreEvent — imminent bonus (races + meetups)', () => {
+	it('adds +15 to a race within 3 days', () => {
 		const todayRace = scoreEvent({
 			tags: ['race'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
 			effectiveDate: '2026-04-28',
 			now: NOW,
 		});
@@ -175,6 +205,8 @@ describe('scoreEvent — imminent race bonus', () => {
 			tags: ['race'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
 			effectiveDate: '2026-05-01',
 			now: NOW,
 		});
@@ -187,32 +219,39 @@ describe('scoreEvent — imminent race bonus', () => {
 			tags: ['race'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
 			effectiveDate: '2026-05-02',
 			now: NOW,
 		});
-		// 5 (baseline) + 0 + 28.8 + 0 = 33.8 — well below featured-org events
+		// 5 + 0 + 28.8 + 0 = 33.8
 		expect(fourDayRace).toBeCloseTo(33.8, 1);
 	});
 
-	it('applies to the whole race family (criterium, time-trial, triathlon)', () => {
-		for (const tag of ['criterium', 'time-trial', 'triathlon']) {
+	it('applies to the whole imminent set (criterium, time-trial, triathlon, meetup)', () => {
+		for (const tag of ['criterium', 'time-trial', 'triathlon', 'meetup']) {
 			const score = scoreEvent({
 				tags: [tag],
 				isSeries: false,
 				organizerFeatured: false,
+			organizerSoftFeatured: false,
+				organizerEventsPerYear: 5,
 				effectiveDate: '2026-04-30',
 				now: NOW,
 			});
-			// 5 + 0 + 29.4 + 15 = 49.4
-			expect(score).toBeCloseTo(49.4, 1);
+			// meetup tag scores 15, others score 5; both get +15 imminent
+			const expectedTag = tag === 'meetup' ? 15 : 5;
+			expect(score).toBeCloseTo(expectedTag + 29.4 + 15, 1);
 		}
 	});
 
-	it('does not apply to non-race tags', () => {
+	it('does not apply to non-imminent tags', () => {
 		const todayWorkshop = scoreEvent({
 			tags: ['workshop'],
 			isSeries: false,
 			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
 			effectiveDate: '2026-04-28',
 			now: NOW,
 		});
@@ -221,10 +260,109 @@ describe('scoreEvent — imminent race bonus', () => {
 	});
 });
 
+describe('scoreEvent — rarity bonus', () => {
+	it('+30 for ≤1 event per year', () => {
+		const annual = scoreEvent({
+			tags: [],
+			isSeries: false,
+			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.0,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		// 5 (baseline) + 0 + 30 + 0 + 30 = 65
+		expect(annual).toBe(65);
+	});
+
+	it('+20 for >1 and ≤2 events per year', () => {
+		const semiAnnual = scoreEvent({
+			tags: [],
+			isSeries: false,
+			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 1.5,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		// 5 + 0 + 30 + 0 + 20 = 55
+		expect(semiAnnual).toBe(55);
+	});
+
+	it('+10 for >2 and ≤3 events per year', () => {
+		const occasional = scoreEvent({
+			tags: [],
+			isSeries: false,
+			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 2.5,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		// 5 + 0 + 30 + 0 + 10 = 45
+		expect(occasional).toBe(45);
+	});
+
+	it('0 for >3 events per year', () => {
+		const regular = scoreEvent({
+			tags: [],
+			isSeries: false,
+			organizerFeatured: false,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		// 5 + 0 + 30 + 0 + 0 = 35
+		expect(regular).toBe(35);
+	});
+});
+
+describe('scoreEvent — soft-featured', () => {
+	it('adds +25 when organizer carries a soft-featured org tag', () => {
+		const score = scoreEvent({
+			tags: ['social'],
+			isSeries: false,
+			organizerFeatured: false,
+			organizerSoftFeatured: true,
+			organizerEventsPerYear: 5,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		// 15 (social) + 25 (soft-featured) + 30 (today) + 0 + 0 = 70
+		expect(score).toBe(70);
+	});
+
+	it('does not stack with full featured', () => {
+		const fullOnly = scoreEvent({
+			tags: ['social'],
+			isSeries: false,
+			organizerFeatured: true,
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		const both = scoreEvent({
+			tags: ['social'],
+			isSeries: false,
+			organizerFeatured: true,
+			organizerSoftFeatured: true,
+			organizerEventsPerYear: 5,
+			effectiveDate: '2026-04-28',
+			now: NOW,
+		});
+		// Full featured wins; the soft signal is ignored when the org is already featured
+		expect(both).toBe(fullOnly);
+	});
+});
+
 describe('scoreEvent — series penalty logic', () => {
 	it('applies -10 only when series AND not featured', () => {
 		const base = {
 			tags: ['social'],
+			organizerSoftFeatured: false,
+			organizerEventsPerYear: 5,
 			effectiveDate: '2026-05-03',
 			now: NOW,
 		};

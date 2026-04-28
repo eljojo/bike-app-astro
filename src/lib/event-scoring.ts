@@ -32,22 +32,51 @@ export const TAG_SCORES: Record<string, number> = {
 
 export const BASELINE_TAG_SCORE = 5;
 export const FEATURED_BONUS = 40;
+
+// Soft-featured: organizers carrying one of these tags get a partial
+// featured bonus. Lets us boost specific kinds of community work
+// (storytelling, advocacy archives, etc.) without committing to the
+// full "we vouch for everything they do" signal of featured: true.
+export const SOFT_FEATURED_ORG_TAGS = new Set(['storytelling', 'advocacy']);
+export const SOFT_FEATURED_BONUS = 25;
 export const TIME_PEAK = 30;
 export const TIME_FLOOR = 5;
 export const TIME_DECAY_PER_DAY = 0.3;
 export const SERIES_PENALTY = 10;
 
-// Imminent-race boost: a race two days out is more pressing than a workshop
-// next month. Without this, race-family tags fall to baseline (+5) and lose
-// to almost any welcoming event regardless of timing.
-const RACE_TAGS = new Set(['race', 'criterium', 'time-trial', 'triathlon']);
-export const IMMINENT_RACE_BONUS = 15;
-export const IMMINENT_RACE_DAYS = 3;
+// Imminent-event boost: act-now events (races, meetups) get a bump within
+// a few days. Without this, races fall to baseline (+5) and meetups don't
+// rise above other social events when they're tomorrow vs next month.
+const IMMINENT_TAGS = new Set(['race', 'criterium', 'time-trial', 'triathlon', 'meetup']);
+export const IMMINENT_BONUS = 15;
+export const IMMINENT_DAYS = 3;
+
+// Rarity boost: an organizer running ~one event a year deserves more
+// surface than a club running weekly practices. Rate is total events for
+// this organizer divided by the number of distinct calendar years they
+// appear in — stable across the year (unlike a current-year-only count
+// which would call every January "rare"). Inline organizers (no record)
+// are treated as 1 event / 1 year = 1.0.
+export const RARITY_TIERS: ReadonlyArray<{ maxRate: number; bonus: number }> = [
+	{ maxRate: 1.0, bonus: 30 },
+	{ maxRate: 2.0, bonus: 20 },
+	{ maxRate: 3.0, bonus: 10 },
+];
+
+// Repeat-organizer penalty: when picking the top N for a strip, only the
+// soonest event per organizer competes at full score. Others get this
+// penalty so one organizer can't monopolize multiple slots. Applied at
+// the call site (calendar.astro) because it depends on what's in the pool.
+export const ORGANIZER_REPEAT_PENALTY = 30;
 
 export interface ScoringInputs {
 	tags: string[];
 	isSeries: boolean;
 	organizerFeatured: boolean;
+	/** Organizer carries a SOFT_FEATURED_ORG_TAGS tag. Ignored if organizerFeatured. */
+	organizerSoftFeatured: boolean;
+	/** Average events per active year for this organizer. 1.0 for inline organizers. */
+	organizerEventsPerYear: number;
 	/** YYYY-MM-DD — next occurrence for series, start_date for one-offs */
 	effectiveDate: string;
 	now: Date;
@@ -68,17 +97,27 @@ export function timeScore(effectiveDate: string, now: Date): number {
 	return Math.min(TIME_PEAK, Math.max(TIME_FLOOR, raw));
 }
 
-export function imminentRaceBonus(tags: string[], effectiveDate: string, now: Date): number {
-	if (!tags.some(t => RACE_TAGS.has(canonicalTag(t)))) return 0;
+export function imminentBonus(tags: string[], effectiveDate: string, now: Date): number {
+	if (!tags.some(t => IMMINENT_TAGS.has(canonicalTag(t)))) return 0;
 	const daysUntil = (parseLocalDate(effectiveDate).getTime() - now.getTime()) / 86400000;
-	return daysUntil >= 0 && daysUntil <= IMMINENT_RACE_DAYS ? IMMINENT_RACE_BONUS : 0;
+	return daysUntil >= 0 && daysUntil <= IMMINENT_DAYS ? IMMINENT_BONUS : 0;
+}
+
+export function rarityBonus(organizerEventsPerYear: number): number {
+	for (const { maxRate, bonus } of RARITY_TIERS) {
+		if (organizerEventsPerYear <= maxRate) return bonus;
+	}
+	return 0;
 }
 
 export function scoreEvent(inputs: ScoringInputs): number {
 	const tag = tagScore(inputs.tags);
-	const featured = inputs.organizerFeatured ? FEATURED_BONUS : 0;
+	const featured = inputs.organizerFeatured ? FEATURED_BONUS
+		: inputs.organizerSoftFeatured ? SOFT_FEATURED_BONUS
+		: 0;
 	const time = timeScore(inputs.effectiveDate, inputs.now);
 	const series = inputs.isSeries && !inputs.organizerFeatured ? -SERIES_PENALTY : 0;
-	const imminent = imminentRaceBonus(inputs.tags, inputs.effectiveDate, inputs.now);
-	return tag + featured + time + series + imminent;
+	const imminent = imminentBonus(inputs.tags, inputs.effectiveDate, inputs.now);
+	const rarity = rarityBonus(inputs.organizerEventsPerYear);
+	return tag + featured + time + series + imminent + rarity;
 }

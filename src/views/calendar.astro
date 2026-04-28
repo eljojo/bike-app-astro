@@ -18,7 +18,7 @@ import { tTag } from '@/lib/i18n/tag-translations.server';
 import { expandSeriesOccurrences, isSeriesEvent } from '@/lib/series-utils';
 import { imageUrl } from '@/lib/media/image-service';
 import { expandEvents, deduplicateSeries, splitUpcomingPast, groupByMonth, effectiveDate, type CalendarEntry } from '@/lib/calendar-helpers';
-import { scoreEvent } from '@/lib/event-scoring';
+import { scoreEvent, ORGANIZER_REPEAT_PENALTY, SOFT_FEATURED_ORG_TAGS } from '@/lib/event-scoring';
 import Icon from '@/components/Icon.astro';
 
 const config = getCityConfig();
@@ -106,8 +106,25 @@ const showLearnConnect = learnConnect.length >= 2;
 
 // Featured-organizer lookup for scoring. See event-scoring.ts.
 const featuredOrgIds = new Set<string>();
+const softFeaturedOrgIds = new Set<string>();
 for (const o of allOrganizers) {
   if (o.data.featured) featuredOrgIds.add(o.id);
+  const orgTags = o.data.tags ?? [];
+  if (orgTags.some((t: string) => SOFT_FEATURED_ORG_TAGS.has(t))) softFeaturedOrgIds.add(o.id);
+}
+
+// Total events per organizer (past + future) for the rarity boost — an
+// org running one event a year deserves more surface than a club running
+// weekly practices. Also reused below for the organizer-spotlight ranking.
+const totalOrganizerCounts = new Map<string, number>();
+const organizerYears = new Map<string, Set<number>>();
+for (const e of events) {
+  const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
+  if (!orgId) continue;
+  totalOrganizerCounts.set(orgId, (totalOrganizerCounts.get(orgId) || 0) + 1);
+  const year = parseLocalDate(e.data.start_date).getFullYear();
+  if (!organizerYears.has(orgId)) organizerYears.set(orgId, new Set());
+  organizerYears.get(orgId)!.add(year);
 }
 
 // Memoise scores per event id so series occurrences don't re-score
@@ -119,10 +136,14 @@ function entryScore(entry: CalendarEntry): number {
   if (cached !== undefined) return cached;
   const data = entry.event.data;
   const orgId = typeof data.organizer === 'string' ? data.organizer : undefined;
+  const totalCount = orgId ? (totalOrganizerCounts.get(orgId) ?? 1) : 1;
+  const yearsActive = orgId ? (organizerYears.get(orgId)?.size ?? 1) : 1;
   const score = scoreEvent({
     tags: (data.tags as string[]) ?? [],
     isSeries: isSeriesEvent(data),
     organizerFeatured: orgId ? featuredOrgIds.has(orgId) : false,
+    organizerSoftFeatured: orgId ? softFeaturedOrgIds.has(orgId) : false,
+    organizerEventsPerYear: totalCount / Math.max(1, yearsActive),
     effectiveDate: effectiveDate(entry),
     now,
   });
@@ -131,20 +152,51 @@ function entryScore(entry: CalendarEntry): number {
 }
 
 // Pick top N by score, then re-sort the chosen N by date so the strip
-// reads chronologically. Ties break by earlier date.
+// reads chronologically. Ties break by earlier date. Within each pool,
+// only the soonest event per organizer competes at full score — others
+// take ORGANIZER_REPEAT_PENALTY to keep one organizer from monopolizing
+// multiple slots.
 function pickTopByScore(entries: CalendarEntry[], n: number): CalendarEntry[] {
-  const scored = entries.map(e => ({ e, s: entryScore(e), d: parseLocalDate(effectiveDate(e)).getTime() }));
+  const soonestEventIdPerOrg = new Set<string>();
+  const seenOrgs = new Set<string>();
+  const sortedByDate = [...entries].sort((a, b) =>
+    parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime()
+  );
+  for (const e of sortedByDate) {
+    const orgId = typeof e.event.data.organizer === 'string' ? e.event.data.organizer : undefined;
+    if (!orgId) {
+      // Inline or missing organizer — no repeat penalty applies
+      soonestEventIdPerOrg.add(e.event.id);
+      continue;
+    }
+    if (!seenOrgs.has(orgId)) {
+      seenOrgs.add(orgId);
+      soonestEventIdPerOrg.add(e.event.id);
+    }
+  }
+
+  const scored = entries.map(e => {
+    const isSoonest = soonestEventIdPerOrg.has(e.event.id);
+    const score = entryScore(e) - (isSoonest ? 0 : ORGANIZER_REPEAT_PENALTY);
+    return { e, s: score, d: parseLocalDate(effectiveDate(e)).getTime() };
+  });
   scored.sort((a, b) => (b.s - a.s) || (a.d - b.d));
   return scored.slice(0, n).map(x => x.e).sort((a, b) =>
     parseLocalDate(effectiveDate(a)).getTime() - parseLocalDate(effectiveDate(b)).getTime()
   );
 }
 
-// Build "Coming up" pool: general events + lone events from sparse sections
+// Build "Coming up" pool: general events + lone events from sparse sections,
+// restricted to events within the next two weeks. The themed strips above
+// can showcase marquee far-out events (100% Féminin in August), but
+// "Coming up" should mean what it says — short-horizon discovery only.
+const COMING_UP_HORIZON_DAYS = 14;
+const comingUpHorizon = new Date(now.getTime() + COMING_UP_HORIZON_DAYS * 86400000);
 const comingUpPool = [...general];
 if (!showCommunity) comingUpPool.push(...community);
 if (!showLearnConnect) comingUpPool.push(...learnConnect);
-const comingUp = pickTopByScore(comingUpPool, 3);
+const comingUpFiltered = comingUpPool.filter(e => parseLocalDate(effectiveDate(e)) <= comingUpHorizon);
+const comingUp = pickTopByScore(comingUpFiltered, 3);
 const communityTop = pickTopByScore(community, 3);
 const learnConnectTop = pickTopByScore(learnConnect, 3);
 
@@ -232,19 +284,8 @@ for (const [key, evts] of Object.entries(upcomingByMonth)) {
   monthDisplayNames.set(key, display);
 }
 
-// Organizer spotlight: organizers with >=2 total events and instagram
-const totalOrganizerCounts = new Map<string, number>();
-const organizerYears = new Map<string, Set<number>>();
-
-for (const e of events) {
-  const orgId = typeof e.data.organizer === 'string' ? e.data.organizer : undefined;
-  if (!orgId) continue;
-  totalOrganizerCounts.set(orgId, (totalOrganizerCounts.get(orgId) || 0) + 1);
-  const year = parseLocalDate(e.data.start_date).getFullYear();
-  if (!organizerYears.has(orgId)) organizerYears.set(orgId, new Set());
-  organizerYears.get(orgId)!.add(year);
-}
-
+// Organizer spotlight: organizers with >=2 total events and instagram.
+// totalOrganizerCounts and organizerYears are built earlier (see scoring block).
 const spotlightCandidates = allOrganizers
   .filter(o => o.data.instagram && (totalOrganizerCounts.get(o.id) || 0) >= 2);
 
