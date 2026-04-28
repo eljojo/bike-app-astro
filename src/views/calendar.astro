@@ -296,8 +296,8 @@ const calendarDescription = t('calendar.description', locale, { city: config.nam
     <OrganizerSpotlight organizers={spotlightOrganizers} locale={locale} />
   )}
 
+  <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer"><Icon name="calendar-blank" size={18} /> {t('calendar.google', locale)}</a>
   <a href={webcalUrl} class="action-button"><Icon name="calendar-blank" size={18} /> {t('calendar.subscribe', locale)}</a>
-  <a href={googleCalendarUrl} class="action-button" target="_blank" rel="noopener noreferrer">{t('calendar.google', locale)}</a>
 
   {Object.keys(upcomingByMonth).length > 0 && (
     <section>
