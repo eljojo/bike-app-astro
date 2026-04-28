@@ -164,32 +164,48 @@ describe('eventHandlers.parseRequest', () => {
 });
 
 describe('eventHandlers.checkExistence', () => {
-  it('returns 409 when flat file exists', async () => {
+  it('returns suffixed slug when flat file exists (duplicate-event flow)', async () => {
+    const taken = new Set([`${CITY}/events/2099/bike-fest.md`]);
     const mockGit = {
-      readFile: vi.fn()
-        .mockImplementation((path: string) => {
-          if (path.endsWith('.md') && !path.includes('/index.md')) {
-            return { content: '---\nname: Existing\n---', sha: 'sha1' };
-          }
-          return null;
-        }),
+      readFile: vi.fn().mockImplementation((path: string) =>
+        taken.has(path) ? { content: '---\nname: Existing\n---', sha: 'sha1' } : null,
+      ),
     };
     const result = await eventHandlers.checkExistence!(mockGit as any, '2099/bike-fest');
-    expect(result).toBeInstanceOf(Response);
-    expect((result as Response).status).toBe(409);
+    expect(result).toBe('2099/bike-fest-2');
   });
 
-  it('returns 409 when directory file exists', async () => {
+  it('returns suffixed slug when directory file exists', async () => {
+    const taken = new Set([`${CITY}/events/2099/new-event/index.md`]);
     const mockGit = {
-      readFile: vi.fn()
-        .mockImplementation((path: string) => {
-          if (path.includes('/index.md')) {
-            return { content: '---\nname: Existing\n---', sha: 'sha1' };
-          }
-          return null;
-        }),
+      readFile: vi.fn().mockImplementation((path: string) =>
+        taken.has(path) ? { content: '---\nname: Existing\n---', sha: 'sha1' } : null,
+      ),
     };
     const result = await eventHandlers.checkExistence!(mockGit as any, '2099/new-event');
+    expect(result).toBe('2099/new-event-2');
+  });
+
+  it('skips already-taken suffixes and returns the next free slot', async () => {
+    const taken = new Set([
+      `${CITY}/events/2099/bike-fest.md`,
+      `${CITY}/events/2099/bike-fest-2.md`,
+      `${CITY}/events/2099/bike-fest-3/index.md`,
+    ]);
+    const mockGit = {
+      readFile: vi.fn().mockImplementation((path: string) =>
+        taken.has(path) ? { content: '---\n---', sha: 'sha' } : null,
+      ),
+    };
+    const result = await eventHandlers.checkExistence!(mockGit as any, '2099/bike-fest');
+    expect(result).toBe('2099/bike-fest-4');
+  });
+
+  it('returns 409 when all suffix slots are taken', async () => {
+    const mockGit = {
+      readFile: vi.fn().mockResolvedValue({ content: '---\n---', sha: 'sha' }),
+    };
+    const result = await eventHandlers.checkExistence!(mockGit as any, '2099/bike-fest');
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(409);
   });

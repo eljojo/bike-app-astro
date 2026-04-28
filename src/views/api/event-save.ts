@@ -126,16 +126,27 @@ export function createEventHandlers(
       return json;
     },
 
-    async checkExistence(git: IGitService, eventId: string): Promise<Response | null> {
+    async checkExistence(git: IGitService, eventId: string): Promise<Response | string | null> {
       const [year, slug] = eventId.split('/');
-      // Check both flat and directory formats
-      const flatPath = `${CITY}/events/${year}/${slug}.md`;
-      const dirPath = `${CITY}/events/${year}/${slug}/index.md`;
-      const [flat, dir] = await Promise.all([git.readFile(flatPath), git.readFile(dirPath)]);
-      if (flat || dir) {
-        return jsonError(`Event ${eventId} already exists`, 409);
+      const exists = async (s: string) => {
+        const [flat, dir] = await Promise.all([
+          git.readFile(`${CITY}/events/${year}/${s}.md`),
+          git.readFile(`${CITY}/events/${year}/${s}/index.md`),
+        ]);
+        return !!(flat || dir);
+      };
+      if (!(await exists(slug))) return null;
+
+      // Path collision — find a free slot by appending -2, -3, etc. Mirrors the
+      // ride-save dedup so duplicating an event doesn't 409 just because the
+      // copied title produces the same slug in the same year.
+      for (let n = 2; n <= 99; n++) {
+        const candidate = `${slug}-${n}`;
+        if (!(await exists(candidate))) {
+          return `${year}/${candidate}`;
+        }
       }
-      return null;
+      return jsonError(`Event ${eventId} already exists`, 409);
     },
 
     async buildFileChanges(update, eventId, currentFiles, git) {

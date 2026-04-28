@@ -142,3 +142,80 @@ test.describe('Event Creation', () => {
     expect(body.trim()).toBe('A lovely fall ride through the Gatineau Hills.');
   });
 });
+
+test.describe('Event Duplication', () => {
+  let token: string;
+
+  test.beforeAll(async () => {
+    token = seedSession();
+  });
+
+  test.afterAll(() => {
+    cleanupSession(token);
+  });
+
+  test.beforeEach(() => {
+    // Source ("Bike Fest" → bike-fest) is read-only; reset its commit state and
+    // anything our save side-effects may have left behind across retries.
+    clearContentEdits('events', '2099/bike-fest');
+    clearContentEdits('events', '2099/bike-fest-2');
+    cleanupCreatedFiles([
+      'demo/events/2099/bike-fest-2.md',
+      // Leftover from earlier broken-test runs that picked the wrong source
+      'demo/events/2099/editable-event.md',
+    ]);
+  });
+
+  test('duplicate button opens full editor with prefilled name and auto-suffixes the slug on save', async ({ page }) => {
+    await loginAs(page, token);
+
+    await page.goto('/admin/events');
+    await page.waitForLoadState('networkidle');
+
+    // Click the duplicate (copy) button for bike-fest specifically (matched by
+    // the row's primary link href, since multiple events may share the "Bike
+    // Fest" display name across retries). "Bike Fest" → slugify → "bike-fest"
+    // === source filename, so saving the copy with the same name forces the
+    // slug-collision path on the server.
+    const row = page.locator('.event-list-item', {
+      has: page.locator('a.event-list-link[href="/admin/events/2099/bike-fest"]'),
+    });
+    await row.locator('.event-copy-btn').click();
+
+    // Bug 1: must include full=1 and land in the EventEditor (not the wizard upload phase)
+    await page.waitForURL(/\/admin\/events\/new\?.*\bfull=1\b/);
+    expect(page.url()).toMatch(/copy=2099(%2F|\/)bike-fest\b/);
+    await waitForHydration(page);
+
+    // Wizard's drop zone must NOT be present; full editor's name field MUST be prefilled
+    await expect(page.locator('.drop-zone--hero')).toHaveCount(0);
+    const nameInput = page.locator('#event-name');
+    await expect(nameInput).toHaveValue('Bike Fest');
+
+    // Dates are blanked when duplicating so the user picks new ones
+    const startDateInput = page.locator('#event-start-date');
+    await expect(startDateInput).toHaveValue('');
+
+    // Pick a date in the same year — name unchanged, so slug would collide with the source
+    await startDateInput.fill('2099-08-15');
+
+    await page.locator('button.btn-primary', { hasText: 'Save' }).click();
+
+    // Bug 2: server auto-suffixes the colliding slug instead of returning 409.
+    // (We don't assert HEAD advanced — the fixture repo persists across test
+    // invocations, so a prior run's identical commit can make a save a no-op
+    // at the git layer while still writing the expected file on disk.)
+    await page.waitForURL('**/admin/events/2099/bike-fest-2', { timeout: 10000 });
+
+    const newPath = path.join(FIXTURE_DIR, 'demo/events/2099/bike-fest-2.md');
+    expect(fs.existsSync(newPath)).toBe(true);
+    const { data: fm } = matter(fs.readFileSync(newPath, 'utf-8'));
+    expect(fm.name).toBe('Bike Fest');
+    expect(fm.start_date).toBe('2099-08-15');
+
+    // Original must remain untouched
+    const sourcePath = path.join(FIXTURE_DIR, 'demo/events/2099/bike-fest.md');
+    const { data: sourceFm } = matter(fs.readFileSync(sourcePath, 'utf-8'));
+    expect(sourceFm.start_date).toBe('2099-06-15');
+  });
+});
