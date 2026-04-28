@@ -50,6 +50,6 @@ const communityHref = trail(isActive('/communities') ? localePath('/communities'
         <li><a href={communityHref} aria-current={communityActive ? 'page' : undefined} data-astro-prefetch="hover">{t('nav.community', locale)}</a></li>
       </>
     )}
-    <li class="nav-admin"><a href="/admin/">Admin</a></li>
+    <li class="nav-admin"><a href="/admin/" aria-label="Admin" title="Admin">🔧</a></li>
   </ul>
 </nav>
