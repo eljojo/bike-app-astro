@@ -61,10 +61,14 @@ export function buildVEventLines(
       lines.push('BEGIN:VEVENT');
       lines.push(`UID:${uid}`);
       lines.push(`DTSTAMP:${dtstamp}`);
-      const time = occ.start_time;
-      if (time) {
-        lines.push(`DTSTART;TZID=${timezone}:${formatIcalDate(occ.date)}T${formatIcalTime(time)}`);
-        const fallback = addOneHour(occ.date, time);
+      // DTSTART = the time the user needs to be there (meet_time when set, else start_time).
+      // DTEND fallback uses start_time so the block covers the actual ride; if only meet
+      // is known, we use it for both.
+      const dtStartTime = occ.meet_time || occ.start_time;
+      const dtEndBasis = occ.start_time || occ.meet_time;
+      if (dtStartTime) {
+        lines.push(`DTSTART;TZID=${timezone}:${formatIcalDate(occ.date)}T${formatIcalTime(dtStartTime)}`);
+        const fallback = addOneHour(occ.date, dtEndBasis!);
         lines.push(`DTEND;TZID=${timezone}:${formatIcalDate(fallback.date)}T${formatIcalTime(fallback.time)}`);
       } else {
         lines.push(`DTSTART;VALUE=DATE:${formatIcalDate(occ.date)}`);
@@ -74,8 +78,8 @@ export function buildVEventLines(
       if (e.registration_url) lines.push(`URL:${e.registration_url as string}`);
 
       const descParts: string[] = [];
-      if (occ.meet_time && time) {
-        descParts.push(`Meet: ${occ.meet_time}, Roll: ${time}`);
+      if (occ.meet_time && occ.start_time) {
+        descParts.push(`Meet: ${occ.meet_time}, Roll: ${occ.start_time}`);
       }
       if (e.distances) descParts.push(e.distances as string);
       if (descParts.length) lines.push(`DESCRIPTION:${escapeIcal(descParts.join('\\n'))}`);
@@ -91,12 +95,17 @@ export function buildVEventLines(
   lines.push('BEGIN:VEVENT');
   lines.push(`UID:${uid}`);
   lines.push(`DTSTAMP:${dtstamp}`);
-  if (e.start_time) {
-    lines.push(`DTSTART;TZID=${timezone}:${formatIcalDate(e.start_date as string)}T${formatIcalTime(e.start_time as string)}`);
+  // DTSTART = the time the user needs to be there (meet_time when set, else start_time).
+  const dtStartTime = (e.meet_time as string | undefined) || (e.start_time as string | undefined);
+  if (dtStartTime) {
+    lines.push(`DTSTART;TZID=${timezone}:${formatIcalDate(e.start_date as string)}T${formatIcalTime(dtStartTime)}`);
     if (e.end_date && e.end_time) {
       lines.push(`DTEND;TZID=${timezone}:${formatIcalDate(e.end_date as string)}T${formatIcalTime(e.end_time as string)}`);
     } else {
-      const fallback = addOneHour(e.start_date as string, e.start_time as string);
+      // Block ends 1h after start_time (the actual ride start) so the calendar
+      // covers the meet→start gap when both are known.
+      const dtEndBasis = (e.start_time as string | undefined) || dtStartTime;
+      const fallback = addOneHour(e.start_date as string, dtEndBasis);
       lines.push(`DTEND;TZID=${timezone}:${formatIcalDate(fallback.date)}T${formatIcalTime(fallback.time)}`);
     }
   } else {
@@ -113,7 +122,12 @@ export function buildVEventLines(
   lines.push(`SUMMARY:${escapeIcal(e.name as string)}`);
   if (e.location) lines.push(`LOCATION:${escapeIcal(e.location as string)}`);
   if (e.registration_url) lines.push(`URL:${e.registration_url as string}`);
-  if (e.distances) lines.push(`DESCRIPTION:${escapeIcal(e.distances as string)}`);
+  const descParts: string[] = [];
+  if (e.meet_time && e.start_time) {
+    descParts.push(`Meet: ${e.meet_time as string}, Roll: ${e.start_time as string}`);
+  }
+  if (e.distances) descParts.push(e.distances as string);
+  if (descParts.length) lines.push(`DESCRIPTION:${escapeIcal(descParts.join('\\n'))}`);
   lines.push('END:VEVENT');
   results.push({ uid, lines });
 

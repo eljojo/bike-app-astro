@@ -491,17 +491,17 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 <input id="event-start-date" type="date" {...bindText(startDate, setStartDate)} />
               </div>
 
-              {disclosure.isOpen('time') && (
-                <div class="form-field">
-                  <label for="event-start-time">{disclosure.isOpen('endDate') ? 'Start time' : 'Time'}</label>
-                  <input id="event-start-time" type="time" {...bindText(startTime, setStartTime)} />
-                </div>
-              )}
-
               {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
                 <div class="form-field">
                   <label for="event-meet-time">Meet time</label>
                   <input id="event-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
+                </div>
+              )}
+
+              {disclosure.isOpen('time') && (
+                <div class="form-field">
+                  <label for="event-start-time">{disclosure.isOpen('meetTime') ? 'Ride time' : 'Start time'}</label>
+                  <input id="event-start-time" type="time" {...bindText(startTime, setStartTime)} />
                 </div>
               )}
 
@@ -560,9 +560,16 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                 )}
               </div>
 
+              {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
+                <div class="form-field">
+                  <label for="event-meet-time">Meet time</label>
+                  <input id="event-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
+                </div>
+              )}
+
               {disclosure.isOpen('time') && (
                 <div class="form-field">
-                  <label for="event-start-time">Time</label>
+                  <label for="event-start-time">{disclosure.isOpen('meetTime') ? 'Ride time' : 'Start time'}</label>
                   <input id="event-start-time" type="time" {...bindText(startTime, setStartTime)} />
                 </div>
               )}
@@ -572,13 +579,6 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
                   {!disclosure.isOpen('meetTime') && (
                     <button type="button" class="btn-link" onClick={() => disclosure.open('meetTime')}>Set meet time</button>
                   )}
-                </div>
-              )}
-
-              {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
-                <div class="form-field">
-                  <label for="event-meet-time">Meet time</label>
-                  <input id="event-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
                 </div>
               )}
 

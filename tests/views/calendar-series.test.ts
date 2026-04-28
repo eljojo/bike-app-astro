@@ -244,11 +244,19 @@ describe('iCal generation — series events', () => {
     expect(descLine).toContain('Roll: 18:00');
   });
 
-  it('formats DTSTART with timezone for timed occurrences', () => {
+  it('uses meet_time for DTSTART so the calendar shows when to be there', () => {
     const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
     const jun2 = findVEvent(vevents, '2026-06-02');
     const dtstartLine = getLine(jun2!.lines, 'DTSTART');
-    expect(dtstartLine).toBe('DTSTART;TZID=America/Toronto:20260602T180000');
+    expect(dtstartLine).toBe('DTSTART;TZID=America/Toronto:20260602T174500');
+  });
+
+  it('keeps DTEND tied to start_time so the block covers the actual ride', () => {
+    const vevents = buildVEventLines(weeklySeries, DOMAIN, TIMEZONE, DTSTAMP);
+    const jun2 = findVEvent(vevents, '2026-06-02');
+    const dtendLine = getLine(jun2!.lines, 'DTEND');
+    // start_time is 18:00, fallback adds one hour → 19:00
+    expect(dtendLine).toBe('DTEND;TZID=America/Toronto:20260602T190000');
   });
 
   it('handles explicit schedule series', () => {

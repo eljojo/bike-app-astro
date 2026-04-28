@@ -47,7 +47,7 @@ interface EventDraftResponse {
   poster_height?: number;
 }
 
-const REVIEW_FIELDS = ['name', 'series', 'start_date', 'end_date', 'start_time', 'meet_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
+const REVIEW_FIELDS = ['name', 'series', 'start_date', 'end_date', 'meet_time', 'start_time', 'end_time', 'location', 'distances', 'organizer', 'tags', 'registration_url', 'event_url', 'map_url', 'edition'] as const;
 
 const FIELD_LABELS: Record<string, string> = {
   name: 'name',
@@ -512,9 +512,12 @@ export default function EventWizard({
                           : draft[field] as string | undefined;
                     if (!value) return null;
                     const isUncertain = uncertain.includes(field);
+                    const label = field === 'start_time' && draft.meet_time
+                      ? 'ride time'
+                      : (FIELD_LABELS[field] || field);
                     return (
                       <tr key={field}>
-                        <td class="field-name">{FIELD_LABELS[field] || field}</td>
+                        <td class="field-name">{label}</td>
                         <td>{value}</td>
                         {hasUncertainFields && (
                           <td class={isUncertain ? 'confidence-medium' : ''}>
@@ -644,17 +647,17 @@ export default function EventWizard({
                 <input id="wizard-start-date" type="date" min={new Date().toISOString().split('T')[0]} {...bindText(startDate, setStartDate)} />
               </div>
 
-              {disclosure.isOpen('time') && (
-                <div class="form-field">
-                  <label for="wizard-start-time">{disclosure.isOpen('endDate') ? 'Start time' : 'Time'}</label>
-                  <input id="wizard-start-time" type="time" {...bindText(startTime, setStartTime)} />
-                </div>
-              )}
-
               {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
                 <div class="form-field">
                   <label for="wizard-meet-time">Meet time</label>
                   <input id="wizard-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
+                </div>
+              )}
+
+              {disclosure.isOpen('time') && (
+                <div class="form-field">
+                  <label for="wizard-start-time">{disclosure.isOpen('meetTime') ? 'Ride time' : 'Start time'}</label>
+                  <input id="wizard-start-time" type="time" {...bindText(startTime, setStartTime)} />
                 </div>
               )}
 
@@ -711,9 +714,15 @@ export default function EventWizard({
                   <button type="button" class="btn-link" onClick={() => disclosure.open('time')}>Set time</button>
                 )}
               </div>
+              {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
+                <div class="form-field">
+                  <label for="wizard-meet-time">Meet time</label>
+                  <input id="wizard-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
+                </div>
+              )}
               {disclosure.isOpen('time') && (
                 <div class="form-field">
-                  <label for="wizard-start-time">Time</label>
+                  <label for="wizard-start-time">{disclosure.isOpen('meetTime') ? 'Ride time' : 'Start time'}</label>
                   <input id="wizard-start-time" type="time" {...bindText(startTime, setStartTime)} />
                 </div>
               )}
@@ -722,12 +731,6 @@ export default function EventWizard({
                   {!disclosure.isOpen('meetTime') && (
                     <button type="button" class="btn-link" onClick={() => disclosure.open('meetTime')}>Set meet time</button>
                   )}
-                </div>
-              )}
-              {disclosure.isOpen('time') && disclosure.isOpen('meetTime') && (
-                <div class="form-field">
-                  <label for="wizard-meet-time">Meet time</label>
-                  <input id="wizard-meet-time" type="time" {...bindText(meetTime, setMeetTime)} />
                 </div>
               )}
               <SeriesEditor

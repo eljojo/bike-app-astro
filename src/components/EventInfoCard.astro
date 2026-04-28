@@ -14,6 +14,7 @@ interface Props {
   startDate: string;
   endDate?: string;
   startTime?: string;
+  meetTime?: string;
   timeLimitHours?: number;
   distances?: string;
   location?: string;
@@ -25,19 +26,20 @@ interface Props {
 }
 
 const {
-  startDate, endDate, startTime, timeLimitHours, distances,
+  startDate, endDate, startTime, meetTime, timeLimitHours, distances,
   location, registration, registrationUrl, organizerWebsite,
   organizerInstagram, locale,
 } = Astro.props;
 
 const dateDisplay = formatDateRange(startDate, endDate, locale);
+const summaryTime = meetTime || startTime;
 const regUrl = registration?.url || registrationUrl;
 ---
 
 <div class="event-info-card">
   <dl class="event-info-list">
     <dt>{t('events.date', locale)}</dt>
-    <dd>{dateDisplay}{startTime && <span class="event-start-time"> — {startTime}</span>}</dd>
+    <dd>{dateDisplay}{summaryTime && <span class="event-start-time"> — {summaryTime}</span>}</dd>
 
     {distances && (
       <dt>{t('events.distance', locale)}</dt>
