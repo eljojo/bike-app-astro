@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isSeriesEvent } from '../../src/lib/series-utils';
-import { expandEvents, deduplicateSeries, groupByMonth } from '../../src/lib/calendar-helpers';
+import { expandEvents, deduplicateSeries, groupByMonth, splitUpcomingPast } from '../../src/lib/calendar-helpers';
 import { buildVEventLines } from '../../src/lib/ical-helpers';
 
 // --------------------------------------------------------------------------
@@ -127,6 +127,33 @@ describe('calendar expansion — series events', () => {
     expect(seriesEntries.length).toBeGreaterThan(1);
     expect(nonSeriesEntries).toHaveLength(1);
     expect(nonSeriesEntries[0].event.id).toBe('2026/bike-fest');
+  });
+});
+
+describe('splitUpcomingPast — today vs past boundary', () => {
+  // Each entry uses occurrenceDate as the effective single-day end date.
+  function entry(id: string, date: string) {
+    return { event: { id, data: { name: id, start_date: date } }, occurrenceDate: date };
+  }
+
+  it('keeps an event ending today in upcoming, not past', () => {
+    const today = new Date('2026-05-07T14:00:00');
+    const todayStr = '2026-05-07';
+    const yesterdayStr = '2026-05-06';
+    const tomorrowStr = '2026-05-08';
+    const { upcoming, past } = splitUpcomingPast(
+      [entry('past', yesterdayStr), entry('today', todayStr), entry('tomorrow', tomorrowStr)],
+      today,
+    );
+    expect(upcoming.map(e => e.event.id)).toEqual(['today', 'tomorrow']);
+    expect(past.map(e => e.event.id)).toEqual(['past']);
+  });
+
+  it('moves an event into past only after end-of-day passes', () => {
+    const todayJustBeforeMidnight = new Date('2026-05-07T23:59:00');
+    const result = splitUpcomingPast([entry('today', '2026-05-07')], todayJustBeforeMidnight);
+    expect(result.upcoming.map(e => e.event.id)).toEqual(['today']);
+    expect(result.past).toEqual([]);
   });
 });
 
