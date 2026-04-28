@@ -219,6 +219,7 @@
   "events.hours": "hours",
   "events.date": "Date",
   "events.next_date": "Next date",
+  "events.notes": "Notes",
   "events.distance": "Distance",
   "events.location": "Location",
   "events.view_on_map": "View location on map",

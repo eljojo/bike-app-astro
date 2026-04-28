@@ -521,10 +521,14 @@ function editionDateLabel(startDate: string, loc?: string): string {
                   {' \u00b7 '}{t('events.series_rescheduled_from', locale, { date: formatOccurrenceDate(nextOccurrence.rescheduled_from) })}
                 </span>
               )}
-              {nextOccurrence?.note && (
-                <span class="event-detail-fact-note">{' \u00b7 '}{nextOccurrence.note}</span>
-              )}
             </dd>
+
+            {nextOccurrence?.note && (
+              <Fragment>
+                <dt>{t('events.notes', locale)}</dt>
+                <dd>{nextOccurrence.note}</dd>
+              </Fragment>
+            )}
 
             {data.distances && (
               <Fragment>
