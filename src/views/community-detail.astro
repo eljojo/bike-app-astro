@@ -359,7 +359,7 @@ const PAST_EVENTS_INITIAL = 4;
   </article>
 
   <p class="community-go-back">
-    <a href={paths.communities(locale)} class="go-back-button">&#x21A9; {t('communities.go_back', locale)}</a>
+    <a href={parentUrl} class="go-back-button">&#x21A9; {t(isShop ? 'bike_shops.go_back' : 'communities.go_back', locale)}</a>
   </p>
 
   <script>
