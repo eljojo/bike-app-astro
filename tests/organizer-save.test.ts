@@ -326,6 +326,58 @@ describe('organizerHandlers.buildFileChanges', () => {
   });
 });
 
+describe('organizerHandlers.buildFileChanges — cover normalize', () => {
+  const handlers = createOrganizerHandlers();
+
+  it('clamps multiple cover-flagged media items to the first one', async () => {
+    const update = {
+      frontmatter: {
+        name: 'Bike Ottawa',
+        media: [
+          { key: 'a.jpg', cover: true },
+          { key: 'b.jpg', cover: true },
+          { key: 'c.jpg' },
+          { key: 'd.jpg', cover: true },
+        ],
+      },
+      body: '',
+    };
+    const result = await handlers.buildFileChanges(
+      update,
+      'bike-ottawa',
+      { primaryFile: null, auxiliaryFiles: {} },
+      {} as never,
+    );
+    const written = result.files.find(f => f.path.endsWith('bike-ottawa.md'))!;
+    // First media item keeps cover: true; later ones are stripped.
+    expect(written.content).toMatch(/key: a\.jpg[\s\S]*?cover: true/);
+    expect(written.content).not.toMatch(/key: b\.jpg[\s\S]*?cover: true/);
+    expect(written.content).not.toMatch(/key: d\.jpg[\s\S]*?cover: true/);
+  });
+
+  it('preserves a single cover-flagged item unchanged', async () => {
+    const update = {
+      frontmatter: {
+        name: 'Bike Ottawa',
+        media: [
+          { key: 'a.jpg' },
+          { key: 'b.jpg', cover: true },
+          { key: 'c.jpg' },
+        ],
+      },
+      body: '',
+    };
+    const result = await handlers.buildFileChanges(
+      update,
+      'bike-ottawa',
+      { primaryFile: null, auxiliaryFiles: {} },
+      {} as never,
+    );
+    const written = result.files.find(f => f.path.endsWith('bike-ottawa.md'))!;
+    expect(written.content).toMatch(/key: b\.jpg[\s\S]*?cover: true/);
+  });
+});
+
 describe('organizerHandlers.afterCommit', () => {
   beforeEach(() => {
     vi.clearAllMocks();
