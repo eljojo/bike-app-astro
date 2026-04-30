@@ -11,7 +11,7 @@ import MarkdownEditor from './MarkdownEditor';
 import MapPinPicker from './MapPinPicker';
 import { useWizardSkips, buildCelebrateUrl } from './wizard-helpers';
 import { isGoogleMapsUrl } from '../../lib/google-maps-url';
-import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
+import { SOCIAL_PLATFORMS, type SocialLink } from '@/lib/social-links';
 import { slugify } from '../../lib/slug';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
 

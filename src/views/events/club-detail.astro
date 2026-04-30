@@ -27,7 +27,8 @@ import YouTubeEmbed from '@/components/YouTubeEmbed.astro';
 import { renderMarkdownHtml } from '@/lib/markdown/markdown-render';
 import { slugify } from '@/lib/slug';
 import { findSimilarEvents, type EventSimilarityInput } from '@/lib/event-similarity';
-import { organizerLink, normalizeSocialLinks, parseInstagramUsername, organizerInitials, type OrganizerEntry } from '@/lib/models/organizer-model';
+import { organizerLink, normalizeSocialLinks, organizerInitials, type OrganizerEntry } from '@/lib/models/organizer-model';
+import { socialLinkHref, socialLinkLabel, isContactSchemeLink } from '@/lib/social-links';
 
 const config = getCityConfig();
 const locale = Astro.currentLocale;
@@ -223,34 +224,6 @@ const shownUrls = new Set<string>();
 if (organizerUrl) shownUrls.add(organizerUrl);
 if (data.event_url) shownUrls.add(data.event_url);
 if (regUrl) shownUrls.add(regUrl);
-
-function socialLinkLabel(link: { platform: string; url: string }): string {
-  if (link.platform === 'instagram') {
-    const username = parseInstagramUsername(link.url);
-    return username ? t('social.on_instagram', locale, { username }) : 'Instagram';
-  }
-  const labels: Record<string, string> = {
-    facebook: 'Facebook',
-    strava: 'Strava',
-    youtube: 'YouTube',
-    meetup: 'Meetup',
-    tiktok: 'TikTok',
-    bluesky: 'Bluesky',
-    threads: 'Threads',
-    website: t('social.website', locale),
-    discord: 'Discord',
-    google_form: t('social.sign_up_form', locale),
-    linktree: 'Linktree',
-    rwgps: 'Ride with GPS',
-    komoot: 'Komoot',
-    newsletter: t('social.newsletter', locale),
-    mastodon: 'Mastodon',
-    booking: t('social.booking', locale),
-    telephone: link.url,
-    email: link.url,
-  };
-  return labels[link.platform] || link.platform;
-}
 
 // Format a 24h time string (e.g. "18:00") to locale-friendly display (e.g. "6:00 pm")
 function formatTime(time: string, loc?: string): string {
@@ -649,8 +622,11 @@ function editionDateLabel(startDate: string, loc?: string): string {
               {extraSocialLinks.length > 0 && (
                 <div class="event-organizer-links">
                   {extraSocialLinks.map(link => (
-                    <a href={link.url} target="_blank" rel="noopener noreferrer">
-                      {socialLinkLabel(link)}
+                    <a
+                      href={socialLinkHref(link)}
+                      {...(isContactSchemeLink(link) ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                    >
+                      {socialLinkLabel(link, locale)}
                     </a>
                   ))}
                 </div>

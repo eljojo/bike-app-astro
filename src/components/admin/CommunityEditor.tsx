@@ -11,7 +11,7 @@ import TagEditor from './TagEditor';
 import CommunityPreview from './CommunityPreview';
 import type { OrganizerDetail } from '../../lib/models/organizer-model';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
-import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
+import { SOCIAL_PLATFORMS, type SocialLink } from '@/lib/social-links';
 
 type EditorMediaItem = NonNullable<OrganizerDetail['media']>[number];
 

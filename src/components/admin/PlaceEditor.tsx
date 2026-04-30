@@ -19,7 +19,7 @@ import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import type { PlaceDetail } from '../../lib/models/place-model';
 import type { PlaceUpdate } from '../../views/api/place-save';
 import { localeLabel } from '../../lib/i18n/locale-utils';
-import { SOCIAL_PLATFORMS, type SocialLink } from './social-platforms';
+import { SOCIAL_PLATFORMS, type SocialLink } from '@/lib/social-links';
 
 interface Props {
   initialData: PlaceDetail & { contentHash?: string; isNew?: boolean };
