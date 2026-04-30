@@ -302,7 +302,7 @@ export function organizerJsonLd(
   data: OrganizerJsonLdInput,
   ctx: { coverUrl?: string; isShop: boolean; url: string },
 ) {
-  const type = ctx.isShop ? 'BicycleStore' : 'Organization';
+  const type = ctx.isShop ? 'BikeStore' : 'Organization';
   const sameAs = buildSameAs(data.website, data.social_links);
   return {
     '@context': 'https://schema.org',

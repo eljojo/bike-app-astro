@@ -31,12 +31,12 @@ describe('organizerJsonLd', () => {
     expect(ld.sameAs).toBeUndefined();
   });
 
-  it('returns BicycleStore for shop', () => {
+  it('returns BikeStore for shop', () => {
     const ld = organizerJsonLd(
       { name: 'Velo Espresso' },
       { coverUrl: undefined, isShop: true, url: 'https://example.com/communities/velo-espresso' },
     );
-    expect(ld['@type']).toBe('BicycleStore');
+    expect(ld['@type']).toBe('BikeStore');
   });
 
   it('includes logo from photo_key, image from coverUrl, and deduped sameAs', () => {
