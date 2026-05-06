@@ -1,7 +1,10 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { listDismissedKeys, NEVER_EXPIRES } from './dismissals.server';
 import { revalidateClusterAfterTrim } from './detect-implicit-series';
-import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay, Suggestion } from './types';
+import { loadAllSnapshots, advanceSnapshot, computeExpiresAt } from './snapshots.server';
+import { diffMonitored } from './diff';
+import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay, Suggestion, ReviewSuggestion } from './types';
+import { isNonEmpty } from './types';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
 import type { CalendarFeedCache } from '../calendar-feed-cache/feed-cache.service';
@@ -131,10 +134,12 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
     return (e.series.schedule ?? []).some(s => s.date >= nowLocalDate);
   }
 
-  // Dismissals query is independent of the candidate set — bounded only by
-  // dismissals whose underlying event hasn't passed yet. Run it in parallel
-  // with the per-feed processing.
-  const dismissedPromise = listDismissedKeys(db, city, nowLocalDate);
+  // Dismissals and snapshot queries are independent of the candidate set.
+  // Run both in parallel with each other (feeds were already fetched above).
+  const [snapshots, dismissed] = await Promise.all([
+    loadAllSnapshots(db, city, nowLocalDate),
+    listDismissedKeys(db, city, nowLocalDate),
+  ]);
 
   type Candidate = { sortKey: string; suggestion: Suggestion };
   const candidates: Candidate[] = feeds.flatMap(r => {
@@ -174,7 +179,108 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
       }));
   });
 
-  const dismissed = await dismissedPromise;
+  // Build a reverse-lookup: uid → repo event, covering top-level ics_uid and
+  // per-occurrence UIDs from overrides/schedule. Used by the review passes below.
+  type RepoEventEntry = typeof repoEvents[number];
+  const repoEventByUid = new Map<string, RepoEventEntry>();
+  for (const e of repoEvents) {
+    if (e.ics_uid) repoEventByUid.set(e.ics_uid, e);
+    for (const o of e.series?.overrides ?? []) if (o.uid) repoEventByUid.set(o.uid, e);
+    for (const s of e.series?.schedule ?? []) if (s.uid) repoEventByUid.set(s.uid, e);
+  }
+
+  // PASS 1: Matched-VEVENT diff. For every upstream VEVENT whose top-level UID
+  // is claimed by a repo event, diff against the snapshot. Bootstrap if missing.
+  type Bootstrap = { slug: string; uid: string; current: ParsedVEvent; expiresAt: string };
+  const reviewCandidates: Candidate[] = [];
+  const bootstraps: Bootstrap[] = [];
+
+  for (const r of feeds) {
+    if (r.status !== 'fulfilled') continue;
+    for (const upstream of r.value.feed.events) {
+      const repoEvent = repoEventByUid.get(upstream.uid);
+      if (!repoEvent || !repoEvent.ics_uid) continue;
+      // Only diff against the repo event whose top-level ics_uid matches.
+      // Per-occurrence matches are handled inside the diff via override.uid sets.
+      if (repoEvent.ics_uid !== upstream.uid) continue;
+      const key = `${r.value.slug}:${repoEvent.ics_uid}`;
+      const snap = snapshots.get(key) ?? null;
+      if (!snap) {
+        bootstraps.push({
+          slug: r.value.slug, uid: repoEvent.ics_uid,
+          current: upstream,
+          expiresAt: computeExpiresAt(repoEvent),
+        });
+        continue;
+      }
+      const diff = diffMonitored(snap, upstream, nowLocalDate);
+      if (!isNonEmpty(diff)) continue;
+      reviewCandidates.push({
+        sortKey: upstream.start,
+        suggestion: {
+          kind: 'review',
+          organizer_slug: r.value.slug,
+          uid: repoEvent.ics_uid,
+          event_id: repoEvent.id,
+          organizer_name: r.value.name,
+          name: upstream.summary,
+          start: upstream.start,
+          diff,
+        } satisfies ReviewSuggestion,
+      });
+    }
+  }
+
+  // PASS 2: Missing-upstream. For repo events with ics_uid not present in any
+  // feed, emit eventRemoved for future-dated events only.
+  const upstreamUidsByOrg = new Map<string, Set<string>>();
+  for (const r of feeds) {
+    if (r.status !== 'fulfilled') continue;
+    const set = new Set<string>();
+    for (const v of r.value.feed.events) {
+      set.add(v.uid);
+      for (const o of v.series?.overrides ?? []) if (o.uid) set.add(o.uid);
+      for (const s of v.series?.schedule ?? []) if (s.uid) set.add(s.uid);
+    }
+    upstreamUidsByOrg.set(r.value.slug, set);
+  }
+
+  for (const e of repoEvents) {
+    if (!e.ics_uid || typeof e.organizer !== 'string') continue;
+    const orgUids = upstreamUidsByOrg.get(e.organizer);
+    if (!orgUids) continue;           // organizer has no feed; ignore
+    if (orgUids.has(e.ics_uid)) continue;
+    const expires = computeExpiresAt(e);
+    if (expires < nowLocalDate) continue;
+    const snap = snapshots.get(`${e.organizer}:${e.ics_uid}`) ?? null;
+    const diff = diffMonitored(snap, null, nowLocalDate);
+    if (!isNonEmpty(diff)) continue;
+    reviewCandidates.push({
+      sortKey: e.start_date ?? '9999-12-31',
+      suggestion: {
+        kind: 'review',
+        organizer_slug: e.organizer,
+        uid: e.ics_uid,
+        event_id: e.id,
+        organizer_name: organizers.find(o => o.slug === e.organizer)?.name ?? e.organizer,
+        name: e.name,
+        start: e.start_date ?? nowLocalDate,
+        diff,
+      } satisfies ReviewSuggestion,
+    });
+  }
+
+  // Deferred bootstrap writes — never block the response.
+  await Promise.allSettled(
+    bootstraps.map(b =>
+      advanceSnapshot(db, city, b.slug, b.uid, b.current, b.expiresAt)
+        .catch(err => console.warn(`snapshot bootstrap failed for ${b.slug}:${b.uid}:`, err)),
+    ),
+  );
+
+  // Merge import candidates with review candidates.
+  const allCandidates = [...candidates, ...reviewCandidates];
+
   // Index source events by org-scoped UID so the dismissal filter can compare
   // each candidate's last_modified against the dismissal's recorded timestamp.
   const eventLastModifiedByKey = new Map<string, string | undefined>();
@@ -184,7 +290,7 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
       eventLastModifiedByKey.set(`${r.value.slug}:${e.uid}`, e.last_modified);
     }
   }
-  const visible = candidates.filter(c => {
+  const visible = allCandidates.filter(c => {
     const key = `${c.suggestion.organizer_slug}:${c.suggestion.uid}`;
     const dismissal = dismissed.get(key);
     if (!dismissal) return true;

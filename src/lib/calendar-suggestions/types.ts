@@ -6,12 +6,10 @@ export interface ParsedFeed {
 }
 
 /**
- * A surfaced suggestion ready for the admin sidebar — the post-filter shape
- * built by `buildSuggestions`. Server-internal: the calendar endpoint maps it
- * onto the generic `SuggestionItem` shape (defined in
- * src/components/admin/Suggestions.tsx) before returning JSON.
+ * A surfaced import suggestion — the post-filter shape for one-off and series
+ * events that have not yet been imported into the repo.
  */
-export interface Suggestion {
+export type ImportSuggestion = {
   uid: string;
   kind: 'one-off' | 'series';
   organizer_slug: string;
@@ -28,7 +26,30 @@ export interface Suggestion {
    * series fall back to a far-future sentinel.
    */
   valid_until: string;
-}
+};
+
+/**
+ * A review suggestion — an already-imported event whose upstream VEVENT has
+ * drifted from its snapshot, or whose UID is no longer present in the feed.
+ */
+export type ReviewSuggestion = {
+  kind: 'review';
+  organizer_slug: string;
+  uid: string;                 // matches event's ics_uid
+  event_id: string;            // repo event id (for href + dismissal)
+  organizer_name: string;
+  name: string;
+  start: string;               // for sorting; the event's next-relevant date
+  diff: UpdateDiff;            // full diff (used for meta-text construction at the endpoint layer)
+};
+
+/**
+ * A surfaced suggestion ready for the admin sidebar — the post-filter shape
+ * built by `buildSuggestions`. Server-internal: the calendar endpoint maps it
+ * onto the generic `SuggestionItem` shape (defined in
+ * src/components/admin/Suggestions.tsx) before returning JSON.
+ */
+export type Suggestion = ImportSuggestion | ReviewSuggestion;
 
 export interface ParsedVEvent {
   uid: string;
@@ -74,7 +95,7 @@ export interface ParsedSeries {
   season_end?: string;         // YYYY-MM-DD
   skip_dates?: string[];
   overrides?: ParsedSeriesOverride[];
-  schedule?: Array<{ date: string; start_time?: string; location?: string }>;
+  schedule?: Array<{ date: string; start_time?: string; location?: string; uid?: string }>;
 }
 
 export interface FieldDiff {
