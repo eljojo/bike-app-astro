@@ -1,6 +1,6 @@
 import ICAL from 'ical.js';
 import { Temporal } from '@js-temporal/polyfill';
-import type { ParsedFeed, ParsedSeries, ParsedVEvent, RecurrenceDay } from '../calendar-suggestions/types';
+import type { ParsedFeed, ParsedSeries, ParsedSeriesOverride, ParsedVEvent, RecurrenceDay } from '../calendar-suggestions/types';
 import { detectImplicitSeries, icalTimeToSiteZdt } from '../calendar-suggestions/detect-implicit-series';
 
 const DAY_FROM_RRULE: Record<string, RecurrenceDay> = {
@@ -96,15 +96,24 @@ function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
   // whitespace. Trim at the parser boundary so the rest of the pipeline
   // (prefill into the editor form, suggestion display, downstream YAML)
   // never has to defensively re-trim.
+
+  const status = ev.component.getFirstPropertyValue('status');
+  const cancelled = typeof status === 'string' && status.toUpperCase() === 'CANCELLED';
+
+  const rawLocation = ev.location?.trim() ?? '';
+  const isUrl = /^https?:\/\//i.test(rawLocation);
+
   return {
     uid: ev.uid,
     summary: ev.summary.trim(),
     start: renderEventStart(ev.startDate, siteTz, isAllDay),
     end: ev.endDate ? renderEventStart(ev.endDate, siteTz, isAllDay) : undefined,
-    location: ev.location?.trim() || undefined,
+    location: rawLocation || undefined,
     description: ev.description || undefined,
     url: stringPropOrUndefined(ev.component, 'url'),
     last_modified: extractLastModified(ev.component),
+    ...(cancelled && { cancelled: true }),
+    ...(isUrl && { map_url: rawLocation }),
   };
 }
 
@@ -183,7 +192,7 @@ function mapSeries(
   const exdatesSorted = [...exdates].sort();
 
   // RECURRENCE-ID overrides — already grouped by UID in parseIcs.
-  const overrideOut: NonNullable<ParsedSeries['overrides']> = [];
+  const overrideOut: ParsedSeriesOverride[] = [];
   const seenOverrideKey = new Set<string>();
   for (const ovr of overrides) {
     if (!ovr.startDate) continue;

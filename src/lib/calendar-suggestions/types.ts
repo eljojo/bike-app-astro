@@ -46,11 +46,25 @@ export interface ParsedVEvent {
    */
   last_modified?: string;
   series?: ParsedSeries;
+  cancelled?: boolean;         // STATUS:CANCELLED on the master VEVENT
+  map_url?: string;            // raw map URL pulled from LOCATION
 }
 
 export type RecurrenceDay =
   | 'monday' | 'tuesday' | 'wednesday' | 'thursday'
   | 'friday' | 'saturday' | 'sunday';
+
+export interface ParsedSeriesOverride {
+  date: string;
+  start_time?: string;
+  location?: string;
+  cancelled?: boolean;
+  note?: string;
+  uid?: string;
+  event_url?: string;
+  map_url?: string;
+  registration_url?: string;
+}
 
 export interface ParsedSeries {
   kind: 'recurrence' | 'schedule';
@@ -59,16 +73,36 @@ export interface ParsedSeries {
   season_start?: string;       // YYYY-MM-DD
   season_end?: string;         // YYYY-MM-DD
   skip_dates?: string[];
-  overrides?: Array<{
-    date: string;
-    start_time?: string;
-    location?: string;
-    cancelled?: boolean;
-    note?: string;
-    uid?: string;
-    event_url?: string;
-    map_url?: string;
-    registration_url?: string;
-  }>;
+  overrides?: ParsedSeriesOverride[];
   schedule?: Array<{ date: string; start_time?: string; location?: string }>;
+}
+
+export interface FieldDiff {
+  field: string;          // a member of MONITORED_MASTER_FIELDS or MONITORED_OCCURRENCE_FIELDS
+  mine: string | undefined;
+  upstream: string | undefined;
+}
+
+export interface ChangedOccurrence {
+  uid: string;
+  date: string;
+  fields: FieldDiff[];
+}
+
+export interface UpdateDiff {
+  master: FieldDiff[];
+  occurrencesChanged: ChangedOccurrence[];
+  occurrencesAdded: ParsedSeriesOverride[];
+  occurrencesNewlyCancelled: { uid: string; date: string }[];
+  occurrencesRemoved: { uid: string; date: string }[];
+  eventRemoved?: true;
+}
+
+export function isNonEmpty(d: UpdateDiff): boolean {
+  return d.master.length > 0
+      || d.occurrencesChanged.length > 0
+      || d.occurrencesAdded.length > 0
+      || d.occurrencesNewlyCancelled.length > 0
+      || d.occurrencesRemoved.length > 0
+      || d.eventRemoved === true;
 }
