@@ -13,6 +13,12 @@ import type { SessionUser } from '../auth/auth';
 import { authorize, can } from '../auth/authorize';
 import { buildAuthorEmail } from '../git/commit-author';
 import { upsertContentCache } from './cache';
+import {
+  claimFormSubmission,
+  completeFormSubmission,
+  releaseFormSubmission,
+  FormSubmissionConflict,
+} from './form-submissions';
 import type { GitFiles } from '../models/content-model';
 
 /** @deprecated Use GitFiles from content-model.ts instead */
@@ -76,7 +82,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
 ): Promise<Response> {
   const auth = await authenticateAndParse(request, locals, params, handlers);
   if (auth instanceof Response) return auth;
-  const { user, update } = auth;
+  const { user, update, formInstanceId, isNewRequest } = auth;
   let { contentId } = auth;
 
   try {
@@ -88,6 +94,21 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
       repo: env.GIT_DATA_REPO,
       branch: baseBranch,
     });
+
+    // Form-submission rejection. Only applies to /new requests (creates):
+    // the form_instance_id was minted on form-mount, so a second /new
+    // POST with the same id is unambiguously a duplicate submission and
+    // must be rejected — not silently merged, not auto-rerouted to update.
+    if (isNewRequest && formInstanceId) {
+      try {
+        await claimFormSubmission(database, formInstanceId, contentType);
+      } catch (err) {
+        if (err instanceof FormSubmissionConflict) {
+          return jsonError('This form has already been submitted. Reload the page to start fresh.', 409);
+        }
+        throw err;
+      }
+    }
 
     if ('checkExistence' in handlers && handlers.checkExistence) {
       const result = await handlers.checkExistence(git, contentId);
@@ -121,6 +142,14 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
 
     const response = await updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
 
+    if (isNewRequest && formInstanceId && response.ok) {
+      try {
+        await completeFormSubmission(database, formInstanceId, contentId);
+      } catch (err) {
+        console.error('form-submission complete failed (non-fatal):', err);
+      }
+    }
+
     if (response.ok && 'afterCommit' in handlers && handlers.afterCommit) {
       try {
         await handlers.afterCommit(buildResult, database);
@@ -132,6 +161,13 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     return response;
   } catch (err: unknown) {
     console.error(`save ${contentType} error:`, err);
+    if (isNewRequest && formInstanceId) {
+      // Release the claim so the user can retry with the same form mount.
+      // Best-effort: a failed release just leaves a stale row that the
+      // 7-day TTL will clean up.
+      try { await releaseFormSubmission(db(), formInstanceId); }
+      catch (releaseErr) { console.error('form-submission release failed:', releaseErr); }
+    }
     const message = err instanceof Error ? err.message : 'Failed to save';
     return jsonError(message, 500);
   }
@@ -142,13 +178,19 @@ async function authenticateAndParse<T, R extends BuildResult>(
   locals: APIContext['locals'],
   params: Record<string, string | undefined>,
   handlers: SaveHandlers<T, R> & Partial<WithSlugValidation>,
-): Promise<{ user: SessionUser; update: T; contentId: string } | Response> {
+): Promise<{ user: SessionUser; update: T; contentId: string; formInstanceId?: string; isNewRequest: boolean } | Response> {
   const user = authorize(locals, 'edit-content');
   if (user instanceof Response) return user;
 
+  // The /new path resolves params.id === 'new'; the per-id update path
+  // doesn't. The form-submission rejection only applies to creates.
+  const isNewRequest = params.id === 'new' || params.slug === 'new';
+
   let update: T;
+  let formInstanceId: string | undefined;
   try {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
+    if (typeof body.form_instance_id === 'string') formInstanceId = body.form_instance_id;
     update = handlers.parseRequest(body);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Invalid JSON body';
@@ -186,7 +228,7 @@ async function authenticateAndParse<T, R extends BuildResult>(
     if (slugError) return jsonError(slugError);
   }
 
-  return { user, update, contentId };
+  return { user, update, contentId, formInstanceId, isNewRequest };
 }
 
 export async function readCurrentState(

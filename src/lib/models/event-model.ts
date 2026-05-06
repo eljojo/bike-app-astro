@@ -109,6 +109,7 @@ export const eventDetailSchema = z.object({
   poster_width: z.number().optional(),
   poster_height: z.number().optional(),
   tags: z.array(z.string()).default([]),
+  past_slugs: z.array(z.string()).default([]),
   previous_event: z.string().optional(),
   edition: z.string().optional(),
   banner_text: z.string().optional(),

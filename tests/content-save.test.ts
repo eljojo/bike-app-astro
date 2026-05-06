@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SaveHandlers, BuildResult } from '../src/lib/content/content-save';
+import { formSubmissions } from '../src/db/schema';
 
 // Mock modules BEFORE importing saveContent
 const mockReadFile = vi.fn();
@@ -17,6 +18,9 @@ vi.mock('../src/lib/env/env.service', () => ({
 // Mock D1 database with chainable methods
 const mockGetResult = vi.fn((): { githubSha: string; data: string } | null => null);
 const mockOnConflictDoUpdate = vi.fn();
+// formSubmissions inserts throw on PK conflict; tests reach into this fn
+// to simulate either a successful claim or a duplicate-rejection.
+const mockFormSubmissionsInsert = vi.fn(() => undefined as unknown);
 
 vi.mock('../src/lib/get-db', () => ({
   db: () => ({
@@ -27,11 +31,18 @@ vi.mock('../src/lib/get-db', () => ({
         }),
       }),
     }),
-    insert: () => ({
-      values: () => ({
-        onConflictDoUpdate: mockOnConflictDoUpdate,
-      }),
-    }),
+    insert: (table: unknown) => {
+      if (table === formSubmissions) {
+        return { values: () => mockFormSubmissionsInsert() };
+      }
+      return {
+        values: (v: unknown) => ({
+          onConflictDoUpdate: () => mockOnConflictDoUpdate(v),
+        }),
+      };
+    },
+    update: () => ({ set: () => ({ where: () => undefined }) }),
+    delete: () => ({ where: () => undefined }),
   }),
 }));
 
@@ -303,5 +314,69 @@ describe('saveContent afterCommit isolation', () => {
     expect(mockWriteFiles).toHaveBeenCalledOnce();
     const data = await res.json();
     expect(data.success).toBe(true);
+  });
+});
+
+describe('saveContent form_instance_id rejection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadFile.mockResolvedValue(null); // new content
+    mockGetResult.mockReturnValue(null);
+    mockFormSubmissionsInsert.mockReturnValue(undefined);
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('first /new POST claims the form_instance_id and creates the event', async () => {
+    const req = makeRequest({ body: 'hello', form_instance_id: 'fi-fresh' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(res.status).toBe(200);
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('second /new POST with the same form_instance_id is rejected with 409 and never writes', async () => {
+    // Simulate the PK conflict that the second insert would hit.
+    mockFormSubmissionsInsert.mockImplementation(() => {
+      throw new Error('UNIQUE constraint failed: form_submissions.form_instance_id');
+    });
+
+    const req = makeRequest({ body: 'hello', form_instance_id: 'fi-already-used' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(res.status).toBe(409);
+    expect(mockWriteFiles).not.toHaveBeenCalled();
+  });
+
+  it('two /new POSTs with DIFFERENT form_instance_ids both succeed (admin duplicate-event flow preserved)', async () => {
+    const req1 = makeRequest({ body: 'a', form_instance_id: 'fi-one' });
+    const res1 = await saveContent(req1, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+    expect(res1.status).toBe(200);
+
+    mockReadFile.mockResolvedValue({ content: 'a', sha: 'sha-new' });
+    mockGetResult.mockReturnValue({ githubSha: 'sha-new', data: '{}' });
+
+    const req2 = makeRequest({ body: 'b', form_instance_id: 'fi-two' });
+    const res2 = await saveContent(req2, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+    expect(res2.status).toBe(200);
+
+    expect(mockWriteFiles).toHaveBeenCalledTimes(2);
+  });
+
+  it('update path (slug !== "new") never claims a form_submission, even if form_instance_id is sent', async () => {
+    // Simulate file already exists with matching sha so the update path
+    // proceeds. If the rejection check were applied here, this would 409.
+    mockReadFile.mockResolvedValue({ content: 'old', sha: 'sha-old' });
+    mockGetResult.mockReturnValue({ githubSha: 'sha-old', data: '{}' });
+
+    // Even if form_instance_id is set and would conflict, an update must succeed.
+    mockFormSubmissionsInsert.mockImplementation(() => {
+      throw new Error('UNIQUE constraint failed');
+    });
+
+    const req = makeRequest({ body: 'updated', form_instance_id: 'fi-stale' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'existing-event' }, 'events', stubHandlers);
+
+    expect(res.status).toBe(200);
+    expect(mockFormSubmissionsInsert).not.toHaveBeenCalled();
   });
 });

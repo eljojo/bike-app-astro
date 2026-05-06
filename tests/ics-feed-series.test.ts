@@ -89,8 +89,12 @@ describe('parseIcs — series with TZID', () => {
 });
 
 describe('parseIcs — schedule fallback', () => {
+  // Pin `now` before the fixtures' first occurrences so the schedule expansion
+  // is deterministic regardless of when the test runs.
+  const FIXED_NOW = new Date('2026-04-21T00:00:00Z');
+
   test('monthly RRULE falls back to explicit schedule', () => {
-    const feed = parseIcs(fixture('series-monthly.ics'), 'https://example.com/feed.ics', TORONTO);
+    const feed = parseIcs(fixture('series-monthly.ics'), 'https://example.com/feed.ics', TORONTO, FIXED_NOW);
     const e = feed.events[0];
     expect(e.series).toBeDefined();
     expect(e.series!.kind).toBe('schedule');
@@ -101,7 +105,7 @@ describe('parseIcs — schedule fallback', () => {
   });
 
   test('weekly with multiple BYDAY falls back to schedule', () => {
-    const feed = parseIcs(fixture('series-multi-byday.ics'), 'https://example.com/feed.ics', TORONTO);
+    const feed = parseIcs(fixture('series-multi-byday.ics'), 'https://example.com/feed.ics', TORONTO, FIXED_NOW);
     const e = feed.events[0];
     expect(e.series!.kind).toBe('schedule');
     // 8 weeks × 3 days/week = 24 occurrences between 2026-05-04 and 2026-06-30 inclusive

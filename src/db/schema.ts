@@ -66,6 +66,20 @@ export const contentEdits = sqliteTable('content_edits', {
   primaryKey({ columns: [table.city, table.contentType, table.contentSlug] }),
 ]);
 
+// Per-form-mount submission tracking. Each /new POST carries the
+// form_instance_id minted on form mount. The PK conflict is the lock:
+// the second POST with the same id is rejected. Older rows are
+// best-effort cleaned on insert. content_id is filled on commit; it
+// isn't consulted by the rejection path, just kept for diagnostics.
+export const formSubmissions = sqliteTable('form_submissions', {
+  formInstanceId: text('form_instance_id').primaryKey(),
+  contentType: text('content_type').notNull(),
+  contentId: text('content_id'),
+  createdAt: integer('created_at').notNull(),
+}, (table) => [
+  index('form_submissions_created_idx').on(table.createdAt),
+]);
+
 export const reactions = sqliteTable('reactions', {
   id: text('id').primaryKey(),
   city: text('city').notNull(),
