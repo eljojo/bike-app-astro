@@ -48,6 +48,16 @@ export function useEditorState(opts: EditorStateOptions) {
   const [contentHash, setContentHash] = useState(opts.initialContentHash);
   const [guestCreated, setGuestCreated] = useState(false);
 
+  // form_instance_id is minted once per form mount and only sent on /new
+  // POSTs. The server uses it to reject duplicate /new submissions of the
+  // same form (PK-conflict on the form_submissions table). It does NOT
+  // travel with subsequent updates — those go to the per-id endpoint.
+  const [formInstanceId] = useState<string>(() =>
+    (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+
   const { apiBase, contentId, validate, buildPayload, onSuccess } = opts;
 
   const save = useCallback(async () => {
@@ -66,6 +76,9 @@ export function useEditorState(opts: EditorStateOptions) {
     if (!payload) return;
 
     payload.contentHash = contentHash;
+    if (contentId === null) {
+      payload.form_instance_id = formInstanceId;
+    }
 
     setSaving(true);
     setSaved(false);
@@ -97,6 +110,7 @@ export function useEditorState(opts: EditorStateOptions) {
         if (res.status === 409 && data.conflict) {
           setError(data.error);
           setGithubUrl(data.githubUrl || '');
+          setSaving(false);
           return;
         }
         throw new Error(data.error || 'Save failed');
@@ -108,12 +122,23 @@ export function useEditorState(opts: EditorStateOptions) {
       onSuccess?.(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Save failed');
-    } finally {
+      setSaving(false);
+      return;
+    }
+    // After a successful save:
+    // - For edits (contentId !== null): re-enable the button so the user can keep editing.
+    // - For creates (contentId === null): keep saving=true so a stray click during the
+    //   post-save navigation can't fire another POST. The caller's onSuccess is expected
+    //   to navigate away.
+    if (contentId !== null) {
       setSaving(false);
     }
   }, [contentHash, apiBase, contentId, validate, buildPayload, onSuccess]);
 
-  const dismissSaved = useCallback(() => setSaved(false), []);
+  const dismissSaved = useCallback(() => {
+    setSaved(false);
+    setSaving(false);
+  }, []);
 
   return { saving, saved, error, githubUrl, contentHash, guestCreated, save, setError, dismissSaved };
 }
