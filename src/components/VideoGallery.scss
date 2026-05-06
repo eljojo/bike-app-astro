@@ -18,8 +18,9 @@
 }
 
 .video-gallery--player-col {
+  width: 100%;
   max-width: var(--video-max-w, 640px);
-  flex: 0 1 auto;
+  flex: 0 1 var(--video-max-w, 640px);
 }
 
 .video-gallery--player {
