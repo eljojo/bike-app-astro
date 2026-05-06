@@ -88,6 +88,7 @@ export function eventDetailFromGit(
     poster_width: frontmatter.poster_width as number | undefined,
     poster_height: frontmatter.poster_height as number | undefined,
     tags: (frontmatter.tags as string[]) ?? [],
+    past_slugs: (frontmatter.past_slugs as string[]) ?? [],
     previous_event: frontmatter.previous_event as string | undefined,
     edition: frontmatter.edition as string | undefined,
     event_url: frontmatter.event_url as string | undefined,

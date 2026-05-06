@@ -729,3 +729,49 @@ describe('eventHandlers.afterCommit', () => {
     );
   });
 });
+
+describe('eventHandlers.buildFileChanges with newSlug', () => {
+  it('appends the old slug to past_slugs when renaming', async () => {
+    const update = {
+      frontmatter: { name: 'Bike Fest', start_date: '2099-06-01' },
+      body: 'desc',
+      newSlug: 'bike-festival',
+    } as any;
+
+    const currentFiles = {
+      primaryFile: {
+        sha: 'sha-old',
+        content: '---\nname: Bike Fest\nstart_date: "2099-06-01"\n---\nold body\n',
+        path: `${CITY}/events/2099/bike-fest.md`,
+      },
+      auxiliaryFiles: {},
+    };
+    const git = { readFile: vi.fn().mockResolvedValue(null) };
+
+    const result = await eventHandlers.buildFileChanges(update, '2099/bike-fest', currentFiles as any, git as any);
+    const renamed = result.files.find(f => f.path.endsWith('bike-festival.md') || f.path.endsWith('bike-festival/index.md'));
+    expect(renamed).toBeDefined();
+    expect(renamed!.content).toMatch(/past_slugs:\s*\n\s*-\s*bike-fest/);
+  });
+
+  it('preserves existing past_slugs and prepends the new old slug', async () => {
+    const update = {
+      frontmatter: { name: 'Bike Fest', start_date: '2099-06-01' },
+      body: 'desc',
+      newSlug: 'bike-festival-final',
+    } as any;
+    const currentFiles = {
+      primaryFile: {
+        sha: 'sha-old',
+        content: '---\nname: Bike Fest\nstart_date: "2099-06-01"\npast_slugs:\n  - bike-fest\n---\nbody\n',
+        path: `${CITY}/events/2099/bike-festival.md`,
+      },
+      auxiliaryFiles: {},
+    };
+    const git = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(update, '2099/bike-festival', currentFiles as any, git as any);
+    const renamed = result.files.find(f => f.path.includes('bike-festival-final'));
+    expect(renamed).toBeDefined();
+    expect(renamed!.content).toMatch(/past_slugs:[\s\S]*-\s*bike-festival[\s\S]*-\s*bike-fest/);
+  });
+});

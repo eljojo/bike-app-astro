@@ -236,6 +236,7 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
       poster_width: posterWidth ?? (source.poster_width as number | undefined),
       poster_height: posterHeight ?? (source.poster_height as number | undefined),
       tags: (source.tags as string[]) || [],
+      past_slugs: [],
       body: (source.body as string) || '',
       routes: (source.routes as string[]) || [],
       waypoints: (source.waypoints as EventDetail['waypoints']) || [],

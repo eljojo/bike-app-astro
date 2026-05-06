@@ -41,6 +41,7 @@ const eventUpdateSchema = z.object({
   }).optional(),
   media: z.array(eventMediaItemSchema).optional(),
   slug: z.string().optional(),
+  newSlug: z.string().optional(),
 });
 
 export type EventUpdate = z.infer<typeof eventUpdateSchema>;
@@ -158,14 +159,27 @@ export function createEventHandlers(
       const isNew = !effectivePrimary;
       const [year, slug] = eventId.split('/');
 
+      // Slug rename support: if `newSlug` is set and differs from current,
+      // change the target path and prepend the old slug to past_slugs so the
+      // old URL keeps working (handled by the content-redirects virtual module).
+      const oldSlug = slug;
+      const renamingTo = update.newSlug && update.newSlug !== oldSlug ? update.newSlug : null;
+      const targetSlug = renamingTo || oldSlug;
+      const targetEventId = `${year}/${targetSlug}`;
+
       // Determine layout: directory if already directory-based or update includes media
       const wasDirectory = currentFiles.primaryFile != null; // primary is index.md path
       const useDirectory = wasDirectory || (update.media != null && update.media.length > 0);
-      const eventPath = resolveEventPath(eventId, useDirectory);
+      const eventPath = resolveEventPath(targetEventId, useDirectory);
 
       // If switching from flat to directory, delete the old flat file
       if (!isNew && !wasDirectory && useDirectory) {
         deletePaths.push(`${CITY}/events/${year}/${slug}.md`);
+      }
+
+      if (renamingTo) {
+        const oldPath = resolveEventPath(eventId, wasDirectory);
+        deletePaths.push(oldPath);
       }
 
       // Detect poster_key change and park orphaned photo
@@ -192,6 +206,13 @@ export function createEventHandlers(
       const fm: Record<string, unknown> = isNew
         ? { ...update.frontmatter }
         : { ...matter(effectivePrimary!.content).data, ...update.frontmatter };
+
+      if (renamingTo) {
+        const existing = Array.isArray(fm.past_slugs) ? fm.past_slugs.filter((s): s is string => typeof s === 'string') : [];
+        if (!existing.includes(oldSlug)) {
+          fm.past_slugs = [oldSlug, ...existing];
+        }
+      }
 
       // Organizer handling: inline vs separate file
       let oldOrgPhotoKey: string | undefined;
@@ -296,7 +317,7 @@ export function createEventHandlers(
         files, deletePaths, isNew,
         oldPosterKey, newPosterKey,
         oldOrgPhotoKey, newOrgPhotoKey,
-        eventSlug: eventId,
+        eventSlug: targetEventId,
         mergedParked, addedMediaKeys, removedMediaKeys,
       };
     },

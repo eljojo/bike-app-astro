@@ -221,6 +221,34 @@ function loadRedirectsYaml(): Record<string, unknown> {
     : {};
 }
 
+function loadAdminEventsForRedirects(): Array<{ id: string; past_slugs?: string[] }> {
+  const eventsDir = path.join(CITY_DIR, 'events');
+  if (!fs.existsSync(eventsDir)) return [];
+  const out: Array<{ id: string; past_slugs?: string[] }> = [];
+  for (const year of fs.readdirSync(eventsDir)) {
+    const yearPath = path.join(eventsDir, year);
+    if (!fs.statSync(yearPath).isDirectory()) continue;
+    for (const entry of fs.readdirSync(yearPath)) {
+      const flatPath = path.join(yearPath, entry);
+      let mdPath: string | null = null;
+      let slug: string | null = null;
+      if (entry.endsWith('.md')) {
+        mdPath = flatPath;
+        slug = entry.slice(0, -3);
+      } else if (fs.statSync(flatPath).isDirectory()) {
+        const indexPath = path.join(flatPath, 'index.md');
+        if (fs.existsSync(indexPath)) { mdPath = indexPath; slug = entry; }
+      }
+      if (!mdPath || !slug) continue;
+      const raw = fs.readFileSync(mdPath, 'utf-8');
+      const fm = matter(raw).data as { past_slugs?: unknown };
+      const past = Array.isArray(fm.past_slugs) ? fm.past_slugs.filter((s): s is string => typeof s === 'string') : undefined;
+      out.push({ id: `${year}/${slug}`, past_slugs: past });
+    }
+  }
+  return out;
+}
+
 function buildRideRedirectsModule(redirectsData: Record<string, unknown>): string {
   const rideEntries = (redirectsData.rides as Array<{ from: string; to: string }>) || [];
 
@@ -236,7 +264,25 @@ function buildRouteRedirectsModule(redirectsData: Record<string, unknown>): stri
   return `export default ${JSON.stringify(map)};`;
 }
 
-function buildContentRedirectsModule(redirectsData: Record<string, unknown>): string {
+export function buildEventPastSlugRedirects(
+  events: Array<{ id: string; past_slugs?: string[] }>,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const e of events) {
+    if (!e.past_slugs?.length) continue;
+    const [year] = e.id.split('/');
+    const canonicalUrl = `/events/${e.id}`;
+    for (const oldSlug of e.past_slugs) {
+      map[`/events/${year}/${oldSlug}`] = canonicalUrl;
+    }
+  }
+  return map;
+}
+
+function buildContentRedirectsModule(
+  redirectsData: Record<string, unknown>,
+  events: Array<{ id: string; past_slugs?: string[] }>,
+): string {
   const data = redirectsData;
   const map: Record<string, string> = {};
 
@@ -252,6 +298,9 @@ function buildContentRedirectsModule(redirectsData: Record<string, unknown>): st
       for (const r of entries) map[`${prefix}${r.from}`] = `${prefix}${r.to}`;
     }
   }
+
+  // Event past_slugs (frontmatter-driven, not redirects.yml)
+  Object.assign(map, buildEventPastSlugRedirects(events));
 
   const shortUrls = data.short_urls as Array<{ from: string; to: string }> | undefined;
   if (shortUrls) {
@@ -560,7 +609,7 @@ export function buildDataPlugin(options?: { consumerRoot?: string }): Plugin {
 
     'ride-redirects': async () => buildRideRedirectsModule(redirectsData),
     'route-redirects': async () => buildRouteRedirectsModule(redirectsData),
-    'content-redirects': async () => buildContentRedirectsModule(redirectsData),
+    'content-redirects': async () => buildContentRedirectsModule(redirectsData, loadAdminEventsForRedirects()),
     'video-route-map': async () => {
       const details = await getRouteDetails();
       return buildVideoRouteMapModule(details);

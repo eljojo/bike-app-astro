@@ -108,6 +108,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
   const [posterWidth, setPosterWidth] = useState<number | undefined>(initialData.poster_width);
   const [posterHeight, setPosterHeight] = useState<number | undefined>(initialData.poster_height);
   const [tags, setTags] = useState<string[]>(initialData.tags || []);
+  const [pastSlugs, setPastSlugs] = useState<string[]>(initialData.past_slugs || []);
   const [body, setBody] = useState(initialData.body);
 
   // Club-specific state
@@ -192,7 +193,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
     contentHash: initialData.contentHash,
     userRole,
     validate,
-    deps: [name, startDate, startTime, meetTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey, seriesMode, seriesData],
+    deps: [name, startDate, startTime, meetTime, endDate, endTime, registrationUrl, distances, location, reviewUrl, edition, eventUrl, mapUrl, previousEvent, posterKey, posterContentType, tags, pastSlugs, body, selectedRoutes, media, waypoints, eventResults, orgSlug, orgName, orgWebsite, orgInstagram, orgPhotoKey, seriesMode, seriesData],
     buildPayload: () => {
       const payload: EventUpdate = {
         frontmatter: {
@@ -214,6 +215,7 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
           ...(icsUid && { ics_uid: icsUid }),
           ...(posterKey && { poster_key: posterKey, poster_content_type: posterContentType || 'image/jpeg', ...(posterWidth && { poster_width: posterWidth }), ...(posterHeight && { poster_height: posterHeight }) }),
           ...(tags.length > 0 && { tags }),
+          ...(pastSlugs.length > 0 && { past_slugs: pastSlugs }),
           ...(isClub && selectedRoutes.length > 0 && { routes: selectedRoutes }),
           ...(isClub && waypoints.length > 0 && { waypoints }),
           ...(isClub && eventResults.length > 0 && { results: eventResults }),
@@ -461,6 +463,23 @@ export default function EventEditor({ initialData, organizers, cdnUrl, readOnly,
               datalistId="event-tag-suggestions"
             />
           </div>
+
+          {userRole === 'admin' && (
+            <div class="form-field">
+              <label>Also known as</label>
+              <span class="form-field-hint">Old slugs that should redirect here. One per line.</span>
+              <textarea
+                rows={3}
+                value={pastSlugs.join('\n')}
+                onInput={(e) => setPastSlugs(
+                  (e.target as HTMLTextAreaElement).value
+                    .split('\n')
+                    .map(s => s.trim())
+                    .filter(Boolean),
+                )}
+              />
+            </div>
+          )}
 
           {/* Normal / Series toggle */}
           <div class="form-field">

@@ -26,6 +26,7 @@ export interface AdminEvent {
   poster_width?: number;
   poster_height?: number;
   tags?: string[];
+  past_slugs?: string[];
   previous_event?: string;
   edition?: string;
   ics_uid?: string;
