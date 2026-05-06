@@ -17,7 +17,8 @@ import { createEventHandlers } from './event-save';
 import adminEventsVirtual from 'virtual:bike-app/admin-events';
 import adminOrganizers from 'virtual:bike-app/admin-organizers';
 import type { AdminEvent, AdminOrganizer } from '../../types/admin';
-import type { ParsedVEvent } from '../../lib/calendar-suggestions/types';
+import type { ParsedVEvent, ParsedSeriesOverride } from '../../lib/calendar-suggestions/types';
+import type { EventSeries } from '../../lib/models/event-model';
 import type { Database } from '../../db';
 import type { CalendarFeedCache } from '../../lib/calendar-feed-cache/feed-cache.service';
 import type { SessionUser } from '../../lib/auth/auth';
@@ -53,6 +54,76 @@ function getOccurrenceArray(
   if (series.overrides) return { key: 'overrides', items: series.overrides };
   if (series.schedule) return { key: 'schedule', items: series.schedule };  // empty schedule still present
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Addition classification helpers
+// ---------------------------------------------------------------------------
+
+export type AdditionTarget =
+  | { kind: 'schedule_append'; entry: ParsedSeriesOverride }
+  | { kind: 'season_extend'; newSeasonEnd: string }
+  | { kind: 'override_append'; entry: ParsedSeriesOverride; bumpedSeasonEnd?: string }
+  | { kind: 'skip'; reason: string };
+
+/**
+ * Returns true if `date` falls on a recurrence cycle that started at `seasonStart`
+ * with the given `cadenceDays` interval, AND the date lands on `recurrenceDay`.
+ */
+export function isOnCycle(
+  seasonStart: string,
+  date: string,
+  cadenceDays: number,
+  recurrenceDay: string,
+): boolean {
+  const startMs = new Date(seasonStart + 'T00:00:00Z').getTime();
+  const dateMs  = new Date(date + 'T00:00:00Z').getTime();
+  if (dateMs < startMs) return false;
+  const diffDays = Math.round((dateMs - startMs) / (24 * 3600 * 1000));
+  if (diffDays % cadenceDays !== 0) return false;
+  const dowMap: Record<string, number> = {
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
+  };
+  const expected = dowMap[recurrenceDay];
+  if (expected === undefined) return false;
+  const actual = new Date(dateMs).getUTCDay();
+  return expected === actual;
+}
+
+/**
+ * Classify how a single addition should be applied to a series.
+ * Pure function — no side effects.
+ */
+export function classifyAddition(series: EventSeries, addition: ParsedSeriesOverride): AdditionTarget {
+  // Schedule pattern
+  if (series.schedule) {
+    return { kind: 'schedule_append', entry: addition };
+  }
+
+  // Recurrence pattern
+  if (series.recurrence_day) {
+    const cadenceDays = series.recurrence === 'biweekly' ? 14 : 7;
+    const seasonStart = series.season_start;
+    const seasonEnd   = series.season_end;
+    if (!seasonStart || !seasonEnd) {
+      return { kind: 'skip', reason: 'recurrence series missing season bounds' };
+    }
+
+    const onCycle = isOnCycle(seasonStart, addition.date, cadenceDays, series.recurrence_day);
+    if (onCycle) {
+      if (addition.date > seasonEnd) {
+        return { kind: 'season_extend', newSeasonEnd: addition.date };
+      }
+      return { kind: 'skip', reason: 'on-cycle date already within season window' };
+    }
+
+    // Off-cycle: append to overrides; bump season_end if past it.
+    const bumpedSeasonEnd = addition.date > seasonEnd ? addition.date : undefined;
+    return { kind: 'override_append', entry: addition, bumpedSeasonEnd };
+  }
+
+  return { kind: 'skip', reason: 'series has neither schedule nor recurrence_day' };
 }
 
 /**
@@ -135,31 +206,49 @@ export function applyTogglesToEvent(
 
       if (!patched.series) continue;  // no series block to append to
 
-      // Determine which array to append to; default to schedule for explicit-schedule series
-      const occArr = getOccurrenceArray(patched.series);
-      const arrayKey: 'schedule' | 'overrides' = occArr?.key ?? 'schedule';
+      const addition: ParsedSeriesOverride = {
+        date: upOvr.date,
+        uid: upOvr.uid,
+        ...(upOvr.start_time !== undefined ? { start_time: upOvr.start_time } : {}),
+        ...(upOvr.location !== undefined ? { location: upOvr.location } : {}),
+        ...(upOvr.event_url !== undefined ? { event_url: upOvr.event_url } : {}),
+        ...(upOvr.registration_url !== undefined ? { registration_url: upOvr.registration_url } : {}),
+        ...(upOvr.map_url !== undefined ? { map_url: upOvr.map_url } : {}),
+      };
 
-      if (!patched.series[arrayKey]) {
-        (patched.series as Record<string, unknown>)[arrayKey] = [];
-      }
-      const targetArr = patched.series[arrayKey]!;
+      const target = classifyAddition(patched.series, addition);
 
-      // Only append if not already present
-      if (!targetArr.find(o => o.uid === uid)) {
-        targetArr.push({
-          date: upOvr.date,
-          uid: upOvr.uid,
-          ...(upOvr.start_time !== undefined ? { start_time: upOvr.start_time } : {}),
-          ...(upOvr.location !== undefined ? { location: upOvr.location } : {}),
-          ...(upOvr.event_url !== undefined ? { event_url: upOvr.event_url } : {}),
-          ...(upOvr.registration_url !== undefined ? { registration_url: upOvr.registration_url } : {}),
-          ...(upOvr.map_url !== undefined ? { map_url: upOvr.map_url } : {}),
-        });
-      }
-
-      // Advance season_end if this occurrence is after it
-      if (patched.series.season_end && upOvr.date > patched.series.season_end) {
-        patched.series = { ...patched.series, season_end: upOvr.date };
+      switch (target.kind) {
+        case 'schedule_append': {
+          if (!patched.series.schedule!.find(o => o.uid === uid)) {
+            patched.series.schedule!.push(target.entry);
+          }
+          // Advance season_end if the new date is later (schedule series may carry season_end)
+          if (patched.series.season_end && target.entry.date > patched.series.season_end) {
+            patched.series = { ...patched.series, season_end: target.entry.date };
+          }
+          break;
+        }
+        case 'season_extend': {
+          patched.series = { ...patched.series, season_end: target.newSeasonEnd };
+          break;
+        }
+        case 'override_append': {
+          if (!patched.series.overrides) {
+            patched.series = { ...patched.series, overrides: [] };
+          }
+          if (!patched.series.overrides!.find(o => o.uid === uid)) {
+            patched.series.overrides!.push(target.entry);
+          }
+          if (target.bumpedSeasonEnd) {
+            patched.series = { ...patched.series, season_end: target.bumpedSeasonEnd };
+          }
+          break;
+        }
+        case 'skip': {
+          console.warn(`[applyTogglesToEvent] skipping addition uid=${uid}: ${target.reason}`);
+          break;
+        }
       }
     }
   }

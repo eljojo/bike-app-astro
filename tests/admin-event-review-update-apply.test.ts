@@ -2,11 +2,14 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { createTestDb } from './test-db';
 import type { Database } from '../src/db';
 import type { AdminEvent } from '../src/types/admin';
-import type { ParsedVEvent } from '../src/lib/calendar-suggestions/types';
+import type { ParsedVEvent, ParsedSeriesOverride } from '../src/lib/calendar-suggestions/types';
+import type { EventSeries } from '../src/lib/models/event-model';
 import { advanceSnapshot, loadAllSnapshots } from '../src/lib/calendar-suggestions/snapshots.server';
 import {
   applyTogglesToEvent,
   bodySchema,
+  classifyAddition,
+  isOnCycle,
   type ApplyBody,
 } from '../src/views/api/admin-event-review-update-apply';
 
@@ -451,5 +454,348 @@ describe('applyTogglesToEvent — edge cases', () => {
     applyTogglesToEvent(event, upstream, body);
     // Original series must not be mutated
     expect(event.series?.schedule?.[0]?.location).toBe('A');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isOnCycle — pure helper
+// ---------------------------------------------------------------------------
+
+describe('isOnCycle', () => {
+  // 2026-06-08 is a Monday. Use this as season_start for easy weekly cadence.
+  const monday0 = '2026-06-08';
+
+  test('exactly 7d on monday season_start → on-cycle (weekly)', () => {
+    expect(isOnCycle(monday0, '2026-06-15', 7, 'monday')).toBe(true);
+  });
+
+  test('exactly 14d on monday season_start → on-cycle (biweekly)', () => {
+    expect(isOnCycle(monday0, '2026-06-22', 14, 'monday')).toBe(true);
+  });
+
+  test('7d from start with biweekly cadence → off-cycle (not 14d interval)', () => {
+    expect(isOnCycle(monday0, '2026-06-15', 14, 'monday')).toBe(false);
+  });
+
+  test('14d from start with weekly cadence → on-cycle (14 % 7 === 0)', () => {
+    expect(isOnCycle(monday0, '2026-06-22', 7, 'monday')).toBe(true);
+  });
+
+  test('correct cadence but wrong DOW → off-cycle', () => {
+    // 7d from monday season_start lands on next monday — if we claim tuesday it should fail
+    expect(isOnCycle(monday0, '2026-06-15', 7, 'tuesday')).toBe(false);
+  });
+
+  test('date before season_start → off-cycle', () => {
+    expect(isOnCycle(monday0, '2026-06-01', 7, 'monday')).toBe(false);
+  });
+
+  test('season_start itself → on-cycle (0 days diff)', () => {
+    expect(isOnCycle(monday0, monday0, 7, 'monday')).toBe(true);
+  });
+
+  test('non-multiple diff with correct DOW → off-cycle', () => {
+    // 2026-06-29 is a Monday, 21d from 2026-06-08 (weekly: 21%7=0 → on-cycle)
+    expect(isOnCycle(monday0, '2026-06-29', 7, 'monday')).toBe(true);
+    // 2026-06-23 is a Tuesday, 15d from monday0: 15%7=1 → off-cycle regardless of DOW
+    expect(isOnCycle(monday0, '2026-06-23', 7, 'tuesday')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyAddition — pure helper
+// ---------------------------------------------------------------------------
+
+describe('classifyAddition', () => {
+  // Reusable series fixtures
+  function scheduleSeries(): EventSeries {
+    return {
+      schedule: [
+        { date: '2026-06-15', uid: 'e1' },
+      ],
+    } as EventSeries;
+  }
+
+  function weeklySeries(overrides: Partial<EventSeries> = {}): EventSeries {
+    return {
+      recurrence: 'weekly',
+      recurrence_day: 'monday',
+      season_start: '2026-06-08',  // a Monday
+      season_end:   '2026-08-24',  // about 11 weeks out
+      ...overrides,
+    } as EventSeries;
+  }
+
+  function biweeklySeries(overrides: Partial<EventSeries> = {}): EventSeries {
+    return {
+      recurrence: 'biweekly',
+      recurrence_day: 'monday',
+      season_start: '2026-06-08',
+      season_end:   '2026-09-28',
+      ...overrides,
+    } as EventSeries;
+  }
+
+  function addition(date: string, extra: Partial<ParsedSeriesOverride> = {}): ParsedSeriesOverride {
+    return { date, uid: `uid-${date}`, ...extra };
+  }
+
+  // --- Schedule pattern ---
+
+  test('schedule series → schedule_append', () => {
+    const result = classifyAddition(scheduleSeries(), addition('2026-09-01'));
+    expect(result.kind).toBe('schedule_append');
+    if (result.kind === 'schedule_append') {
+      expect(result.entry.date).toBe('2026-09-01');
+    }
+  });
+
+  // --- Recurrence: on-cycle, past season_end ---
+
+  test('weekly, on-cycle, past season_end → season_extend', () => {
+    // 2026-08-31 is a Monday; is it 7n days from 2026-06-08?
+    // 2026-06-08 to 2026-08-31: 84 days = 12 * 7 ✓; it's a Monday ✓; past 2026-08-24 ✓
+    const result = classifyAddition(weeklySeries(), addition('2026-08-31'));
+    expect(result.kind).toBe('season_extend');
+    if (result.kind === 'season_extend') {
+      expect(result.newSeasonEnd).toBe('2026-08-31');
+    }
+  });
+
+  test('biweekly, on-cycle, past season_end → season_extend', () => {
+    // 2026-10-05 is a Monday; days from 2026-06-08: 119 days = 8.5 * 14 → not on-cycle.
+    // Let's use 2026-10-12: 126 days = 9 * 14 ✓; Monday ✓; past 2026-09-28 ✓
+    const result = classifyAddition(biweeklySeries(), addition('2026-10-12'));
+    expect(result.kind).toBe('season_extend');
+    if (result.kind === 'season_extend') {
+      expect(result.newSeasonEnd).toBe('2026-10-12');
+    }
+  });
+
+  // --- Recurrence: on-cycle, within season window ---
+
+  test('weekly, on-cycle, within season_end → skip', () => {
+    // 2026-07-06 is a Monday; 28 days from 2026-06-08 = 4 * 7 ✓; within 2026-08-24 ✓
+    const result = classifyAddition(weeklySeries(), addition('2026-07-06'));
+    expect(result.kind).toBe('skip');
+    if (result.kind === 'skip') {
+      expect(result.reason).toMatch(/on-cycle date already within season window/);
+    }
+  });
+
+  // --- Recurrence: off-cycle, within season window ---
+
+  test('weekly, off-cycle (wrong DOW), within season_end → override_append, no bump', () => {
+    // 2026-07-07 is a Tuesday — wrong DOW, within season
+    const result = classifyAddition(weeklySeries(), addition('2026-07-07'));
+    expect(result.kind).toBe('override_append');
+    if (result.kind === 'override_append') {
+      expect(result.entry.date).toBe('2026-07-07');
+      expect(result.bumpedSeasonEnd).toBeUndefined();
+    }
+  });
+
+  test('weekly, off-cycle (not a 7d multiple, right DOW), within season_end → override_append, no bump', () => {
+    // 2026-06-22 is a Monday, 14 days from season_start (weekly: 14%7=0 → on-cycle).
+    // Try 2026-06-15 (7 days, Monday) — that IS on-cycle; skip.
+    // Use 2026-07-13: 35 days = 5*7, Monday → on-cycle actually.
+    // For a genuinely off-cycle Monday we'd need a date not divisible by 7 from season_start.
+    // Actually any Monday from a Monday start is on-cycle for weekly. So use a Wednesday.
+    // 2026-07-01 is a Wednesday. 23d from season_start: 23%7=2 → off-cycle.
+    const result = classifyAddition(weeklySeries(), addition('2026-07-01'));
+    expect(result.kind).toBe('override_append');
+    if (result.kind === 'override_append') {
+      expect(result.bumpedSeasonEnd).toBeUndefined();
+    }
+  });
+
+  // --- Recurrence: off-cycle, past season_end ---
+
+  test('weekly, off-cycle, past season_end → override_append with bumpedSeasonEnd', () => {
+    // 2026-09-02 is a Wednesday, past 2026-08-24, not a Monday → off-cycle
+    const result = classifyAddition(weeklySeries(), addition('2026-09-02'));
+    expect(result.kind).toBe('override_append');
+    if (result.kind === 'override_append') {
+      expect(result.bumpedSeasonEnd).toBe('2026-09-02');
+    }
+  });
+
+  // --- Biweekly cadence: 14d on-cycle, 7d off-cycle (right DOW, wrong cadence) ---
+
+  test('biweekly, 14d on-cycle Monday → season_extend (past season_end)', () => {
+    // Past season_end (2026-09-28): 2026-10-12 = 126d from 2026-06-08 = 9*14 ✓, Monday ✓
+    const result = classifyAddition(biweeklySeries(), addition('2026-10-12'));
+    expect(result.kind).toBe('season_extend');
+  });
+
+  test('biweekly, 7d Monday (right DOW, wrong cadence) → off-cycle → override_append', () => {
+    // 2026-06-15: 7d from season_start, Monday, but 7%14=7≠0 → off-cycle for biweekly
+    const result = classifyAddition(biweeklySeries(), addition('2026-06-15'));
+    expect(result.kind).toBe('override_append');
+    if (result.kind === 'override_append') {
+      // 2026-06-15 < season_end 2026-09-28 → no bump
+      expect(result.bumpedSeasonEnd).toBeUndefined();
+    }
+  });
+
+  // --- Edge: missing season bounds ---
+
+  test('recurrence series missing season_end → skip', () => {
+    const series = weeklySeries({ season_end: undefined });
+    const result = classifyAddition(series, addition('2026-09-01'));
+    expect(result.kind).toBe('skip');
+    if (result.kind === 'skip') {
+      expect(result.reason).toMatch(/missing season bounds/);
+    }
+  });
+
+  test('recurrence series missing season_start → skip', () => {
+    const series = weeklySeries({ season_start: undefined });
+    const result = classifyAddition(series, addition('2026-09-01'));
+    expect(result.kind).toBe('skip');
+  });
+
+  // --- Edge: series has neither schedule nor recurrence_day ---
+
+  test('series with no schedule and no recurrence_day → skip', () => {
+    // Build a bare series object that passes TS but lacks both patterns
+    // (we bypass the Zod refinement by casting)
+    const series = { recurrence: 'weekly' } as unknown as EventSeries;
+    const result = classifyAddition(series, addition('2026-09-01'));
+    expect(result.kind).toBe('skip');
+    if (result.kind === 'skip') {
+      expect(result.reason).toMatch(/neither schedule nor recurrence_day/);
+    }
+  });
+
+  // --- Wrong DOW test: confirm it falls into off-cycle, not season_extend ---
+
+  test('right cadence interval but wrong DOW → override_append not season_extend', () => {
+    // season_start is 2026-06-08 (Monday). A date 7d later on a Tuesday is impossible
+    // (7d from Monday is always Monday). Let's use biweekly: 14d from Monday = Monday.
+    // Test wrong DOW more directly: series with recurrence_day='wednesday',
+    // season_start='2026-06-10' (a Wednesday). 14d later = 2026-06-24 (Wednesday) → on-cycle.
+    // 7d later = 2026-06-17 (Wednesday) → 7%14=7≠0 → off-cycle.
+    const wednesdaySeries: EventSeries = {
+      recurrence: 'biweekly',
+      recurrence_day: 'wednesday',
+      season_start: '2026-06-10',  // Wednesday
+      season_end: '2026-08-19',
+    } as EventSeries;
+    // 2026-06-17: 7d from season_start, Wednesday. 7%14=7≠0 → off-cycle
+    const result = classifyAddition(wednesdaySeries, addition('2026-06-17'));
+    expect(result.kind).toBe('override_append');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyTogglesToEvent — recurrence-series additions (integration)
+// ---------------------------------------------------------------------------
+
+describe('applyTogglesToEvent — recurrence series additions', () => {
+  // Weekly Monday series: season 2026-06-08 to 2026-08-24
+  function makeWeeklyRecurrenceEvent(): AdminEvent {
+    return makeEvent({
+      series: {
+        recurrence: 'weekly',
+        recurrence_day: 'monday',
+        season_start: '2026-06-08',
+        season_end: '2026-08-24',
+      },
+    });
+  }
+
+  function makeUpstreamWithRecurrenceAdditions(
+    overrides: Array<{ date: string; uid: string; location?: string; start_time?: string }>,
+  ): ParsedVEvent {
+    return makeUpstream({
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'monday',
+        season_start: '2026-06-08',
+        season_end: '2026-08-24',
+        overrides: overrides.map(o => ({ ...o })),
+      },
+    });
+  }
+
+  test('on-cycle addition past season_end → bumps season_end, no new override', () => {
+    const event = makeWeeklyRecurrenceEvent();
+    // 2026-08-31: 84d from 2026-06-08 = 12*7 ✓, Monday ✓, past 2026-08-24 ✓
+    const upstream = makeUpstreamWithRecurrenceAdditions([
+      { date: '2026-08-31', uid: 'extend-uid' },
+    ]);
+    const body = defaultBody({ additions: { 'extend-uid': 'add' } });
+
+    const result = applyTogglesToEvent(event, upstream, body);
+
+    expect(result.series?.season_end).toBe('2026-08-31');
+    expect(result.series?.overrides).toBeUndefined();
+    // schedule should not be created
+    expect(result.series?.schedule).toBeUndefined();
+  });
+
+  test('off-cycle addition within season → adds override, no season_end bump', () => {
+    const event = makeWeeklyRecurrenceEvent();
+    // 2026-07-01 is a Wednesday (off-cycle), within 2026-08-24
+    const upstream = makeUpstreamWithRecurrenceAdditions([
+      { date: '2026-07-01', uid: 'offcycle-uid', location: 'Special Venue' },
+    ]);
+    const body = defaultBody({ additions: { 'offcycle-uid': 'add' } });
+
+    const result = applyTogglesToEvent(event, upstream, body);
+
+    expect(result.series?.season_end).toBe('2026-08-24');  // unchanged
+    expect(result.series?.overrides).toHaveLength(1);
+    expect(result.series?.overrides?.[0]?.date).toBe('2026-07-01');
+    expect(result.series?.overrides?.[0]?.location).toBe('Special Venue');
+    expect(result.series?.schedule).toBeUndefined();
+  });
+
+  test('off-cycle addition past season_end → adds override AND bumps season_end', () => {
+    const event = makeWeeklyRecurrenceEvent();
+    // 2026-09-02 is a Wednesday (off-cycle), past 2026-08-24
+    const upstream = makeUpstreamWithRecurrenceAdditions([
+      { date: '2026-09-02', uid: 'offcycle-past-uid', location: 'Extra Stop' },
+    ]);
+    const body = defaultBody({ additions: { 'offcycle-past-uid': 'add' } });
+
+    const result = applyTogglesToEvent(event, upstream, body);
+
+    expect(result.series?.season_end).toBe('2026-09-02');
+    expect(result.series?.overrides).toHaveLength(1);
+    expect(result.series?.overrides?.[0]?.date).toBe('2026-09-02');
+    expect(result.series?.schedule).toBeUndefined();
+  });
+
+  test('on-cycle addition within existing season window → skipped', () => {
+    const event = makeWeeklyRecurrenceEvent();
+    // 2026-07-06: 28d from 2026-06-08 = 4*7 ✓, Monday ✓, within 2026-08-24 ✓
+    const upstream = makeUpstreamWithRecurrenceAdditions([
+      { date: '2026-07-06', uid: 'in-window-uid' },
+    ]);
+    const body = defaultBody({ additions: { 'in-window-uid': 'add' } });
+
+    const result = applyTogglesToEvent(event, upstream, body);
+
+    // No changes — season_end stays, no overrides added
+    expect(result.series?.season_end).toBe('2026-08-24');
+    expect(result.series?.overrides).toBeUndefined();
+    expect(result.series?.schedule).toBeUndefined();
+  });
+
+  test('original event is not mutated', () => {
+    const event = makeWeeklyRecurrenceEvent();
+    const upstream = makeUpstreamWithRecurrenceAdditions([
+      { date: '2026-08-31', uid: 'extend-uid' },
+    ]);
+    const body = defaultBody({ additions: { 'extend-uid': 'add' } });
+
+    applyTogglesToEvent(event, upstream, body);
+
+    // Original event unchanged
+    expect(event.series?.season_end).toBe('2026-08-24');
+    expect(event.series?.overrides).toBeUndefined();
   });
 });
