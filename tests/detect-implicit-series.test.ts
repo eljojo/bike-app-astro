@@ -254,6 +254,33 @@ describe('detectImplicitSeries — clustering rules', () => {
     expect(aprilTwelfth?.note).toBe('Andrew Haydon Park');
   });
 
+  it('consolidates sibling buckets whose distinguishing date is natural-language ("Tuesday May 12th - <Location>")', () => {
+    // OBC Tuesday Ride pattern: each occurrence has SUMMARY
+    // "Tuesday <Month> <Day>th - <Location>" with a different location every
+    // week. The natural-language date stripper reduces each bucket to
+    // "Tuesday - <Location>"; with no plain "Tuesday" base bucket, the
+    // consolidate pass merges them into a synthetic cluster keyed by the
+    // day-name anchor.
+    const ics = makeIcs([
+      { uid: 'a', summary: 'Tuesday May 12th - Kanata South', dtstart: '20260512T220000Z' }, // Tue 18:00 ET
+      { uid: 'b', summary: 'Tuesday May 19th - Orleans',      dtstart: '20260519T220000Z' },
+      { uid: 'c', summary: 'Tuesday May 26th - Seresco',      dtstart: '20260526T220000Z' },
+      { uid: 'd', summary: 'Tuesday June 2nd - Kanata South', dtstart: '20260602T220000Z' },
+      { uid: 'e', summary: 'Tuesday June 9th - Orleans',      dtstart: '20260609T220000Z' },
+    ]);
+    const result = detectImplicitSeries(loadMasters(ics), 'America/Toronto');
+    expect(result.clusters).toHaveLength(1);
+    const cluster = result.clusters[0];
+    expect(cluster.summary).toBe('Tuesday');
+    expect(cluster.series?.recurrence).toBe('weekly');
+    expect(cluster.series?.recurrence_day).toBe('tuesday');
+    // Per-occurrence location rides along as an override note.
+    const may12 = cluster.series?.overrides?.find(o => o.date === '2026-05-12');
+    expect(may12?.note).toBe('Kanata South');
+    const may19 = cluster.series?.overrides?.find(o => o.date === '2026-05-19');
+    expect(may19?.note).toBe('Orleans');
+  });
+
   it('does NOT consolidate prefix siblings that wouldn\'t form a viable cluster', () => {
     // Three "Workshop - <topic>" one-offs on different days of the week, no
     // recurrence pattern. The consolidate pass would merge them but the modal

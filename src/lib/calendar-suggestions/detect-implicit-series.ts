@@ -213,17 +213,29 @@ export function detectImplicitSeries(
 
 const DATE_IN_TITLE_RE = /\b\d{2,4}-\d{2}-\d{2}\b/g;
 
+// Strips natural-language month-day patterns like "May 12th", "September 5",
+// "Sept. 21st" embedded inside SUMMARYs. Without this the OBC Tuesday Ride
+// pattern — "Tuesday May 12th - Kanata South", "Tuesday May 19th - Orleans",
+// … — fragments into one bucket per occurrence and each becomes a one-off
+// orphan suggestion. Stripping the date leaves "Tuesday - <Location>" so the
+// existing prefix-sibling consolidation pass merges them into a "Tuesday"
+// cluster with locations as variant notes. Day-of-week names are deliberately
+// preserved so the cluster has a usable anchor name.
+const NATURAL_DATE_IN_TITLE_RE = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\.?\s+\d{1,2}(?:st|nd|rd|th)?\b/gi;
+
 /**
  * Canonicalise a SUMMARY for bucketing: strip trailing status suffix, strip
- * any embedded YY-MM-DD / YYYY-MM-DD date pattern, and collapse whitespace.
- * Used both for keying the buckets and as the cluster's `summary` value, so
- * the suggestion shown to the admin is the canonical name without per-occurrence
- * dates baked into it.
+ * any embedded YY-MM-DD / YYYY-MM-DD date pattern and natural-language
+ * month-day pattern (e.g. "May 12th"), and collapse whitespace. Used both for
+ * keying the buckets and as the cluster's `summary` value, so the suggestion
+ * shown to the admin is the canonical name without per-occurrence dates
+ * baked into it.
  */
 function normalizeSummaryForBucket(summary: string): string {
   return summary
     .replace(STATUS_STRIP_RE, '')
     .replace(DATE_IN_TITLE_RE, '')
+    .replace(NATURAL_DATE_IN_TITLE_RE, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
