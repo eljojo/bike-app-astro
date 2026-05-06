@@ -85,6 +85,38 @@ export async function loadAllSnapshots(
 }
 
 /**
+ * Return the snapshot for a single `(city, organizer_slug, uid)` triple, or
+ * `null` if none exists. Unlike `loadAllSnapshots`, this function does NOT
+ * filter by `expires_at` — the review page wants to render a diff even when
+ * the snapshot's expiry has passed, because the user is explicitly viewing
+ * this event right now.
+ */
+export async function loadOneSnapshot(
+  db: Database,
+  city: string,
+  organizerSlug: string,
+  uid: string,
+): Promise<ParsedVEvent | null> {
+  const rows = await db.select({
+      snapshot_json: calendarEventSnapshots.snapshotJson,
+    })
+    .from(calendarEventSnapshots)
+    .where(and(
+      eq(calendarEventSnapshots.city, city),
+      eq(calendarEventSnapshots.organizerSlug, organizerSlug),
+      eq(calendarEventSnapshots.uid, uid),
+    ))
+    .limit(1);
+  if (rows.length === 0) return null;
+  try {
+    return JSON.parse(rows[0].snapshot_json) as ParsedVEvent;
+  } catch (err) {
+    console.warn(`snapshot JSON parse failed for ${organizerSlug}:${uid}:`, err);
+    return null;
+  }
+}
+
+/**
  * Remove the snapshot for `(city, organizer_slug, uid)`. Used when an event
  * is imported — the snapshot is no longer needed as a suggestion source.
  */

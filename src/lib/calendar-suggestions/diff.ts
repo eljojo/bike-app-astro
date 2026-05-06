@@ -2,6 +2,7 @@ import type {
   ParsedVEvent,
   ParsedSeriesOverride,
   UpdateDiff,
+  AddedOccurrence,
   FieldDiff,
 } from './types';
 
@@ -110,7 +111,8 @@ function diffOccurrences(
   for (const [uid, upO] of upByUid) {
     if (snapByUid.has(uid)) continue;
     if (upO.date < todayLocalDate) continue;
-    out.occurrencesAdded.push(upO);
+    // upO is from upByUid which is keyed by uid, so uid is always truthy here.
+    out.occurrencesAdded.push(upO as AddedOccurrence);
   }
 
   // Removed (uid in snapshot only) — filter past dates.

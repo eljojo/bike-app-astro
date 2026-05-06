@@ -37,8 +37,7 @@ export default function EventReviewUpdate(props: Props) {
   const [additionToggles, setAdditionToggles] = useState<Record<string, AdditionToggle>>(() => {
     const init: Record<string, AdditionToggle> = {};
     for (const o of diff.occurrencesAdded) {
-      const key = o.uid ?? o.date;
-      init[key] = 'add';
+      init[o.uid] = 'add';
     }
     return init;
   });
@@ -225,37 +224,34 @@ export default function EventReviewUpdate(props: Props) {
         <section>
           <h2>New dates ({diff.occurrencesAdded.length})</h2>
           <ul>
-            {diff.occurrencesAdded.map(o => {
-              const key = o.uid ?? o.date;
-              return (
-                <li key={key} class="review-update__row">
-                  <strong>{o.date}</strong>
-                  {o.location && <span> — {o.location}</span>}
-                  <div class="review-update__toggle">
-                    <label>
-                      <input
-                        type="radio"
-                        name={`add-${key}`}
-                        value="add"
-                        checked={additionToggles[key] === 'add'}
-                        onChange={() => setAdditionToggles(prev => ({ ...prev, [key]: 'add' }))}
-                      />
-                      {' '}Add
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name={`add-${key}`}
-                        value="skip"
-                        checked={additionToggles[key] === 'skip'}
-                        onChange={() => setAdditionToggles(prev => ({ ...prev, [key]: 'skip' }))}
-                      />
-                      {' '}Skip
-                    </label>
-                  </div>
-                </li>
-              );
-            })}
+            {diff.occurrencesAdded.map(o => (
+              <li key={o.uid} class="review-update__row">
+                <strong>{o.date}</strong>
+                {o.location && <span> — {o.location}</span>}
+                <div class="review-update__toggle">
+                  <label>
+                    <input
+                      type="radio"
+                      name={`add-${o.uid}`}
+                      value="add"
+                      checked={additionToggles[o.uid] === 'add'}
+                      onChange={() => setAdditionToggles(prev => ({ ...prev, [o.uid]: 'add' }))}
+                    />
+                    {' '}Add
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`add-${o.uid}`}
+                      value="skip"
+                      checked={additionToggles[o.uid] === 'skip'}
+                      onChange={() => setAdditionToggles(prev => ({ ...prev, [o.uid]: 'skip' }))}
+                    />
+                    {' '}Skip
+                  </label>
+                </div>
+              </li>
+            ))}
           </ul>
         </section>
       )}

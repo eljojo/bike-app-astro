@@ -10,7 +10,7 @@ import { getCityConfig } from '../../lib/config/city-config';
 import { calendarFeedCache } from '../../lib/env/env.service';
 import { diffMonitored } from '../../lib/calendar-suggestions/diff';
 import { isNonEmpty } from '../../lib/calendar-suggestions/types';
-import { loadAllSnapshots } from '../../lib/calendar-suggestions/snapshots.server';
+import { loadOneSnapshot } from '../../lib/calendar-suggestions/snapshots.server';
 import { findVeventForPrefill } from '../../lib/calendar-suggestions/prefill';
 import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
 import adminEventsVirtual from 'virtual:bike-app/admin-events';
@@ -40,8 +40,7 @@ if (!organizer || !organizer.ics_url) return Astro.redirect('/admin/events');
 const cachedFeed = await calendarFeedCache.get(organizer.slug, organizer.ics_url);
 const upstream = cachedFeed ? findVeventForPrefill(cachedFeed, event.ics_uid) ?? null : null;
 
-const snapshots = await loadAllSnapshots(db(), CITY, nowLocalDate);
-const snapshot = snapshots.get(`${organizer.slug}:${event.ics_uid}`) ?? null;
+const snapshot = await loadOneSnapshot(db(), CITY, organizer.slug, event.ics_uid);
 
 const diff = diffMonitored(snapshot, upstream, nowLocalDate);
 if (!isNonEmpty(diff)) return Astro.redirect('/admin/events');

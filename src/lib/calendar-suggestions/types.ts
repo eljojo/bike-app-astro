@@ -109,10 +109,18 @@ export interface ChangedOccurrence {
   fields: FieldDiff[];
 }
 
+/**
+ * A row in `occurrencesAdded`: a `ParsedSeriesOverride` that is guaranteed
+ * to have a `uid` because `diffOccurrences` gates on `if (o.uid)` before
+ * pushing. Using an intersection keeps the full override payload available
+ * while narrowing the uid to non-optional.
+ */
+export type AddedOccurrence = ParsedSeriesOverride & { uid: string };
+
 export interface UpdateDiff {
   master: FieldDiff[];
   occurrencesChanged: ChangedOccurrence[];
-  occurrencesAdded: ParsedSeriesOverride[];
+  occurrencesAdded: AddedOccurrence[];
   occurrencesNewlyCancelled: { uid: string; date: string; fields: FieldDiff[] }[];
   occurrencesRemoved: { uid: string; date: string }[];
   eventRemoved?: true;

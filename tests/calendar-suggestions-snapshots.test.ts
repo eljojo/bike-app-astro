@@ -5,6 +5,7 @@ import {
   advanceSnapshot,
   deleteSnapshot,
   loadAllSnapshots,
+  loadOneSnapshot,
   computeExpiresAt,
   NEVER_EXPIRES,
 } from '../src/lib/calendar-suggestions/snapshots.server';
@@ -87,5 +88,45 @@ describe('computeExpiresAt', () => {
       start_date: '2026-06-03',
       series: { kind: 'recurrence' },
     } as any)).toBe(NEVER_EXPIRES);
+  });
+});
+
+describe('loadOneSnapshot', () => {
+  let h: ReturnType<typeof createTestDb>;
+  let db: Database;
+  beforeEach(() => { h = createTestDb(); db = h.db as unknown as Database; });
+  afterEach(() => { h.cleanup(); });
+
+  test('returns null when no row exists', async () => {
+    const result = await loadOneSnapshot(db, 'ottawa', 'obc', 'missing-uid');
+    expect(result).toBeNull();
+  });
+
+  test('returns the ParsedVEvent when the row exists', async () => {
+    const v = makeVEvent({ uid: 'u1', summary: 'Farmers Market Ride', location: 'Byward Market' });
+    await advanceSnapshot(db, 'ottawa', 'obc', 'u1', v, '2026-08-01');
+    const result = await loadOneSnapshot(db, 'ottawa', 'obc', 'u1');
+    expect(result).not.toBeNull();
+    expect(result?.summary).toBe('Farmers Market Ride');
+    expect(result?.location).toBe('Byward Market');
+  });
+
+  test('returns the row even if expires_at is in the past (no expiry filter)', async () => {
+    const v = makeVEvent({ uid: 'u1', summary: 'Old Ride' });
+    // Store with an expiry date well in the past.
+    await advanceSnapshot(db, 'ottawa', 'obc', 'u1', v, '2025-01-01');
+    // loadAllSnapshots would filter this out, but loadOneSnapshot should not.
+    const fromAll = await loadAllSnapshots(db, 'ottawa', '2026-05-06');
+    expect(fromAll.size).toBe(0);
+    const result = await loadOneSnapshot(db, 'ottawa', 'obc', 'u1');
+    expect(result).not.toBeNull();
+    expect(result?.summary).toBe('Old Ride');
+  });
+
+  test('city scoping: rows in other cities are not returned', async () => {
+    const v = makeVEvent({ uid: 'u1', summary: 'Toronto Ride' });
+    await advanceSnapshot(db, 'toronto', 'obc', 'u1', v, '2026-08-01');
+    const result = await loadOneSnapshot(db, 'ottawa', 'obc', 'u1');
+    expect(result).toBeNull();
   });
 });
