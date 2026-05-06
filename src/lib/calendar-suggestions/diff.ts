@@ -6,7 +6,7 @@ import type {
 } from './types';
 
 export const MONITORED_MASTER_FIELDS = [
-  'start', 'end', 'summary', 'location', 'cancelled',
+  'start', 'end', 'summary', 'location',
   'url', 'registration_url', 'map_url',
 ] as const;
 

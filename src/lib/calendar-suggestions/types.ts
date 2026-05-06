@@ -67,7 +67,6 @@ export interface ParsedVEvent {
    */
   last_modified?: string;
   series?: ParsedSeries;
-  cancelled?: boolean;         // STATUS:CANCELLED on the master VEVENT
   map_url?: string;            // raw map URL pulled from LOCATION
 }
 

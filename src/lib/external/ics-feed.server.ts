@@ -97,9 +97,6 @@ function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
   // (prefill into the editor form, suggestion display, downstream YAML)
   // never has to defensively re-trim.
 
-  const status = ev.component.getFirstPropertyValue('status');
-  const cancelled = typeof status === 'string' && status.toUpperCase() === 'CANCELLED';
-
   const rawLocation = ev.location?.trim() ?? '';
   const isUrl = /^https?:\/\//i.test(rawLocation);
 
@@ -112,7 +109,6 @@ function mapOneOff(ev: ICAL.Event, siteTz: string): ParsedVEvent | null {
     description: ev.description || undefined,
     url: stringPropOrUndefined(ev.component, 'url'),
     last_modified: extractLastModified(ev.component),
-    ...(cancelled && { cancelled: true }),
     ...(isUrl && { map_url: rawLocation }),
   };
 }

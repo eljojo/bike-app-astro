@@ -46,13 +46,13 @@ export type ApplyBody = z.infer<typeof bodySchema>;
  * The repo uses its own set of field names.
  */
 function upstreamFieldToRepoField(field: string): string {
-  // MONITORED_MASTER_FIELDS: 'start', 'end', 'summary', 'location', 'cancelled', 'url', 'registration_url', 'map_url'
+  // MONITORED_MASTER_FIELDS: 'start', 'end', 'summary', 'location', 'url', 'registration_url', 'map_url'
   switch (field) {
     case 'summary': return 'name';
     case 'url':     return 'event_url';
     case 'start':   return 'start_date';
     case 'end':     return 'end_date';
-    default:        return field;  // location, cancelled, registration_url, map_url map 1:1
+    default:        return field;  // location, registration_url, map_url map 1:1
   }
 }
 
