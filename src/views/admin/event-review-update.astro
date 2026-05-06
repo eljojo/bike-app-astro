@@ -1,0 +1,58 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import EventReviewUpdate from '../../components/admin/EventReviewUpdate';
+import { authorize } from '../../lib/auth/authorize';
+import { db } from '../../lib/get-db';
+import { CITY } from '../../lib/config/config';
+import { getCityConfig } from '../../lib/config/city-config';
+import { calendarFeedCache } from '../../lib/env/env.service';
+import { diffMonitored } from '../../lib/calendar-suggestions/diff';
+import { isNonEmpty } from '../../lib/calendar-suggestions/types';
+import { loadAllSnapshots } from '../../lib/calendar-suggestions/snapshots.server';
+import { findVeventForPrefill } from '../../lib/calendar-suggestions/prefill';
+import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
+import adminEventsVirtual from 'virtual:bike-app/admin-events';
+import adminOrganizers from 'virtual:bike-app/admin-organizers';
+import { Temporal } from '@js-temporal/polyfill';
+
+const user = authorize(Astro.locals, 'manage-calendar-suggestions');
+if (user instanceof Response) return user;
+
+const eventId = Astro.params.id as string;
+
+const cityConfig = getCityConfig();
+const nowZdt = Temporal.Instant.fromEpochMilliseconds(Date.now())
+  .toZonedDateTimeISO(cityConfig.timezone);
+const nowLocalDate = nowZdt.toPlainDate().toString();
+
+const { events } = await loadAdminEventList(adminEventsVirtual);
+const event = events.find(e => e.id === eventId);
+if (!event) return new Response('Not found', { status: 404 });
+if (!event.ics_uid || typeof event.organizer !== 'string') return Astro.redirect('/admin/events');
+
+const organizer = adminOrganizers.find(o => o.slug === event.organizer);
+if (!organizer || !organizer.ics_url) return Astro.redirect('/admin/events');
+
+const cachedFeed = await calendarFeedCache.get(organizer.slug, organizer.ics_url);
+const upstream = cachedFeed ? findVeventForPrefill(cachedFeed, event.ics_uid) ?? null : null;
+
+const snapshots = await loadAllSnapshots(db(), CITY, nowLocalDate);
+const snapshot = snapshots.get(`${organizer.slug}:${event.ics_uid}`) ?? null;
+
+const diff = diffMonitored(snapshot, upstream, nowLocalDate);
+if (!isNonEmpty(diff)) return Astro.redirect('/admin/events');
+---
+
+<AdminEditorLayout title="Review upstream changes" user={user} currentTab="events">
+  <EventReviewUpdate
+    client:load
+    eventId={event.id}
+    eventName={event.name}
+    organizerName={organizer.name}
+    organizerSlug={organizer.slug}
+    icsUid={event.ics_uid}
+    diff={diff}
+  />
+</AdminEditorLayout>
