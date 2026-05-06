@@ -734,7 +734,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 <li class={`event-series-date-item ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                   <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
                   {occTime && <span class="event-series-date-time">{formatTime(occTime, locale)}</span>}
-                  {occ.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
+                  {occ.location && occ.location !== data.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
                     ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location} aria-label={t('events.view_on_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a>
                     : occ.location}</span>}
                   {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url} aria-label={t('events.event_website', locale)}>{'\u{1F310}'}</a></span>}
@@ -760,7 +760,7 @@ function editionDateLabel(startDate: string, loc?: string): string {
                 {pastOccurrences.toReversed().map((occ: SeriesOccurrence) => (
                   <li class={`event-series-date-item event-series-date-item--past ${occ.cancelled ? 'event-series-date-item--cancelled' : ''}`}>
                     <span class="event-series-date-day">{formatOccurrenceDate(occ.date)}</span>
-                    {occ.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
+                    {occ.location && occ.location !== data.location && <span class="event-series-date-location">{/^https?:\/\//i.test(occ.location)
                       ? <a href={occ.location} target="_blank" rel="noopener noreferrer" title={occ.location} aria-label={t('events.view_on_map', locale)}>{'\u{1F5FA}\u{FE0F}'}</a>
                       : occ.location}</span>}
                     {occ.event_url && <span class="event-series-date-link"><a href={occ.event_url} target="_blank" rel="noopener noreferrer" title={occ.event_url} aria-label={t('events.event_website', locale)}>{'\u{1F310}'}</a></span>}
