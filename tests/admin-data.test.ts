@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { loadAdminRouteData, buildDataPlugin } from '../src/build-data-plugin';
 
 describe('loadAdminRouteData routes', () => {
@@ -113,26 +113,29 @@ describe('loadAdminRouteData details', () => {
 });
 
 describe('buildDataPlugin virtual modules', () => {
-  it('resolves virtual:bike-app/admin-routes', { timeout: 15000 }, () => {
-    const plugin = buildDataPlugin();
+  // Construct the plugin once; each call cold-reads city files, so doing it
+  // per-test is what made this suite flaky under parallel load.
+  let plugin: ReturnType<typeof buildDataPlugin>;
+  beforeAll(() => {
+    plugin = buildDataPlugin();
+  }, 30000);
+
+  it('resolves virtual:bike-app/admin-routes', () => {
     const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/admin-routes');
     expect(resolved).toBe('\0virtual:bike-app/admin-routes');
   });
 
   it('resolves virtual:bike-app/admin-route-detail', () => {
-    const plugin = buildDataPlugin();
     const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/admin-route-detail');
     expect(resolved).toBe('\0virtual:bike-app/admin-route-detail');
   });
 
   it('does not resolve unknown virtual modules', () => {
-    const plugin = buildDataPlugin();
     const resolved = (plugin.resolveId as Function).call(plugin, 'virtual:bike-app/unknown');
     expect(resolved).toBeUndefined();
   });
 
   it('loads admin-routes as a valid JS module', async () => {
-    const plugin = buildDataPlugin();
     const result = await (plugin.load as Function).call(plugin, '\0virtual:bike-app/admin-routes');
     expect(typeof result).toBe('string');
     expect(result).toContain('export default');
@@ -146,7 +149,6 @@ describe('buildDataPlugin virtual modules', () => {
   });
 
   it('loads admin-route-detail as a valid JS module', async () => {
-    const plugin = buildDataPlugin();
     const result = await (plugin.load as Function).call(plugin, '\0virtual:bike-app/admin-route-detail');
     expect(typeof result).toBe('string');
     expect(result).toContain('export default');
