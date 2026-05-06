@@ -20,7 +20,9 @@ import { Temporal } from '@js-temporal/polyfill';
 const user = authorize(Astro.locals, 'manage-calendar-suggestions');
 if (user instanceof Response) return user;
 
-const eventId = Astro.params.id as string;
+// Decode %2F-encoded slashes in the id param — the route uses [id] (single segment)
+// so the event ID '2099/slug' must be URL-encoded in the href and decoded here.
+const eventId = decodeURIComponent(Astro.params.id as string);
 
 const cityConfig = getCityConfig();
 const nowZdt = Temporal.Instant.fromEpochMilliseconds(Date.now())

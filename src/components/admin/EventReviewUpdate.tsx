@@ -95,7 +95,7 @@ export default function EventReviewUpdate(props: Props) {
   async function onApply(next: 'back' | 'editor') {
     setError(null);
     try {
-      const res = await fetch(`/api/admin/events/${props.eventId}/review-update/apply`, {
+      const res = await fetch(`/api/admin/events/${encodeURIComponent(props.eventId)}/review-update/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPayload(next)),

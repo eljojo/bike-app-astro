@@ -329,7 +329,9 @@ export async function POST({ locals, params, request }: APIContext) {
   const user = authorize(locals, 'manage-calendar-suggestions');
   if (user instanceof Response) return user;
 
-  const eventId = (params.id ?? '') as string;
+  // Decode %2F-encoded slashes — the route uses [id] (single segment) so the
+  // event ID '2099/slug' is URL-encoded in the client fetch and must be decoded here.
+  const eventId = decodeURIComponent((params.id ?? '') as string);
   if (!eventId) return jsonError('Missing event id', 400);
 
   let body: ApplyBody;
