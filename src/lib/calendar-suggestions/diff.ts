@@ -100,7 +100,7 @@ function diffOccurrences(
       fields.push({ field, mine: stringify(a), upstream: stringify(b) });
     }
     if (cancelledFlippedOn) {
-      out.occurrencesNewlyCancelled.push({ uid, date: upO.date });
+      out.occurrencesNewlyCancelled.push({ uid, date: upO.date, fields });
     } else if (fields.length > 0) {
       out.occurrencesChanged.push({ uid, date: upO.date, fields });
     }

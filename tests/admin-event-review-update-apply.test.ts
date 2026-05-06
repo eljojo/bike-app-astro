@@ -329,6 +329,24 @@ describe('applyTogglesToEvent — cancellations', () => {
     const ovr = result.series?.schedule?.find(o => o.uid === 'existing-ovr');
     expect(ovr?.cancelled).toBeUndefined();
   });
+
+  test('mark + upstream has co-occurring field changes → cancelled AND upstream field values written', () => {
+    const event = makeSeriesEventForCancellation();
+    const upstream = makeUpstream({
+      series: {
+        kind: 'schedule',
+        overrides: [
+          { date: '2026-06-15', uid: 'existing-ovr', cancelled: true, location: 'New Venue' },
+        ],
+      },
+    });
+    const body = defaultBody({ cancellations: { 'existing-ovr': 'mark' } });
+
+    const result = applyTogglesToEvent(event, upstream, body);
+    const ovr = result.series?.schedule?.find(o => o.uid === 'existing-ovr') as Record<string, unknown> | undefined;
+    expect(ovr?.cancelled).toBe(true);
+    expect(ovr?.location).toBe('New Venue');
+  });
 });
 
 // ---------------------------------------------------------------------------

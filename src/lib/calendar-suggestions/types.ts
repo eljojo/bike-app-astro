@@ -113,7 +113,7 @@ export interface UpdateDiff {
   master: FieldDiff[];
   occurrencesChanged: ChangedOccurrence[];
   occurrencesAdded: ParsedSeriesOverride[];
-  occurrencesNewlyCancelled: { uid: string; date: string }[];
+  occurrencesNewlyCancelled: { uid: string; date: string; fields: FieldDiff[] }[];
   occurrencesRemoved: { uid: string; date: string }[];
   eventRemoved?: true;
 }

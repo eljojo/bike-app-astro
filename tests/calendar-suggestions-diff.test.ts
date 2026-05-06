@@ -107,7 +107,19 @@ describe('diffMonitored — series', () => {
     const snap = series([{ uid: 'o1', date: '2026-07-08' }]);
     const up   = series([{ uid: 'o1', date: '2026-07-08', cancelled: true }]);
     const d = diffMonitored(snap, up, TODAY);
-    expect(d.occurrencesNewlyCancelled).toEqual([{ uid: 'o1', date: '2026-07-08' }]);
+    expect(d.occurrencesNewlyCancelled).toEqual([{ uid: 'o1', date: '2026-07-08', fields: [] }]);
+    expect(d.occurrencesChanged).toEqual([]);
+  });
+
+  test('cancelled flipping on + co-occurring location change → occurrencesNewlyCancelled carries fields; NOT in occurrencesChanged', () => {
+    const snap = series([{ uid: 'o1', date: '2026-07-08', location: 'A' }]);
+    const up   = series([{ uid: 'o1', date: '2026-07-08', cancelled: true, location: 'B' }]);
+    const d = diffMonitored(snap, up, TODAY);
+    expect(d.occurrencesNewlyCancelled).toEqual([{
+      uid: 'o1',
+      date: '2026-07-08',
+      fields: [{ field: 'location', mine: 'A', upstream: 'B' }],
+    }]);
     expect(d.occurrencesChanged).toEqual([]);
   });
 

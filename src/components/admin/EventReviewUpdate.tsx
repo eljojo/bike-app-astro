@@ -267,6 +267,15 @@ export default function EventReviewUpdate(props: Props) {
             {diff.occurrencesNewlyCancelled.map(o => (
               <li key={o.uid} class="review-update__row">
                 <strong>{o.date}</strong>
+                {o.fields.length > 0 && (
+                  <ul class="review-update__sub-fields">
+                    {o.fields.map(f => (
+                      <li key={f.field}>
+                        {f.field}: <code>{f.mine ?? '∅'}</code> → <code>{f.upstream ?? '∅'}</code>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <div class="review-update__toggle">
                   <label>
                     <input

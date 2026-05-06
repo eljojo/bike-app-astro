@@ -261,15 +261,35 @@ export function applyTogglesToEvent(
     const occArr = getOccurrenceArray(patched.series);
     if (!occArr) continue;
 
+    // Look up upstream override to also write any co-occurring field changes.
+    const upOverrides = upstream?.series?.overrides ?? [];
+    const upOvr = upOverrides.find(o => o.uid === uid);
+
     const idx = occArr.items.findIndex(o => o.uid === uid);
     if (idx !== -1) {
-      occArr.items[idx] = { ...occArr.items[idx], cancelled: true };
+      occArr.items[idx] = {
+        ...occArr.items[idx],
+        cancelled: true,
+        // Accept upstream values for other fields when admin marks as cancelled.
+        ...(upOvr?.start_time !== undefined ? { start_time: upOvr.start_time } : {}),
+        ...(upOvr?.location !== undefined ? { location: upOvr.location } : {}),
+        ...(upOvr?.event_url !== undefined ? { event_url: upOvr.event_url } : {}),
+        ...(upOvr?.registration_url !== undefined ? { registration_url: upOvr.registration_url } : {}),
+        ...(upOvr?.map_url !== undefined ? { map_url: upOvr.map_url } : {}),
+      };
     } else {
       // Occurrence not yet in repo — create a minimal override with cancelled flag
-      const upOverrides = upstream?.series?.overrides ?? [];
-      const upOvr = upOverrides.find(o => o.uid === uid);
       if (upOvr) {
-        occArr.items.push({ date: upOvr.date, uid: upOvr.uid, cancelled: true });
+        occArr.items.push({
+          date: upOvr.date,
+          uid: upOvr.uid,
+          cancelled: true,
+          ...(upOvr.start_time !== undefined ? { start_time: upOvr.start_time } : {}),
+          ...(upOvr.location !== undefined ? { location: upOvr.location } : {}),
+          ...(upOvr.event_url !== undefined ? { event_url: upOvr.event_url } : {}),
+          ...(upOvr.registration_url !== undefined ? { registration_url: upOvr.registration_url } : {}),
+          ...(upOvr.map_url !== undefined ? { map_url: upOvr.map_url } : {}),
+        });
       }
     }
   }
