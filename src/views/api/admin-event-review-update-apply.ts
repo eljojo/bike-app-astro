@@ -41,22 +41,6 @@ export const bodySchema = z.object({
 export type ApplyBody = z.infer<typeof bodySchema>;
 
 /**
- * Map a VEVENT field name to the AdminEvent / frontmatter field name.
- * The ICS VEVENT uses camelCase-ish names from the parsed types.
- * The repo uses its own set of field names.
- */
-function upstreamFieldToRepoField(field: string): string {
-  // MONITORED_MASTER_FIELDS: 'start', 'end', 'summary', 'location', 'url', 'registration_url', 'map_url'
-  switch (field) {
-    case 'summary': return 'name';
-    case 'url':     return 'event_url';
-    case 'start':   return 'start_date';
-    case 'end':     return 'end_date';
-    default:        return field;  // location, registration_url, map_url map 1:1
-  }
-}
-
-/**
  * Return the active occurrence array for a series: `schedule` for explicit-schedule
  * series, `overrides` for recurrence-rule series. Mutates are done on whichever is
  * populated; callers must re-assign if they replace the array entirely.
@@ -91,21 +75,26 @@ export function applyTogglesToEvent(
     for (const [field, toggle] of Object.entries(body.master)) {
       if (toggle !== 'take') continue;
 
-      const upstreamVal = (upstream as unknown as Record<string, unknown>)[field];
-      const repoField = upstreamFieldToRepoField(field);
-
       if (field === 'start') {
         // 'start' is an ISO date-time; extract the date part for start_date
-        patched.start_date = typeof upstreamVal === 'string'
-          ? upstreamVal.slice(0, 10)
+        patched.start_date = typeof upstream.start === 'string'
+          ? upstream.start.slice(0, 10)
           : patched.start_date;
       } else if (field === 'end') {
         // 'end' is an ISO date-time; extract the date part for end_date
-        patched.end_date = typeof upstreamVal === 'string'
-          ? upstreamVal.slice(0, 10)
+        patched.end_date = typeof upstream.end === 'string'
+          ? upstream.end.slice(0, 10)
           : patched.end_date;
-      } else {
-        (patched as unknown as Record<string, unknown>)[repoField] = upstreamVal;
+      } else if (field === 'summary') {
+        patched.name = upstream.summary;
+      } else if (field === 'location') {
+        patched.location = upstream.location;
+      } else if (field === 'url') {
+        patched.event_url = upstream.url;
+      } else if (field === 'registration_url') {
+        patched.registration_url = upstream.registration_url;
+      } else if (field === 'map_url') {
+        patched.map_url = upstream.map_url;
       }
     }
   }
@@ -222,19 +211,16 @@ export async function persistPatchedEvent(
   // Build the EventUpdate frontmatter from the patched AdminEvent.
   // Include all fields that event-save.ts's buildFileChanges knows about,
   // so the merge-with-existing logic in buildFileChanges can work correctly.
-  // Cast to record for fields not in the lightweight AdminEvent shape (location,
-  // registration_url) that may be present at runtime after applyTogglesToEvent.
-  const patchedRecord = patched as unknown as Record<string, unknown>;
   const frontmatter: Record<string, unknown> = {
     name: patched.name,
     start_date: patched.start_date,
   };
   if (patched.end_date !== undefined) frontmatter.end_date = patched.end_date;
   if (patched.status !== undefined) frontmatter.status = patched.status;
-  if (patchedRecord.location !== undefined) frontmatter.location = patchedRecord.location;
+  if (patched.location !== undefined) frontmatter.location = patched.location;
   if (patched.event_url !== undefined) frontmatter.event_url = patched.event_url;
   if (patched.map_url !== undefined) frontmatter.map_url = patched.map_url;
-  if (patchedRecord.registration_url !== undefined) frontmatter.registration_url = patchedRecord.registration_url;
+  if (patched.registration_url !== undefined) frontmatter.registration_url = patched.registration_url;
   if (patched.ics_uid !== undefined) frontmatter.ics_uid = patched.ics_uid;
   if (patched.organizer !== undefined) frontmatter.organizer = patched.organizer;
   if (patched.series !== undefined) frontmatter.series = patched.series;
