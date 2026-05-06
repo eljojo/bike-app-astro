@@ -21,6 +21,16 @@ import { buildSingleMediaKeyChanges, buildMediaKeyChanges, computeMediaKeyDiff, 
 import { extractFrontmatterField, parkOrphanedMedia } from '../../lib/media/media-parking.server';
 import type { ParkedMediaEntry } from '../../lib/media/media-merge';
 import { fetchSharedKeysData, fetchJson } from '../../lib/content/load-admin-content.server';
+import {
+  advanceSnapshot,
+  computeExpiresAt,
+} from '../../lib/calendar-suggestions/snapshots.server';
+import { findVeventForPrefill } from '../../lib/calendar-suggestions/prefill';
+import type { CalendarFeedCache } from '../../lib/calendar-feed-cache/feed-cache.service';
+import type { AdminOrganizer } from '../../types/admin';
+import type { Database } from '../../db';
+import { calendarFeedCache } from '../../lib/env/env.service';
+import adminOrganizers from 'virtual:bike-app/admin-organizers';
 
 export const prerender = false;
 
@@ -55,6 +65,8 @@ interface EventBuildResult extends BuildResult {
   mergedParked: ParkedMediaEntry[] | undefined;
   addedMediaKeys: string[];
   removedMediaKeys: string[];
+  /** Saved event shape for snapshot advance hook. */
+  savedEventShape: { id: string; ics_uid?: string; organizer?: string; start_date?: string; end_date?: string; series?: AdminEvent['series'] } | undefined;
 }
 
 /** Resolve the primary file path for an event. Directory-based events use index.md. */
@@ -72,6 +84,8 @@ function resolveEventPath(eventId: string, isDirectory: boolean): string {
  */
 export function createEventHandlers(
   sharedKeysData: Record<string, Array<{ type: string; slug: string }>> = {},
+  feedCache?: CalendarFeedCache,
+  organizers?: Array<Pick<AdminOrganizer, 'slug' | 'ics_url'>>,
 ): SaveHandlers<EventUpdate, EventBuildResult> & WithSlugValidation & WithExistenceCheck & WithAfterCommit<EventBuildResult> {
   // Captured from the current save request so buildFreshData can enrich the D1 cache
   let lastOrganizerUpdate: EventUpdate['organizer'] | undefined;
@@ -313,23 +327,38 @@ export function createEventHandlers(
         }
       }
 
+      // Capture the saved event shape for the snapshot advance hook in afterCommit.
+      // Use targetEventId as the id (matches the final persisted path).
+      const savedEventShape: EventBuildResult['savedEventShape'] = {
+        id: targetEventId,
+        ics_uid: fm.ics_uid as string | undefined,
+        organizer: typeof fm.organizer === 'string' ? fm.organizer : undefined,
+        start_date: fm.start_date as string | undefined,
+        end_date: fm.end_date as string | undefined,
+        series: fm.series as AdminEvent['series'],
+      };
+
       return {
         files, deletePaths, isNew,
         oldPosterKey, newPosterKey,
         oldOrgPhotoKey, newOrgPhotoKey,
         eventSlug: targetEventId,
         mergedParked, addedMediaKeys, removedMediaKeys,
+        savedEventShape,
       };
     },
 
     async afterCommit(result, database) {
-      const { oldPosterKey, newPosterKey, oldOrgPhotoKey, newOrgPhotoKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys } = result;
+      const { oldPosterKey, newPosterKey, oldOrgPhotoKey, newOrgPhotoKey, eventSlug, mergedParked, addedMediaKeys, removedMediaKeys, savedEventShape } = result;
       const changes = [
         ...buildSingleMediaKeyChanges(oldPosterKey, newPosterKey, 'event', eventSlug),
         ...buildSingleMediaKeyChanges(oldOrgPhotoKey, newOrgPhotoKey, 'event', eventSlug),
         ...buildMediaKeyChanges(addedMediaKeys, removedMediaKeys, 'event', eventSlug),
       ];
       await afterCommitMediaCleanup({ database, sharedKeysData, mediaKeyChanges: changes, mergedParked });
+      if (savedEventShape && feedCache && organizers) {
+        await maybeAdvanceSnapshotForSavedEvent(database, CITY, savedEventShape, feedCache, organizers);
+      }
     },
 
     buildCommitMessage(update, eventId, isNew): string {
@@ -342,6 +371,36 @@ export function createEventHandlers(
       return buildGitHubUrlHelper(`${CITY}/events/${year}/${slug}`, baseBranch);
     },
   };
+}
+
+/**
+ * Best-effort post-save hook: when an event with `ics_uid` is saved AND a
+ * matching upstream VEVENT exists in the feed cache, write a snapshot so
+ * the next list-build's diff is empty. Failure is logged but not thrown —
+ * the save is the user's intent; snapshot housekeeping must not block it.
+ */
+export async function maybeAdvanceSnapshotForSavedEvent(
+  db: Database,
+  city: string,
+  savedEvent: { id: string; ics_uid?: string; organizer?: string | AdminEvent['organizer']; start_date?: string; end_date?: string; series?: AdminEvent['series'] },
+  feedCache: CalendarFeedCache,
+  organizers: Array<Pick<AdminOrganizer, 'slug' | 'ics_url'>>,
+): Promise<void> {
+  if (!savedEvent.ics_uid || typeof savedEvent.organizer !== 'string') return;
+  const orgIcsUrl = organizers.find(o => o.slug === savedEvent.organizer)?.ics_url;
+  if (!orgIcsUrl) return;
+  try {
+    const cached = await feedCache.get(savedEvent.organizer, orgIcsUrl);
+    if (!cached) return;
+    const upstream = findVeventForPrefill(cached, savedEvent.ics_uid);
+    if (!upstream) return;
+    await advanceSnapshot(
+      db, city, savedEvent.organizer, savedEvent.ics_uid,
+      upstream, computeExpiresAt(savedEvent),
+    );
+  } catch (err) {
+    console.warn(`snapshot advance failed for ${savedEvent.ics_uid}:`, err);
+  }
 }
 
 export function isPastEvent(startDate: string | undefined): boolean {
@@ -367,7 +426,7 @@ export async function POST({ params, request, locals }: APIContext) {
     }
   }
 
-  const handlers = createEventHandlers(sharedKeysData);
+  const handlers = createEventHandlers(sharedKeysData, calendarFeedCache, adminOrganizers);
 
   // For new events, checkExistence should run; for existing events, it shouldn't
   if (params.id === 'new') {
