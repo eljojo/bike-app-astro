@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createTestDb } from './test-db';
 import type { Database } from '../src/db';
 import type { AdminEvent } from '../src/types/admin';
@@ -9,6 +9,7 @@ import {
   applyTogglesToEvent,
   bodySchema,
   classifyAddition,
+  dispatchApply,
   isOnCycle,
   type ApplyBody,
 } from '../src/views/api/admin-event-review-update-apply';
@@ -437,6 +438,109 @@ describe('snapshot housekeeping after apply', () => {
 
     const map = await loadAllSnapshots(database, 'ottawa', '2026-06-01');
     expect(map.has('obc:u1')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// dispatchApply with injectable saveFn
+// ---------------------------------------------------------------------------
+
+describe('dispatchApply — injectable saveFn', () => {
+  let h: ReturnType<typeof createTestDb>;
+  let database: Database;
+
+  beforeEach(() => {
+    h = createTestDb();
+    database = h.db as unknown as Database;
+  });
+  afterEach(() => { h.cleanup(); });
+
+  function makeFeedCache(feed: { uid: string; summary: string; start: string; location?: string } | null) {
+    return {
+      async get(_slug: string, _url: string) {
+        if (!feed) return null;
+        return {
+          fetched_at: new Date().toISOString(),
+          source_url: 'http://feed',
+          events: [{ uid: feed.uid, summary: feed.summary, start: feed.start, location: feed.location }],
+        };
+      },
+      async put() { /* no-op */ },
+    };
+  }
+
+  test('saveFn receives patched event with upstream location when location=take', async () => {
+    const repoEvent = makeEvent({
+      id: '2026/summer-ride',
+      organizer: 'obc',
+      ics_uid: 'uid-123',
+      location: 'Old Location',
+    });
+
+    const feedCache = makeFeedCache({
+      uid: 'uid-123',
+      summary: 'Summer Ride',
+      start: '2026-06-15T18:00:00',
+      location: 'New Upstream Location',
+    });
+
+    const captured: AdminEvent[] = [];
+    const saveFn = vi.fn().mockImplementation(async (patched: AdminEvent) => {
+      captured.push(patched);
+    });
+
+    const applyBody = defaultBody({ master: { location: 'take' } });
+    await dispatchApply(
+      database,
+      'ottawa',
+      feedCache as any,
+      [{ slug: 'obc', ics_url: 'http://feed' }],
+      [repoEvent],
+      { id: 'user-1' } as any,
+      '2026/summer-ride',
+      applyBody,
+      saveFn,
+    );
+
+    expect(saveFn).toHaveBeenCalledOnce();
+    const patched = captured[0] as RichAdminEvent;
+    expect(patched.location).toBe('New Upstream Location');
+    // Original event not mutated
+    expect((repoEvent as RichAdminEvent).location).toBe('Old Location');
+  });
+
+  test('saveFn receives patched event unchanged when no upstream feed', async () => {
+    const repoEvent = makeEvent({
+      id: '2026/summer-ride',
+      organizer: 'obc',
+      ics_uid: 'uid-123',
+      location: 'Unchanged Location',
+    });
+
+    const feedCache = makeFeedCache(null);  // no feed → upstream is null
+
+    const captured: AdminEvent[] = [];
+    const saveFn = vi.fn().mockImplementation(async (patched: AdminEvent) => {
+      captured.push(patched);
+    });
+
+    const applyBody = defaultBody({ master: { location: 'take' } });
+    await dispatchApply(
+      database,
+      'ottawa',
+      feedCache as any,
+      [{ slug: 'obc', ics_url: 'http://feed' }],
+      [repoEvent],
+      { id: 'user-1' } as any,
+      '2026/summer-ride',
+      applyBody,
+      saveFn,
+    );
+
+    expect(saveFn).toHaveBeenCalledOnce();
+    const patched = captured[0] as RichAdminEvent;
+    // Without upstream, take is a no-op — location stays from repo event
+    expect(patched.location).toBe('Unchanged Location');
   });
 });
 

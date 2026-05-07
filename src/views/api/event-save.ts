@@ -306,8 +306,13 @@ export function createEventHandlers(
         }
       }
 
-      // Serialize event file
-      files.unshift({ path: eventPath, content: serializeMdFile(fm, update.body) });
+      // Serialize event file.
+      // When update.body is empty and an existing file has body content, preserve it.
+      // persistPatchedEvent always sends body: '' because it only has the list-shape
+      // AdminEvent (no body text). Without this fallback the body would be silently wiped.
+      const bodyToWrite = update.body ||
+        (effectivePrimary ? matter(effectivePrimary.content).content.trim() || undefined : undefined);
+      files.unshift({ path: eventPath, content: serializeMdFile(fm, bodyToWrite) });
 
       // Build media.yml for directory-based events
       let addedMediaKeys: string[] = [];

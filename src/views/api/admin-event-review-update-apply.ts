@@ -345,7 +345,7 @@ export async function persistPatchedEvent(
 
   const payload = {
     frontmatter,
-    body: '',  // preserve existing body — buildFileChanges merges with existing
+    body: '',  // empty: buildFileChanges falls back to the existing file's body
     slug: patched.slug,
   };
 
@@ -376,6 +376,9 @@ export async function persistPatchedEvent(
 
 /**
  * Core dispatch logic, extracted for testability.
+ *
+ * @param saveFn - Injectable save function (default: persistPatchedEvent). Pass a
+ *   spy in tests to capture the patched AdminEvent without hitting the git service.
  */
 export async function dispatchApply(
   dbConn: Database,
@@ -386,6 +389,7 @@ export async function dispatchApply(
   user: SessionUser,
   eventId: string,
   body: ApplyBody,
+  saveFn: (patched: AdminEvent, user: SessionUser) => Promise<void> = persistPatchedEvent,
 ): Promise<{ redirectTo: string }> {
   const repoEvent = repoEvents.find(e => e.id === eventId);
   if (!repoEvent) {
@@ -402,7 +406,7 @@ export async function dispatchApply(
   const upstream  = cached ? (findVeventForPrefill(cached, repoEvent.ics_uid) ?? null) : null;
 
   const patched = applyTogglesToEvent(repoEvent, upstream, body);
-  await persistPatchedEvent(patched, user);
+  await saveFn(patched, user);
 
   if (upstream) {
     await advanceSnapshot(
