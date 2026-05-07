@@ -1,10 +1,12 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { and, eq } from 'drizzle-orm';
 import { createTestDb } from './test-db';
 import type { Database } from '../src/db';
 import type { AdminEvent } from '../src/types/admin';
 import type { ParsedVEvent, ParsedSeriesOverride } from '../src/lib/calendar-suggestions/types';
 import type { EventSeries } from '../src/lib/models/event-model';
 import { advanceSnapshot, loadAllSnapshots } from '../src/lib/calendar-suggestions/snapshots.server';
+import { calendarEventSnapshots } from '../src/db/schema';
 import {
   applyTogglesToEvent,
   bodySchema,
@@ -541,6 +543,93 @@ describe('dispatchApply — injectable saveFn', () => {
     const patched = captured[0] as RichAdminEvent;
     // Without upstream, take is a no-op — location stays from repo event
     expect(patched.location).toBe('Unchanged Location');
+  });
+
+  test('expires_at after apply uses the patched event (not the pre-apply event)', async () => {
+    // Seed snapshot with old season_end so a row already exists.
+    const upstreamBefore: ParsedVEvent = {
+      uid: 'master-uid',
+      summary: 'Wed Coffee',
+      start: '2026-06-03T18:00:00',
+      series: {
+        kind: 'recurrence',
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-06-03',
+        season_end: '2026-08-26',
+        overrides: [],
+      },
+    };
+    await advanceSnapshot(database, 'ottawa', 'obc', 'master-uid', upstreamBefore, '2026-08-26');
+
+    // Feed now carries a new occurrence past season_end (2026-09-09 is on-cycle:
+    // 98 days from 2026-06-03 = 14 * 7, and it's a Wednesday).
+    const feedCache = {
+      async get(_slug: string, _url: string) {
+        return {
+          fetched_at: new Date().toISOString(),
+          source_url: 'http://feed',
+          events: [{
+            uid: 'master-uid',
+            summary: 'Wed Coffee',
+            start: '2026-06-03T18:00:00',
+            series: {
+              kind: 'recurrence',
+              recurrence: 'weekly',
+              recurrence_day: 'wednesday',
+              season_start: '2026-06-03',
+              season_end: '2026-09-09',
+              overrides: [{ uid: 'extension-uid', date: '2026-09-09' }],
+            },
+          }],
+        };
+      },
+      async put() { /* no-op */ },
+    };
+
+    const repoEvent: AdminEvent = makeEvent({
+      id: '2026/wed-coffee',
+      slug: 'wed-coffee',
+      ics_uid: 'master-uid',
+      organizer: 'obc',
+      series: {
+        recurrence: 'weekly',
+        recurrence_day: 'wednesday',
+        season_start: '2026-06-03',
+        season_end: '2026-08-26',
+      },
+    });
+
+    let savedPatched: AdminEvent | undefined;
+    const saveFn = async (p: AdminEvent) => { savedPatched = p; };
+
+    await dispatchApply(
+      database,
+      'ottawa',
+      feedCache as any,
+      [{ slug: 'obc', ics_url: 'http://feed' }],
+      [repoEvent],
+      { id: 'mock-user' } as any,
+      '2026/wed-coffee',
+      defaultBody({ additions: { 'extension-uid': 'add' } }),
+      saveFn,
+    );
+
+    // The patched event passed to saveFn should have the new season_end.
+    expect(savedPatched?.series?.season_end).toBe('2026-09-09');
+
+    // The bug: snapshot's expires_at was computed from repoEvent (old '2026-08-26')
+    // instead of patched (new '2026-09-09').
+    const rows = await database
+      .select({ expiresAt: calendarEventSnapshots.expiresAt })
+      .from(calendarEventSnapshots)
+      .where(and(
+        eq(calendarEventSnapshots.city, 'ottawa'),
+        eq(calendarEventSnapshots.organizerSlug, 'obc'),
+        eq(calendarEventSnapshots.uid, 'master-uid'),
+      ));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].expiresAt).toBe('2026-09-09');
   });
 });
 

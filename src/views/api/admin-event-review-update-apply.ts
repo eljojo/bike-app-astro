@@ -411,7 +411,7 @@ export async function dispatchApply(
   if (upstream) {
     await advanceSnapshot(
       dbConn, city, orgSlug, repoEvent.ics_uid,
-      upstream, computeExpiresAt(repoEvent),
+      upstream, computeExpiresAt(patched),
     );
   } else {
     await deleteSnapshot(dbConn, city, orgSlug, repoEvent.ics_uid);
