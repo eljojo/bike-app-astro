@@ -403,6 +403,7 @@ describe('admin calendar suggestions — review-kind rows', () => {
       repoEvents: [{
         id: 'evt-1', slug: 'coffee', year: '2026', name: 'Coffee Ride',
         start_date: '2026-06-20', ics_uid: 'u1', organizer: 'obc',
+        location: 'Britannia Park',   // repo's current value (shown as Mine)
       } as any],
       feedCache, fetcher, siteTz: 'America/Toronto',
       now: new Date('2026-05-06T12:00:00Z'),

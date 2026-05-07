@@ -9,6 +9,38 @@ import type { AdminEvent, AdminOrganizer } from '../../types/admin';
 import type { Database } from '../../db';
 import type { CalendarFeedCache } from '../calendar-feed-cache/feed-cache.service';
 
+type RepoEventLike = Pick<AdminEvent, 'ics_uid' | 'name' | 'start_date' | 'location' | 'registration_url' | 'event_url' | 'map_url' | 'series'>;
+
+/**
+ * Project a repo AdminEvent into the ParsedVEvent shape so `diffMonitored`
+ * can use it as the "Mine" source for the three-way merge UI.
+ *
+ * Only the fields monitored by diff.ts are mapped. Fields absent on the repo
+ * event become `undefined` — the review page renders ∅ for those.
+ */
+function projectRepoEvent(e: RepoEventLike): ParsedVEvent {
+  const start = e.start_date ?? '';
+  return {
+    uid: e.ics_uid ?? '',
+    summary: e.name,
+    start,
+    location: e.location,
+    registration_url: e.registration_url,
+    url: e.event_url,
+    map_url: e.map_url,
+    series: e.series ? {
+      kind: e.series.recurrence ? 'recurrence' : 'schedule',
+      recurrence: e.series.recurrence,
+      recurrence_day: e.series.recurrence_day,
+      season_start: e.series.season_start,
+      season_end: e.series.season_end,
+      skip_dates: e.series.skip_dates,
+      overrides: e.series.overrides,
+      schedule: e.series.schedule,
+    } : undefined,
+  };
+}
+
 const HORIZON_DAYS = 180;
 const MAX_ITEMS = 10;
 const FEED_TTL_SECONDS = 60 * 60;  // 1 hour
@@ -19,7 +51,7 @@ export interface BuildArgs {
   db: Database;
   city: string;
   organizers: Array<Pick<AdminOrganizer, 'slug' | 'name' | 'ics_url'>>;
-  repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer' | 'series'>>;
+  repoEvents: Array<Pick<AdminEvent, 'id' | 'slug' | 'year' | 'name' | 'start_date' | 'ics_uid' | 'organizer' | 'series' | 'location' | 'event_url' | 'map_url' | 'registration_url'>>;
   feedCache: CalendarFeedCache;
   /**
    * Required. Caller binds `siteTz` (and any other context the parser needs)
@@ -213,7 +245,7 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
         });
         continue;
       }
-      const diff = diffMonitored(snap, upstream, nowLocalDate);
+      const diff = diffMonitored(projectRepoEvent(repoEvent), snap, upstream, nowLocalDate);
       if (!isNonEmpty(diff)) continue;
       reviewCandidates.push({
         sortKey: upstream.start,
@@ -253,7 +285,7 @@ export async function buildSuggestions(args: BuildArgs): Promise<Suggestion[]> {
     const expires = computeExpiresAt(e);
     if (expires < nowLocalDate) continue;
     const snap = snapshots.get(`${e.organizer}:${e.ics_uid}`) ?? null;
-    const diff = diffMonitored(snap, null, nowLocalDate);
+    const diff = diffMonitored(projectRepoEvent(e), snap, null, nowLocalDate);
     if (!isNonEmpty(diff)) continue;
     reviewCandidates.push({
       sortKey: e.start_date ?? '9999-12-31',

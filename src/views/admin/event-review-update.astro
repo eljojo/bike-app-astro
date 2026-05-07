@@ -42,7 +42,26 @@ const upstream = cachedFeed ? findVeventForPrefill(cachedFeed, event.ics_uid) ??
 
 const snapshot = await loadOneSnapshot(db(), CITY, organizer.slug, event.ics_uid);
 
-const diff = diffMonitored(snapshot, upstream, nowLocalDate);
+const repoProjected = {
+  uid: event.ics_uid ?? '',
+  summary: event.name,
+  start: event.start_date ?? '',
+  location: event.location,
+  registration_url: event.registration_url,
+  url: event.event_url,
+  map_url: event.map_url,
+  series: event.series ? {
+    kind: (event.series.recurrence ? 'recurrence' : 'schedule') as 'recurrence' | 'schedule',
+    recurrence: event.series.recurrence,
+    recurrence_day: event.series.recurrence_day,
+    season_start: event.series.season_start,
+    season_end: event.series.season_end,
+    skip_dates: event.series.skip_dates,
+    overrides: event.series.overrides,
+    schedule: event.series.schedule,
+  } : undefined,
+};
+const diff = diffMonitored(repoProjected, snapshot, upstream, nowLocalDate);
 if (!isNonEmpty(diff)) return Astro.redirect('/admin/events');
 ---
 

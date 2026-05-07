@@ -28,6 +28,7 @@ function freshEmpty(): UpdateDiff {
 }
 
 export function diffMonitored(
+  repo: ParsedVEvent | null,
   snapshot: ParsedVEvent | null,
   upstream: ParsedVEvent | null,
   todayLocalDate: string,
@@ -43,31 +44,33 @@ export function diffMonitored(
   }
 
   const out: UpdateDiff = {
-    master: diffMasterFields(snapshot, upstream),
+    master: diffMasterFields(repo, snapshot, upstream),
     occurrencesChanged: [],
     occurrencesAdded: [],
     occurrencesNewlyCancelled: [],
     occurrencesRemoved: [],
   };
 
-  diffOccurrences(snapshot, upstream, todayLocalDate, out);
+  diffOccurrences(repo, snapshot, upstream, todayLocalDate, out);
   return out;
 }
 
-function diffMasterFields(snap: ParsedVEvent, up: ParsedVEvent): FieldDiff[] {
+function diffMasterFields(repo: ParsedVEvent | null, snap: ParsedVEvent, up: ParsedVEvent): FieldDiff[] {
   const diffs: FieldDiff[] = [];
   for (const field of MONITORED_MASTER_FIELDS) {
     const snapVal = snap[field];
     const upVal = up[field];
+    const repoVal = repo ? repo[field] : undefined;
     // Tolerant: undefined-on-snapshot means "no opinion" (no diff surfaced).
     if (snapVal === undefined) continue;
     if (snapVal === upVal) continue;
-    diffs.push({ field, mine: stringify(snapVal), upstream: stringify(upVal) });
+    diffs.push({ field, mine: stringify(repoVal), upstream: stringify(upVal) });
   }
   return diffs;
 }
 
 function diffOccurrences(
+  repo: ParsedVEvent | null,
   snap: ParsedVEvent,
   up: ParsedVEvent,
   todayLocalDate: string,
@@ -75,16 +78,20 @@ function diffOccurrences(
 ): void {
   const snapOverrides = snap.series?.overrides ?? [];
   const upOverrides = up.series?.overrides ?? [];
+  const repoOverrides = repo?.series?.overrides ?? [];
 
   const snapByUid = new Map<string, ParsedSeriesOverride>();
   for (const o of snapOverrides) if (o.uid) snapByUid.set(o.uid, o);
   const upByUid = new Map<string, ParsedSeriesOverride>();
   for (const o of upOverrides)   if (o.uid) upByUid.set(o.uid, o);
+  const repoByUid = new Map<string, ParsedSeriesOverride>();
+  for (const o of repoOverrides) if (o.uid) repoByUid.set(o.uid, o);
 
   // Changed (uid in both).
   for (const [uid, snapO] of snapByUid) {
     const upO = upByUid.get(uid);
     if (!upO) continue;
+    const repoO = repoByUid.get(uid);
     const fields: FieldDiff[] = [];
     let cancelledFlippedOn = false;
     for (const field of MONITORED_OCCURRENCE_FIELDS) {
@@ -98,7 +105,8 @@ function diffOccurrences(
       }
       if (a === undefined) continue;
       if (a === b) continue;
-      fields.push({ field, mine: stringify(a), upstream: stringify(b) });
+      const repoVal = repoO ? repoO[field] : undefined;
+      fields.push({ field, mine: stringify(repoVal), upstream: stringify(b) });
     }
     if (cancelledFlippedOn) {
       out.occurrencesNewlyCancelled.push({ uid, date: upO.date, fields });
