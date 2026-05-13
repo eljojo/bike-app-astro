@@ -166,7 +166,7 @@ test.describe('Calendar review-update workflow', () => {
 
     // --- Step 2: click row → land on review-update page ---
     await reviewItem.locator('a').click();
-    await page.waitForURL(new RegExp(`/admin/events/${encodeURIComponent(EVENT_ID).replace(/%2F/i, '%2F')}/review-update`), { timeout: 10_000 });
+    await page.waitForURL(new RegExp(`/admin/events/${encodeURIComponent(EVENT_ID).replace(/%2F/gi, '%2F')}/review-update`), { timeout: 10_000 });
     await page.waitForLoadState('networkidle');
     await waitForHydration(page, 20_000);
 
