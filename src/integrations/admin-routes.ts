@@ -93,6 +93,10 @@ const routes = [
   { pattern: '/api/admin/deploy-status', entrypoint: view('api/admin-deploy-status.ts') },
   { pattern: '/api/admin/calendar-suggestions', entrypoint: view('api/admin-calendar-suggestions.ts') },
   { pattern: '/api/admin/calendar-suggestions/dismiss', entrypoint: view('api/admin-calendar-suggestions-dismiss.ts') },
+  // Calendar-review page (parameterized sub-route; static prefix '/admin/events/' already covered by contentTypeRoutes)
+  { pattern: '/admin/events/[id]/review-update', entrypoint: view('admin/event-review-update.astro') },
+  // Calendar-review apply endpoint
+  { pattern: '/api/admin/events/[id]/review-update/apply', entrypoint: view('api/admin-event-review-update-apply.ts') },
   // Stats page drill-downs (wiki-only, gated at page level)
   { pattern: '/admin/stats/route/[...slug]', entrypoint: view('admin/stats-route-detail.astro') },
   { pattern: '/admin/stats/event/[...slug]', entrypoint: view('admin/stats-event-detail.astro') },

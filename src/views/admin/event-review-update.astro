@@ -1,0 +1,78 @@
+---
+export const prerender = false;
+
+import AdminEditorLayout from '../../components/AdminEditorLayout.astro';
+import EventReviewUpdate from '../../components/admin/EventReviewUpdate';
+import { authorize } from '../../lib/auth/authorize';
+import { db } from '../../lib/get-db';
+import { CITY } from '../../lib/config/config';
+import { getCityConfig } from '../../lib/config/city-config';
+import { calendarFeedCache } from '../../lib/env/env.service';
+import { diffMonitored } from '../../lib/calendar-suggestions/diff';
+import { isNonEmpty } from '../../lib/calendar-suggestions/types';
+import { loadOneSnapshot } from '../../lib/calendar-suggestions/snapshots.server';
+import { findVeventForPrefill } from '../../lib/calendar-suggestions/prefill';
+import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
+import adminEventsVirtual from 'virtual:bike-app/admin-events';
+import adminOrganizers from 'virtual:bike-app/admin-organizers';
+import { Temporal } from '@js-temporal/polyfill';
+
+const user = authorize(Astro.locals, 'manage-calendar-suggestions');
+if (user instanceof Response) return user;
+
+// Decode %2F-encoded slashes in the id param — the route uses [id] (single segment)
+// so the event ID '2099/slug' must be URL-encoded in the href and decoded here.
+const eventId = decodeURIComponent(Astro.params.id as string);
+
+const cityConfig = getCityConfig();
+const nowZdt = Temporal.Instant.fromEpochMilliseconds(Date.now())
+  .toZonedDateTimeISO(cityConfig.timezone);
+const nowLocalDate = nowZdt.toPlainDate().toString();
+
+const { events } = await loadAdminEventList(adminEventsVirtual);
+const event = events.find(e => e.id === eventId);
+if (!event) return new Response('Not found', { status: 404 });
+if (!event.ics_uid || typeof event.organizer !== 'string') return Astro.redirect('/admin/events');
+
+const organizer = adminOrganizers.find(o => o.slug === event.organizer);
+if (!organizer || !organizer.ics_url) return Astro.redirect('/admin/events');
+
+const cachedFeed = await calendarFeedCache.get(organizer.slug, organizer.ics_url);
+const upstream = cachedFeed ? findVeventForPrefill(cachedFeed, event.ics_uid) ?? null : null;
+
+const snapshot = await loadOneSnapshot(db(), CITY, organizer.slug, event.ics_uid);
+
+const repoProjected = {
+  uid: event.ics_uid ?? '',
+  summary: event.name,
+  start: event.start_date ?? '',
+  location: event.location,
+  registration_url: event.registration_url,
+  url: event.event_url,
+  map_url: event.map_url,
+  series: event.series ? {
+    kind: (event.series.recurrence ? 'recurrence' : 'schedule') as 'recurrence' | 'schedule',
+    recurrence: event.series.recurrence,
+    recurrence_day: event.series.recurrence_day,
+    season_start: event.series.season_start,
+    season_end: event.series.season_end,
+    skip_dates: event.series.skip_dates,
+    overrides: event.series.overrides,
+    schedule: event.series.schedule,
+  } : undefined,
+};
+const diff = diffMonitored(repoProjected, snapshot, upstream, nowLocalDate);
+if (!isNonEmpty(diff)) return Astro.redirect('/admin/events');
+---
+
+<AdminEditorLayout title="Review upstream changes" user={user} currentTab="events">
+  <EventReviewUpdate
+    client:load
+    eventId={event.id}
+    eventName={event.name}
+    organizerName={organizer.name}
+    organizerSlug={organizer.slug}
+    icsUid={event.ics_uid}
+    diff={diff}
+  />
+</AdminEditorLayout>

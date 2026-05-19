@@ -2,9 +2,11 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { createTestDb } from './test-db';
 import type { Database } from '../src/db';
 import { dismissSuggestion } from '../src/lib/calendar-suggestions/dismissals.server';
-import type { ParsedFeed, ParsedVEvent } from '../src/lib/calendar-suggestions/types';
+import { advanceSnapshot, loadAllSnapshots } from '../src/lib/calendar-suggestions/snapshots.server';
+import type { ParsedFeed, ParsedVEvent, UpdateDiff, ReviewSuggestion, ImportSuggestion } from '../src/lib/calendar-suggestions/types';
 import type { CalendarFeedCache } from '../src/lib/calendar-feed-cache/feed-cache.service';
 import { buildSuggestions } from '../src/lib/calendar-suggestions/build.server';
+import { toSuggestionItem } from '../src/views/api/admin-calendar-suggestions';
 
 /**
  * In-memory CalendarFeedCache for tests. Mirrors the real adapters' semantics
@@ -365,3 +367,274 @@ describe('admin calendar suggestions — build logic', () => {
 // through the real Astro preview server; (c) typecheck verifying the overlay signature
 // returns `ics_uid` on the resulting AdminEvent. A production bug in the overlay would
 // surface as "imported suggestion keeps reappearing after save" — visible in E2E.
+
+describe('admin calendar suggestions — review-kind rows', () => {
+  let h: ReturnType<typeof createTestDb>;
+  let db: Database;
+  let feedCache: ReturnType<typeof createInMemoryFeedCache>;
+  beforeEach(() => {
+    h = createTestDb();
+    db = h.db as unknown as Database;
+    feedCache = createInMemoryFeedCache();
+  });
+  afterEach(() => { h.cleanup(); });
+
+  function fetcher(_url: string): Promise<ParsedFeed> {
+    throw new Error('feed cache should serve from in-memory; fetcher must not be invoked');
+  }
+
+  test('matched VEVENT + non-empty diff → emits review-kind row', async () => {
+    feedCache.seed('obc', 'http://feed', {
+      fetched_at: new Date().toISOString(),
+      source_url: 'http://feed',
+      events: [{
+        uid: 'u1', summary: 'Coffee Ride', start: '2026-06-20T18:00:00',
+        location: 'Andrew Haydon Park',
+      }],
+    });
+    await advanceSnapshot(db, 'ottawa', 'obc', 'u1', {
+      uid: 'u1', summary: 'Coffee Ride', start: '2026-06-20T18:00:00',
+      location: 'Britannia Park',
+    }, '2026-06-20');
+
+    const result = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'obc', name: 'OBC', ics_url: 'http://feed' }],
+      repoEvents: [{
+        id: 'evt-1', slug: 'coffee', year: '2026', name: 'Coffee Ride',
+        start_date: '2026-06-20', ics_uid: 'u1', organizer: 'obc',
+        location: 'Britannia Park',   // repo's current value (shown as Mine)
+      } as any],
+      feedCache, fetcher, siteTz: 'America/Toronto',
+      now: new Date('2026-05-06T12:00:00Z'),
+    });
+
+    const review = result.find(s => s.kind === 'review');
+    expect(review).toBeDefined();
+    expect((review as any).uid).toBe('u1');
+    expect((review as any).event_id).toBe('evt-1');
+    expect((review as any).diff.master).toEqual([{
+      field: 'location', mine: 'Britannia Park', upstream: 'Andrew Haydon Park',
+    }]);
+  });
+
+  test('matched VEVENT + empty diff → no row', async () => {
+    feedCache.seed('obc', 'http://feed', {
+      fetched_at: new Date().toISOString(),
+      source_url: 'http://feed',
+      events: [{ uid: 'u1', summary: 'Coffee', start: '2026-06-20T18:00:00', location: 'A' }],
+    });
+    await advanceSnapshot(db, 'ottawa', 'obc', 'u1', {
+      uid: 'u1', summary: 'Coffee', start: '2026-06-20T18:00:00', location: 'A',
+    }, '2026-06-20');
+
+    const result = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'obc', name: 'OBC', ics_url: 'http://feed' }],
+      repoEvents: [{
+        id: 'evt-1', slug: 'coffee', year: '2026', name: 'Coffee',
+        start_date: '2026-06-20', ics_uid: 'u1', organizer: 'obc',
+      } as any],
+      feedCache, fetcher, siteTz: 'America/Toronto',
+      now: new Date('2026-05-06T12:00:00Z'),
+    });
+    expect(result.find(s => s.kind === 'review')).toBeUndefined();
+  });
+
+  test('repo event ics_uid missing from upstream + future-dated → review row with eventRemoved', async () => {
+    feedCache.seed('obc', 'http://feed', {
+      fetched_at: new Date().toISOString(),
+      source_url: 'http://feed',
+      events: [],
+    });
+    await advanceSnapshot(db, 'ottawa', 'obc', 'gone-u', {
+      uid: 'gone-u', summary: 'Spring Tour', start: '2026-06-20T18:00:00',
+    }, '2026-06-20');
+
+    const result = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'obc', name: 'OBC', ics_url: 'http://feed' }],
+      repoEvents: [{
+        id: 'evt-9', slug: 'spring', year: '2026', name: 'Spring Tour',
+        start_date: '2026-06-20', ics_uid: 'gone-u', organizer: 'obc',
+      } as any],
+      feedCache, fetcher, siteTz: 'America/Toronto',
+      now: new Date('2026-05-06T12:00:00Z'),
+    });
+    const review = result.find(s => s.kind === 'review');
+    expect(review).toBeDefined();
+    expect((review as any).diff.eventRemoved).toBe(true);
+  });
+
+  test('repo event ics_uid missing from upstream + past-dated → no row', async () => {
+    feedCache.seed('obc', 'http://feed', {
+      fetched_at: new Date().toISOString(),
+      source_url: 'http://feed',
+      events: [],
+    });
+    await advanceSnapshot(db, 'ottawa', 'obc', 'past-u', {
+      uid: 'past-u', summary: 'Old Event', start: '2026-04-01T18:00:00',
+    }, '2026-04-01');
+
+    const result = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'obc', name: 'OBC', ics_url: 'http://feed' }],
+      repoEvents: [{
+        id: 'evt-old', slug: 'old', year: '2026', name: 'Old Event',
+        start_date: '2026-04-01', ics_uid: 'past-u', organizer: 'obc',
+      } as any],
+      feedCache, fetcher, siteTz: 'America/Toronto',
+      now: new Date('2026-05-06T12:00:00Z'),
+    });
+    expect(result.find(s => s.kind === 'review')).toBeUndefined();
+  });
+
+  test('bootstrap: matched VEVENT + no snapshot row → snapshot written, no row emitted', async () => {
+    feedCache.seed('obc', 'http://feed', {
+      fetched_at: new Date().toISOString(),
+      source_url: 'http://feed',
+      events: [{ uid: 'u1', summary: 'Coffee', start: '2026-06-20T18:00:00', location: 'A' }],
+    });
+    const result = await buildSuggestions({
+      db, city: 'ottawa',
+      organizers: [{ slug: 'obc', name: 'OBC', ics_url: 'http://feed' }],
+      repoEvents: [{
+        id: 'evt-1', slug: 'coffee', year: '2026', name: 'Coffee',
+        start_date: '2026-06-20', ics_uid: 'u1', organizer: 'obc',
+      } as any],
+      feedCache, fetcher, siteTz: 'America/Toronto',
+      now: new Date('2026-05-06T12:00:00Z'),
+    });
+    expect(result.find(s => s.kind === 'review')).toBeUndefined();
+    const map = await loadAllSnapshots(db, 'ottawa', '2026-05-06');
+    expect(map.has('obc:u1')).toBe(true);
+  });
+});
+
+describe('toSuggestionItem — review-kind formatting', () => {
+  const SITE_TZ = 'America/Toronto';
+  const LOCALE = 'en';
+
+  function reviewSugg(diff: UpdateDiff, over: Partial<ReviewSuggestion> = {}): ReviewSuggestion {
+    return {
+      kind: 'review',
+      organizer_slug: 'obc',
+      organizer_name: 'OBC',
+      uid: 'u1',
+      event_id: 'evt-1',
+      name: 'Coffee Ride',
+      start: '2026-06-20T18:00:00',
+      diff,
+      ...over,
+    };
+  }
+
+  test('1 master field → "<field> changed · OBC"', () => {
+    const diff: UpdateDiff = {
+      master: [{ field: 'location', mine: 'A', upstream: 'B' }],
+      occurrencesChanged: [], occurrencesAdded: [],
+      occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+    };
+    const item = toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE);
+    expect(item.meta).toBe('location changed · OBC');
+  });
+
+  test('multi master fields → "N fields changed · OBC"', () => {
+    const diff: UpdateDiff = {
+      master: [
+        { field: 'location', mine: 'A', upstream: 'B' },
+        { field: 'start', mine: 'X', upstream: 'Y' },
+      ],
+      occurrencesChanged: [], occurrencesAdded: [],
+      occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+    };
+    expect(toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE).meta).toBe('2 fields changed · OBC');
+  });
+
+  test('only occurrence changes → "N occurrences updated · OBC"', () => {
+    const diff: UpdateDiff = {
+      master: [],
+      occurrencesChanged: [
+        { uid: 'a', date: '2026-07-08', fields: [] },
+        { uid: 'b', date: '2026-07-15', fields: [] },
+        { uid: 'c', date: '2026-07-22', fields: [] },
+      ],
+      occurrencesAdded: [], occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+    };
+    expect(toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE).meta).toBe('3 occurrences updated · OBC');
+  });
+
+  test('mixed master + addition → comma-separated parts · OBC', () => {
+    const diff: UpdateDiff = {
+      master: [
+        { field: 'a', mine: '', upstream: '' },
+        { field: 'b', mine: '', upstream: '' },
+      ],
+      occurrencesChanged: [],
+      occurrencesAdded: [{ uid: 'new', date: '2026-08-05' } as any],
+      occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+    };
+    expect(toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE).meta).toBe('2 fields changed, 1 new date · OBC');
+  });
+
+  test('one removal → "Removed <date> · OBC"', () => {
+    const diff: UpdateDiff = {
+      master: [], occurrencesChanged: [], occurrencesAdded: [],
+      occurrencesNewlyCancelled: [],
+      occurrencesRemoved: [{ uid: 'r', date: '2026-07-16' }],
+    };
+    const meta = toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE).meta;
+    expect(meta).toMatch(/^Removed /);
+    expect(meta.endsWith('· OBC')).toBe(true);
+  });
+
+  test('eventRemoved → "Event removed · OBC"', () => {
+    const diff: UpdateDiff = {
+      master: [], occurrencesChanged: [], occurrencesAdded: [],
+      occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+      eventRemoved: true,
+    };
+    expect(toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE).meta).toBe('Event removed · OBC');
+  });
+
+  test('href points to /admin/events/<id>/review-update', () => {
+    const diff: UpdateDiff = {
+      master: [{ field: 'location', mine: 'A', upstream: 'B' }],
+      occurrencesChanged: [], occurrencesAdded: [],
+      occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+    };
+    expect(toSuggestionItem(reviewSugg(diff, { event_id: 'evt-9' }), SITE_TZ, LOCALE).href)
+      .toBe('/admin/events/evt-9/review-update');
+  });
+
+  test('dismissPayload has kind: review and event_id, no valid_until', () => {
+    const diff: UpdateDiff = {
+      master: [{ field: 'location', mine: 'A', upstream: 'B' }],
+      occurrencesChanged: [], occurrencesAdded: [],
+      occurrencesNewlyCancelled: [], occurrencesRemoved: [],
+    };
+    const item = toSuggestionItem(reviewSugg(diff), SITE_TZ, LOCALE);
+    expect(item.dismissPayload).toEqual({
+      kind: 'review',
+      organizer_slug: 'obc',
+      uid: 'u1',
+      event_id: 'evt-1',
+    });
+  });
+
+  test('import-kind dismissPayload now has kind: import', () => {
+    const importSugg: ImportSuggestion = {
+      kind: 'one-off', uid: 'u1',
+      organizer_slug: 'obc', organizer_name: 'OBC',
+      name: 'X', start: '2026-06-20T18:00:00',
+      valid_until: '2026-06-20',
+    };
+    const item = toSuggestionItem(importSugg, SITE_TZ, LOCALE);
+    expect(item.dismissPayload).toEqual({
+      kind: 'import',
+      organizer_slug: 'obc',
+      uid: 'u1',
+      valid_until: '2026-06-20',
+    });
+  });
+});
