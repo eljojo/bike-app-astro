@@ -18,6 +18,16 @@ related: [preact-islands]
 - Bypasses WebAuthn by seeding sessions directly into SQLite
 - Restores fixture files via `git show` (read-only, no index lock) to avoid contention
 
+## Cover the Anonymous/Guest Path
+
+Admin e2e specs must exercise the signed-out and guest-role paths, not only
+seeded admin/editor sessions. A 2026-05 incident (anonymous poster upload
+returned "Unauthorized"; guests stuck as `cyclist-XXXX`) was invisible to the
+suite because every spec called `seedSession()` + `loginAs()` first. For
+guest/anonymous behavior: omit `loginAs()` for a true anonymous visitor, or
+`seedSession({ role: 'guest', email: null })` for a guest. See
+`e2e/admin/guest-contributor.spec.ts`.
+
 ## Test Dates Must Be 2099
 
 Fixture dates must be far in the future to avoid time-dependent breakage (e.g., `isPastEvent()` logic treats past dates differently).
