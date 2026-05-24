@@ -123,18 +123,21 @@ test.describe('Guest contributor — account creation link (Symptom C)', () => {
 });
 
 // -------------------------------------------------------------------------
-// Symptom D — community creation is unreachable anonymously
+// Symptom D — anonymous reachability of the community creation wizard
 // -------------------------------------------------------------------------
-// /admin/events/new and /admin/routes/* are browsable anonymously (first-time
-// contributors land straight on the wizard). /admin/community-new is NOT in the
-// middleware's browsable list, so an anonymous visitor is redirected to /login.
+// The wizard is injected at /admin/communities/new (NOT /admin/community-new —
+// that path has no route). It is already browsable anonymously via the existing
+// `/admin/communities/` middleware prefix, so this is a guard test confirming an
+// anonymous first-time contributor actually lands on the wizard (not /login).
 test.describe('Guest contributor — add a community (Symptom D)', () => {
-  test('anonymous visitor can reach the community creation wizard', async ({ page }) => {
-    await page.goto('/admin/community-new');
+  test('anonymous visitor reaches the community creation wizard', async ({ page }) => {
+    await page.goto('/admin/communities/new');
     await page.waitForLoadState('networkidle');
+    await waitForHydration(page);
 
-    // BUG: redirected to /login, unlike the event/route editors.
+    // Not bounced to /login, and the wizard itself actually renders.
     expect(page.url(), 'community creation should be reachable like events').not.toContain('/login');
+    await expect(page.locator('.wizard-welcome-heading')).toBeVisible();
   });
 });
 
