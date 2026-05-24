@@ -20,6 +20,7 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/places',
   '/admin/events',
   '/admin/communities',
+  '/admin/community-new',
   '/admin/bike-paths',
   '/admin/history',
 ]);
