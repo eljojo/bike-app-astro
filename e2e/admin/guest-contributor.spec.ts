@@ -74,17 +74,15 @@ test.describe('Guest contributor — profile (Symptom B)', () => {
     cleanupSession(guestToken);
   });
 
-  test('guest can change their display name on the settings page', async ({ page }) => {
+  test('guest can claim an account from the settings page', async ({ page }) => {
     await loginAs(page, guestToken);
     await page.goto('/admin/settings');
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 
-    // BUG: the settings page hides every profile field from guests and shows
-    // only a paragraph + dead-end link, so there is no control to stop being
-    // "forever cyclist-35ad". The backend (settings.ts) would accept the change.
-    const usernameInput = page.locator('#settings-username');
-    await expect(usernameInput, 'guest should have a way to set their name').toBeVisible();
+    // The guest Profile card shows the upgrade form (email + username), not a dead-end link.
+    await expect(page.locator('#upgrade-username')).toBeVisible();
+    await expect(page.locator('#upgrade-email')).toBeVisible();
   });
 });
 
@@ -101,24 +99,26 @@ test.describe('Guest contributor — account creation link (Symptom C)', () => {
     cleanupSession(guestToken);
   });
 
-  test('guest who clicks "Create an account" reaches an account form, not /admin', async ({ page }) => {
+  test('guest following the "Create account" link reaches the upgrade form, not a dead end', async ({ page }) => {
     await loginAs(page, guestToken);
-    await page.goto('/admin/settings');
+    await page.goto('/admin/events');
+    await page.waitForLoadState('networkidle');
+
+    // Open the user menu (inline scripts are CSP-restricted in preview; toggle via JS).
+    await page.evaluate(() => {
+      document.getElementById('user-menu-dropdown')?.classList.add('open');
+    });
+
+    const createAccount = page.locator('#user-menu-dropdown a:has-text("Create account")');
+    await expect(createAccount).toHaveAttribute('href', '/admin/settings');
+
+    await createAccount.click();
     await page.waitForLoadState('networkidle');
     await waitForHydration(page);
 
-    // The only account-creation affordance the guest is given on this page.
-    await page.getByRole('link', { name: /create an account/i }).click();
-    await page.waitForLoadState('networkidle');
-
-    // BUG: the link points at /login, and login.astro redirects any visitor who
-    // already has a session (every guest does) straight back to /admin — so the
-    // "new page to edit" never appears.
-    expect(page.url(), 'guest should not be bounced back to /admin').not.toContain('/admin');
-    await expect(
-      page.locator('#upgrade-email, #login-email'),
-      'guest should reach a form to set an email/username',
-    ).toBeVisible();
+    // Lands on settings with the upgrade form — not bounced through /login.
+    expect(page.url()).toContain('/admin/settings');
+    await expect(page.locator('#upgrade-email')).toBeVisible();
   });
 });
 
