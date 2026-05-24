@@ -4,6 +4,7 @@ import { useFileUpload, useHydrated } from '../../lib/hooks';
 import { buildImageUrl } from '../../lib/media/image-service';
 import type { EventDetail } from '../../lib/models/event-model';
 import type { AdminOrganizer } from '../../types/admin';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 
 interface Props {
   cdnUrl: string;
@@ -122,11 +123,12 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     setError('');
 
     try {
-      const res = await fetch('/api/admin/event-draft', {
+      const res = await fetchWithGuest('/api/admin/event-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poster_key: key }),
       });
+      if (!res) return;
 
       if (!res.ok) {
         // Service unavailable (no AI binding, rate limited, etc.) — silently skip to editor
@@ -178,11 +180,12 @@ export default function EventCreator({ cdnUrl, organizers, copyData, eventOption
     setFetchingUrl(true);
 
     try {
-      const res = await fetch('/api/admin/event-draft', {
+      const res = await fetchWithGuest('/api/admin/event-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: pasteUrl }),
       });
+      if (!res) return;
 
       if (!res.ok) {
         // Could not fetch — skip to editor with the URL pre-filled as event_url
