@@ -3,8 +3,10 @@
  *
  * Performs the request; on a 401 it creates a guest session
  * (POST /api/auth/guest) and retries once. Concurrent callers that all
- * hit 401 share a single guest creation (single-flight) so we never mint
- * duplicate accounts or race the session cookie.
+ * hit 401 share a single guest creation (single-flight), collapsing a burst
+ * to one mint. This is best-effort, not a hard guarantee: a 401 that arrives
+ * just after the in-flight creation settles can still mint a second guest —
+ * harmless, since guest creation is idempotent and rate-limited per IP.
  *
  * Returns the final Response, or null if guest creation failed and the
  * caller was redirected to /login.
