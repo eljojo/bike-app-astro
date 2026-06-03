@@ -65,6 +65,9 @@ on:
         required: false
       GOOGLE_MAPS_STATIC_API_KEY:
         required: true
+      HEALTHCHECK_PING_KEY:
+        description: 'healthchecks.io UUID for the Ottawa production deploy check'
+        required: false
 
 permissions:
   contents: read
@@ -75,6 +78,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment || null }}
     steps:
+      # healthchecks.io dead-man's-switch — start ping for the Ottawa
+      # production deploy only (staging-ottawa and other cities are excluded).
+      - name: Ping healthchecks.io (deploy start)
+        if: ${{ inputs.city == 'ottawa' && inputs.environment == 'production' && inputs.deploy }}
+        run: curl -fsS -m 10 --retry 5 -o /dev/null "https://hc-ping.com/${{ secrets.HEALTHCHECK_PING_KEY }}/start" || true
+
       - name: Checkout astro repo
         uses: actions/checkout@v6
         with:
@@ -324,3 +333,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # healthchecks.io dead-man's-switch — success ping fires only if every
+      # step above succeeded (default step semantics), marking deploy complete.
+      - name: Ping healthchecks.io (deploy success)
+        if: ${{ inputs.city == 'ottawa' && inputs.environment == 'production' && inputs.deploy }}
+        run: curl -fsS -m 10 --retry 5 -o /dev/null "https://hc-ping.com/${{ secrets.HEALTHCHECK_PING_KEY }}" || true

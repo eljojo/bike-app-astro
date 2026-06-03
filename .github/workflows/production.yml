@@ -76,6 +76,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       GOOGLE_MAPS_STATIC_API_KEY: ${{ secrets.GOOGLE_MAPS_STATIC_API_KEY }}
+      HEALTHCHECK_PING_KEY: ${{ secrets.HEALTHCHECK_PING_KEY }}
 
   # Deploy video agent Lambda — only on code changes, not data-only updates
   deploy-lambda:
