@@ -13,8 +13,15 @@
  *
  * Run as part of prebuild (catches locally) and as a CI job (catches on PR).
  *
- * Exit non-zero on mismatch, with a message that names both versions so the
- * fix is obvious.
+ * Severity is contextual. Playwright is a dev/test-only dependency: drift only
+ * breaks E2E, never a production or data build. So by default this is a
+ * WARNING (exit 0) — it must never block `make build`, `astro build`, the
+ * city/data pipelines in _build-city.yml, or anything that doesn't launch a
+ * browser. It becomes FATAL (exit 1) only where Playwright actually runs:
+ * `make test-e2e` and the CI gate, signalled by `--strict` or
+ * PLAYWRIGHT_SYNC_STRICT=1.
+ *
+ * On mismatch the message names both versions so the fix is obvious.
  */
 
 import fs from 'node:fs';
@@ -73,8 +80,11 @@ if (lockVersion !== flakeVersion) {
   errors.push(`package-lock.json resolved @playwright/test@${lockVersion} but flake.nix pins ${flakeVersion}.`);
 }
 
+const strict = process.argv.includes('--strict') || process.env.PLAYWRIGHT_SYNC_STRICT === '1';
+
 if (errors.length > 0) {
-  console.error('Playwright version drift detected:');
+  const label = strict ? 'Playwright version drift detected:' : 'Playwright version drift (warning):';
+  console.error(label);
   for (const e of errors) console.error('  - ' + e);
   console.error('');
   console.error('Fix by bumping BOTH together to the same exact version:');
@@ -87,7 +97,12 @@ if (errors.length > 0) {
   console.error(`  flake.nix:         playwright-web-flake/${flakeVersion}`);
   console.error(`  package.json:      @playwright/test ${JSON.stringify(manifestSpec)}`);
   console.error(`  package-lock.json: @playwright/test ${lockVersion}`);
-  process.exit(1);
+  if (strict) {
+    process.exit(1);
+  }
+  console.error('');
+  console.error('Continuing: this only affects E2E (make test-e2e), not this build.');
+  process.exit(0);
 }
 
 console.log(`✓ Playwright versions in sync: ${flakeVersion}`);

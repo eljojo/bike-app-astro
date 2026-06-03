@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: 22
       - name: Enforce playwright version alignment
-        run: node scripts/check-playwright-sync.mjs
+        run: node scripts/check-playwright-sync.mjs --strict
 
   # Dependabot-only convenience: when Dependabot bumps @playwright/test, auto-
   # commit a matching flake.nix bump to the PR. The resulting rerun passes the
