@@ -42,8 +42,14 @@ jobs:
         run: node scripts/check-playwright-sync.mjs --strict
 
   # Dependabot-only convenience: when Dependabot bumps @playwright/test, auto-
-  # commit a matching flake.nix bump to the PR. The resulting rerun passes the
-  # always-on check above. Human PRs have to fix drift manually.
+  # reconcile the drift on the PR. The resulting rerun passes the always-on
+  # check above. Human PRs have to fix drift manually.
+  #
+  # Direction is auto-detected, because the flake can only follow npm forward if
+  # playwright-web-flake actually publishes a tag for the bumped version:
+  #   - tag exists  -> bump flake.nix to match npm (flake follows the bump)
+  #   - tag missing -> pin npm back to the flake version (the bump is reverted,
+  #                    since the nix dev shell has no browsers for it anyway)
   sync-playwright-flake:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
@@ -62,28 +68,54 @@ jobs:
           echo "flake.nix:         playwright-web-flake/$flake_version"
           if [ "$npm_version" != "$flake_version" ]; then
             echo "npm_version=$npm_version" >> "$GITHUB_OUTPUT"
+            echo "flake_version=$flake_version" >> "$GITHUB_OUTPUT"
             echo "needs_update=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install Nix
+      - name: Detect whether the flake publishes the npm version
+        id: detect
         if: steps.check.outputs.needs_update == 'true'
+        run: |
+          repo=$(grep -oE 'github:[^"]+/playwright-web-flake' flake.nix | sed 's|github:||')
+          npm_version="${{ steps.check.outputs.npm_version }}"
+          if git ls-remote --tags --exit-code "https://github.com/$repo" "refs/tags/$npm_version" >/dev/null 2>&1; then
+            echo "direction=bump-flake" >> "$GITHUB_OUTPUT"
+            echo "$repo publishes $npm_version: bumping flake.nix to match npm."
+          else
+            echo "direction=pin-npm" >> "$GITHUB_OUTPUT"
+            echo "::warning::$repo has no tag $npm_version; pinning @playwright/test back to flake version ${{ steps.check.outputs.flake_version }} instead."
+          fi
+
+      - name: Install Nix
+        if: steps.detect.outputs.direction == 'bump-flake'
         uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-25.11
 
-      - name: Update flake.nix and lock
-        if: steps.check.outputs.needs_update == 'true'
+      - name: Bump flake.nix to match npm
+        if: steps.detect.outputs.direction == 'bump-flake'
         run: |
           sed -i 's|playwright-web-flake/[0-9]\+\.[0-9]\+\.[0-9]\+|playwright-web-flake/${{ steps.check.outputs.npm_version }}|' flake.nix
           nix flake update playwright
+
+      - name: Pin npm back to flake version
+        if: steps.detect.outputs.direction == 'pin-npm'
+        run: |
+          npm pkg set "devDependencies.@playwright/test=${{ steps.check.outputs.flake_version }}"
+          npm install --package-lock-only
 
       - name: Commit changes
         if: steps.check.outputs.needs_update == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add flake.nix flake.lock
-          git commit -m "ci: sync playwright flake to ${{ steps.check.outputs.npm_version }}"
+          if [ "${{ steps.detect.outputs.direction }}" = "bump-flake" ]; then
+            git add flake.nix flake.lock
+            git commit -m "ci: sync playwright flake to ${{ steps.check.outputs.npm_version }}"
+          else
+            git add package.json package-lock.json
+            git commit -m "ci: pin @playwright/test to ${{ steps.check.outputs.flake_version }} (flake has no ${{ steps.check.outputs.npm_version }})"
+          fi
           git push
 
   test:
