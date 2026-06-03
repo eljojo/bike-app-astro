@@ -87,6 +87,11 @@ jobs:
           ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
           ref: ${{ inputs.data-ref }}
           path: bike-routes
+          # Full history: build-contributors.ts runs `git log` over the data
+          # repo to credit every author. A shallow clone (the default) only
+          # exposes the latest commit, collapsing the about-page contributor
+          # list to whoever committed last.
+          fetch-depth: 0
 
       - name: LFS cache period
         id: lfs-period
