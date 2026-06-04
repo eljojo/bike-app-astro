@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, test, expect } from 'vitest';
 import {
   seriesOccurrenceOverrideSchema,
   eventDetailSchema,
@@ -207,6 +207,47 @@ describe('buildFreshEventData', () => {
     expect(parsed.name).toBe('Bike Fest');
     expect(parsed.body).toBe('Event body');
     expect(parsed.organizer).toBe('bike-club');
+  });
+});
+
+describe('eventDetailFromGit — fields surfaced from frontmatter', () => {
+  test('surfaces ics_uid from frontmatter', () => {
+    const detail = eventDetailFromGit(
+      '2026/some-event',
+      { name: 'X', start_date: '2026-06-20', ics_uid: 'cdiiv3rct6@google.com' },
+      'body content',
+    );
+    expect(detail.ics_uid).toBe('cdiiv3rct6@google.com');
+  });
+
+  test('surfaces banner_text from frontmatter', () => {
+    const detail = eventDetailFromGit(
+      '2026/some-event',
+      { name: 'X', start_date: '2026-06-20', banner_text: 'Welcome!' },
+      'body content',
+    );
+    expect(detail.banner_text).toBe('Welcome!');
+  });
+
+  test('surfaces linked_routes from frontmatter', () => {
+    const linked = [{ route: '/routes/loop', label: '20km loop' }];
+    const detail = eventDetailFromGit(
+      '2026/some-event',
+      { name: 'X', start_date: '2026-06-20', linked_routes: linked },
+      'body content',
+    );
+    expect(detail.linked_routes).toEqual(linked);
+  });
+
+  test('round-trip via cache preserves ics_uid', () => {
+    const original = eventDetailFromGit(
+      '2026/some-event',
+      { name: 'X', start_date: '2026-06-20', ics_uid: 'foo@bar' },
+      'body',
+    );
+    const blob = eventDetailToCache(original);
+    const restored = eventDetailFromCache(blob);
+    expect(restored.ics_uid).toBe('foo@bar');
   });
 });
 
