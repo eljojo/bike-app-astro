@@ -13,6 +13,7 @@ import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { throttle } from '../../lib/throttle';
 import { isGoogleMapsUrl } from '../../lib/google-maps-url';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
 import polyline from '@mapbox/polyline';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
@@ -173,11 +174,12 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     setPrefilling(true);
     editor.setError('');
     try {
-      const res = await fetch('/api/places/prefill', {
+      const res = await fetchWithGuest('/api/places/prefill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       });
+      if (!res) return;
       const data = await res.json();
       if (!res.ok) {
         editor.setError(data.error || 'Prefill failed');

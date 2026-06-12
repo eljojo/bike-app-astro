@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'preact/hooks';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 
 interface EditorStateOptions {
   /** API endpoint path, e.g. '/api/places' */
@@ -15,29 +16,6 @@ interface EditorStateOptions {
   onSuccess?: (result: { id: string; contentHash?: string; sha?: string }) => void;
   /** Validate before save. Return error message or null. */
   validate?: () => string | null;
-}
-
-async function createGuestAndRetry(
-  url: string,
-  options: RequestInit,
-): Promise<Response | null> {
-  try {
-    const guestRes = await fetch('/api/auth/guest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (!guestRes.ok) {
-      // Guest creation failed (e.g., blog mode returns 404)
-      // Redirect to login
-      const returnTo = encodeURIComponent(window.location.pathname);
-      window.location.href = `/login?returnTo=${returnTo}`;
-      return null;
-    }
-    // Retry the original save
-    return fetch(url, options);
-  } catch {
-    return null;
-  }
 }
 
 export function useEditorState(opts: EditorStateOptions) {
@@ -94,15 +72,11 @@ export function useEditorState(opts: EditorStateOptions) {
         body: JSON.stringify(payload),
       };
 
-      let res = await fetch(url, fetchOptions);
-
-      if (res.status === 401) {
-        const retryRes = await createGuestAndRetry(url, fetchOptions);
-        if (!retryRes) return; // redirected to login
-        res = retryRes;
-        setGuestCreated(true);
-        // Fall through to normal response handling
-      }
+      const res = await fetchWithGuest(url, fetchOptions, () => setGuestCreated(true));
+      // null = guest creation failed and fetchWithGuest already redirected to
+      // /login. The page is navigating away, so leaving `saving` true is fine
+      // (the component unmounts) — same rationale as the create path.
+      if (!res) return;
 
       const data = await res.json();
 
