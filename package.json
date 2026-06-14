@@ -78,7 +78,7 @@
     "photoswipe-dynamic-caption-plugin": "^1.2.7",
     "preact": "^10.28.4",
     "sass": "^1.97.3",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.1",
     "simple-git": "^3.32.3",
     "zod": "^4.3.6"
   },
