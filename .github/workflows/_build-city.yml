@@ -85,12 +85,12 @@ jobs:
         run: curl -fsS -m 10 --retry 5 -o /dev/null "https://hc-ping.com/${{ secrets.HEALTHCHECK_PING_KEY }}/start" || true
 
       - name: Checkout astro repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.app-ref || github.head_ref || github.ref }}
 
       - name: Checkout data repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: eljojo/bike-routes
           ssh-key: ${{ secrets.DATA_REPO_DEPLOY_KEY }}
