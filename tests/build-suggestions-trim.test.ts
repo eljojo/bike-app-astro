@@ -207,7 +207,7 @@ describe('buildSuggestions — partial-import dedupe (Task 8)', () => {
     // Keeping 'a' would create an ics_uid collision with the already-imported
     // event in the repo.
     expect(suggestions[0].uid).toBe('b');
-    expect(suggestions[0].series_label).toBe('Every other Wednesday');
+    expect((suggestions[0] as any).series_label).toBe('Every other Wednesday');
   });
 
   test('dissolves to one-offs when trimmed cluster falls below MIN_CLUSTER_SIZE', async () => {

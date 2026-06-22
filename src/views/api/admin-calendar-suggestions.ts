@@ -11,7 +11,7 @@ import adminEventsVirtual from 'virtual:bike-app/admin-events';
 import { loadAdminEventList } from '../../lib/content/load-admin-content.server';
 import { buildSuggestions } from '../../lib/calendar-suggestions/build.server';
 import { fetchIcsFeed } from '../../lib/external/ics-feed.server';
-import type { Suggestion } from '../../lib/calendar-suggestions/types';
+import type { Suggestion, UpdateDiff } from '../../lib/calendar-suggestions/types';
 import type { SuggestionItem } from '../../components/admin/Suggestions';
 
 export const prerender = false;
@@ -50,7 +50,21 @@ export async function GET({ locals }: APIContext) {
   }
 }
 
-function toSuggestionItem(s: Suggestion, siteTz: string, locale: string): SuggestionItem {
+export function toSuggestionItem(s: Suggestion, siteTz: string, locale: string): SuggestionItem {
+  if (s.kind === 'review') {
+    return {
+      id:    `${s.organizer_slug}:${s.uid}`,
+      title: s.name,
+      meta:  formatReviewMeta(s.diff, s.organizer_name, siteTz, locale),
+      href:  `/admin/events/${encodeURIComponent(s.event_id)}/review-update`,
+      dismissPayload: {
+        kind: 'review',
+        organizer_slug: s.organizer_slug,
+        uid: s.uid,
+        event_id: s.event_id,
+      },
+    };
+  }
   const meta = s.kind === 'series'
     ? (s.series_label ?? 'Series')
     : `${formatShortDate(s.start, siteTz, locale)} · ${s.organizer_name}`;
@@ -63,11 +77,29 @@ function toSuggestionItem(s: Suggestion, siteTz: string, locale: string): Sugges
     meta:  s.kind === 'series' ? `${meta} · ${s.organizer_name}` : meta,
     href:  `/admin/events/new?from_feed=${encodeURIComponent(s.organizer_slug)}&uid=${encodeURIComponent(s.uid)}${fullParam}`,
     dismissPayload: {
+      kind: 'import',
       organizer_slug: s.organizer_slug,
       uid: s.uid,
       valid_until: s.valid_until,
     },
   };
+}
+
+function formatReviewMeta(d: UpdateDiff, org: string, siteTz: string, locale: string): string {
+  if (d.eventRemoved) return `Event removed · ${org}`;
+
+  const parts: string[] = [];
+  if (d.master.length === 1) parts.push(`${d.master[0].field} changed`);
+  else if (d.master.length > 1) parts.push(`${d.master.length} fields changed`);
+  if (d.occurrencesChanged.length > 0) parts.push(`${d.occurrencesChanged.length} occurrences updated`);
+  if (d.occurrencesAdded.length > 0)   parts.push(`${d.occurrencesAdded.length} new date${d.occurrencesAdded.length === 1 ? '' : 's'}`);
+  if (d.occurrencesNewlyCancelled.length > 0) parts.push(`${d.occurrencesNewlyCancelled.length} cancelled`);
+  if (d.occurrencesRemoved.length === 1) {
+    parts.push(`Removed ${formatShortDate(d.occurrencesRemoved[0].date, siteTz, locale)}`);
+  } else if (d.occurrencesRemoved.length > 1) {
+    parts.push(`${d.occurrencesRemoved.length} removed`);
+  }
+  return `${parts.join(', ')} · ${org}`;
 }
 
 function formatShortDate(naiveSiteLocal: string, siteTz: string, locale: string): string {

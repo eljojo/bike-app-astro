@@ -612,6 +612,53 @@ describe('eventHandlers.buildFileChanges', () => {
     expect(mdFile!.content).toContain('britannia-by-ottawa-river-pathway');
     expect(mdFile!.content).toContain('organizer: ncc');
   });
+
+  it('preserves existing body when update.body is empty string (persistPatchedEvent path)', async () => {
+    // Regression: persistPatchedEvent sends body: '' to saveContent, which caused
+    // buildFileChanges to write an empty body, silently wiping existing markdown content.
+    // When update.body is empty and the existing file has a body, the existing body must
+    // be preserved in the written file.
+    const existingContent = [
+      '---',
+      'name: Summer Ride',
+      "start_date: '2026-06-15'",
+      'organizer: obc',
+      '---',
+      '',
+      'Hello world',
+      '',
+      'Some existing content.',
+    ].join('\n');
+
+    const update = {
+      frontmatter: {
+        name: 'Summer Ride',
+        start_date: '2026-06-15',
+        organizer: 'obc',
+        location: 'New Location',
+      },
+      body: '',  // persistPatchedEvent always sends empty body
+    };
+
+    const currentFiles = {
+      primaryFile: {
+        content: existingContent,
+        sha: 'sha-existing',
+      },
+    };
+    const mockGit = { readFile: vi.fn().mockResolvedValue(null) };
+    const result = await eventHandlers.buildFileChanges(
+      update, '2026/summer-ride', currentFiles as any, mockGit as any,
+    );
+
+    const mdFile = result.files.find(f => f.path.endsWith('.md'));
+    expect(mdFile).toBeDefined();
+    // Body must be preserved — not wiped by the empty update.body
+    expect(mdFile!.content).toContain('Hello world');
+    expect(mdFile!.content).toContain('Some existing content.');
+    // New frontmatter field must be written
+    expect(mdFile!.content).toContain('location: New Location');
+  });
 });
 
 describe('eventHandlers.afterCommit', () => {
