@@ -44,7 +44,7 @@ jobs:
         run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
 
       - name: Restore app repo LFS cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .git/lfs
           key: lfs-app-${{ steps.lfs-period.outputs.period }}
@@ -54,7 +54,7 @@ jobs:
         run: git lfs pull
 
       - name: Restore data repo LFS cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: bike-routes/.git/lfs
           key: lfs-bike-routes-${{ steps.lfs-period.outputs.period }}
@@ -75,7 +75,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
       - name: Restore Overpass cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .cache/overpass
           key: overpass-${{ steps.lfs-period.outputs.period }}-test-${{ github.run_id }}
@@ -134,7 +134,7 @@ jobs:
           fi
 
       - name: Restore Astro content cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .astro
           key: astro-demo-${{ github.run_id }}
@@ -191,7 +191,7 @@ jobs:
         run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
 
       - name: Restore app repo LFS cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .git/lfs
           key: lfs-app-${{ steps.lfs-period.outputs.period }}
@@ -201,7 +201,7 @@ jobs:
         run: git lfs pull
 
       - name: Restore data repo LFS cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: bike-routes/.git/lfs
           key: lfs-bike-routes-${{ steps.lfs-period.outputs.period }}
@@ -222,7 +222,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
       - name: Restore Overpass cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .cache/overpass
           key: overpass-${{ steps.lfs-period.outputs.period }}-e2e-${{ matrix.suite }}-${{ github.run_id }}
@@ -265,7 +265,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('package-lock.json') }}
@@ -273,14 +273,14 @@ jobs:
 
       - name: Cache Microsoft core fonts
         id: msfonts-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /usr/share/fonts/truetype/msttcorefonts
           key: msttcorefonts-v1
 
       - name: Cache Playwright system deps
         id: playwright-deps-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /tmp/.playwright-deps-installed
           key: playwright-deps-${{ hashFiles('package-lock.json') }}-v1
@@ -307,7 +307,7 @@ jobs:
         run: sudo fc-cache -f
 
       - name: Restore tile cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: e2e/.tile-cache
           key: e2e-tile-cache-v1
@@ -315,7 +315,7 @@ jobs:
       # --- Public E2E only: caches, build, and D1 setup ---
       - name: Restore Astro content cache
         if: matrix.suite == 'public'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .astro
           key: astro-e2e-${{ github.run_id }}
@@ -433,7 +433,7 @@ jobs:
         run: echo "period=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_OUTPUT"
 
       - name: Restore app repo LFS cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .git/lfs
           key: lfs-app-${{ steps.lfs-period.outputs.period }}
