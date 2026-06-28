@@ -58,7 +58,7 @@
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.3",
     "@vovayatsyuk/photoswipe-object-position": "^1.0.0",
-    "astro": "^6.0.0-beta.20",
+    "astro": "^7.0.3",
     "aws4fetch": "^1.0.20",
     "better-sqlite3": "^12.6.2",
     "chart.js": "^4.5.1",
