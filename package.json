@@ -49,7 +49,7 @@
     "capture:production": "npx playwright test --config e2e/capture-production.config.ts"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^13.0.0-beta.11",
+    "@astrojs/cloudflare": "^14.0.1",
     "@astrojs/node": "^10.0.0-beta.6",
     "@astrojs/preact": "^5.0.0",
     "@js-temporal/polyfill": "^0.5.1",
