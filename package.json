@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.0.1",
-    "@astrojs/node": "^10.0.0-beta.6",
+    "@astrojs/node": "^11.0.2",
     "@astrojs/preact": "^6.0.0",
     "@js-temporal/polyfill": "^0.5.1",
     "@mapbox/polyline": "^1.2.1",
