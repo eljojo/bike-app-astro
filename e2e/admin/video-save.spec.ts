@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import Database from 'better-sqlite3';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { initSchema } from '../../src/db/init-schema.ts';
 import { FIXTURE_DIR, DB_PATH } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, waitForHydration } from './helpers.ts';

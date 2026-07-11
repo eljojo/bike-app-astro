@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { videoJobs, contentEdits } from '../../db/schema';
 import { CITY } from '../config/config';
 import { env } from '../env/env.service';

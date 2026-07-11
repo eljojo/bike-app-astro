@@ -7,7 +7,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { cityDir } from '../config/config.server';
 import { haversineM, PLACE_NEAR_ROUTE_M } from '../geo/proximity';

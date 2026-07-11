@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { parseGpx, type GpxTrack } from '../lib/gpx/parse';
 
 /** A media entry (photo or video) attached to a route. */

@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { cityDir } from '../lib/config/config.server';
 import type { AdminEvent } from '../types/admin';
 import { eventDetailFromGit, computeEventContentHash } from '../lib/models/event-model.server';

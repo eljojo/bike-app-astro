@@ -8,7 +8,7 @@ import type { Loader } from 'astro/loaders';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { cityDir } from '../lib/config/config.server';
 
 export interface EventMediaItem {
