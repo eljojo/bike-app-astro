@@ -18,6 +18,11 @@ vi.mock('../src/lib/env/env.service', () => ({
 // Mock D1 database with chainable methods
 const mockGetResult = vi.fn((): { githubSha: string; data: string } | null => null);
 const mockOnConflictDoUpdate = vi.fn();
+// Tracks db.delete(...) calls. Both the claim's stale-row cleanup and
+// releaseFormSubmission delete from form_submissions, so call count
+// distinguishes "claim released" (cleanup + release) from "claim kept" (cleanup
+// only) in the post-commit-failure tests.
+const mockDelete = vi.fn(() => ({ where: () => undefined }));
 // formSubmissions inserts throw on PK conflict; tests reach into this fn
 // to simulate either a successful claim or a duplicate-rejection.
 const mockFormSubmissionsInsert = vi.fn(() => undefined as unknown);
@@ -42,7 +47,7 @@ vi.mock('../src/lib/get-db', () => ({
       };
     },
     update: () => ({ set: () => ({ where: () => undefined }) }),
-    delete: () => ({ where: () => undefined }),
+    delete: () => mockDelete(),
   }),
 }));
 
@@ -378,5 +383,81 @@ describe('saveContent form_instance_id rejection', () => {
 
     expect(res.status).toBe(200);
     expect(mockFormSubmissionsInsert).not.toHaveBeenCalled();
+  });
+});
+
+// --- Commit landed → never a client-visible 500 that invites a duplicating retry ---
+
+describe('saveContent post-commit durability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadFile.mockResolvedValue(null); // new content (create flow)
+    mockGetResult.mockReturnValue(null);
+    mockFormSubmissionsInsert.mockReturnValue(undefined);
+    mockWriteFiles.mockResolvedValue('sha-new');
+    // clearAllMocks leaves implementations in place, so reset the throwing
+    // seams other tests install back to no-ops.
+    mockOnConflictDoUpdate.mockReset();
+    mockDelete.mockReset();
+    mockDelete.mockImplementation(() => ({ where: () => undefined }));
+  });
+
+  it('D1 cache write throws AFTER the commit lands: 200 with hash, claim kept, commit once even on retry', async () => {
+    // The git commit has already landed when the post-commit cache upsert blows
+    // up. The response must stay 200 (git is the source of truth) and the claim
+    // must NOT be released.
+    mockOnConflictDoUpdate.mockImplementation(() => {
+      throw new Error('D1 unavailable');
+    });
+
+    const req = makeRequest({ body: 'hello', form_instance_id: 'fi-cache-down' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.contentHash).toBeDefined();
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
+    // Claim NOT released: the only delete is the claim's stale-row cleanup.
+    // (A release would add a second delete.)
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+
+    // The client retries with the SAME form_instance_id. Because the claim was
+    // kept, the re-claim conflicts → 409, and no second commit happens: one
+    // logical create stays one committed file (no slug-2).
+    mockFormSubmissionsInsert.mockImplementation(() => {
+      throw new Error('UNIQUE constraint failed: form_submissions.form_instance_id');
+    });
+    const retry = makeRequest({ body: 'hello', form_instance_id: 'fi-cache-down' });
+    const retryRes = await saveContent(retry, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(retryRes.status).toBe(409);
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('pre-commit failure: 500, claim released, and a retry with the same id succeeds', async () => {
+    const explodingHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
+      ...stubHandlers,
+      async buildFileChanges() {
+        throw new Error('build blew up before commit');
+      },
+    };
+
+    const req = makeRequest({ body: 'hello', form_instance_id: 'fi-precommit' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'new' }, 'events', explodingHandlers);
+
+    expect(res.status).toBe(500);
+    expect(mockWriteFiles).not.toHaveBeenCalled();
+    // Claim released: claim cleanup delete + release delete = 2 delete calls.
+    expect(mockDelete).toHaveBeenCalledTimes(2);
+
+    // The freed claim lets a retry with the same id proceed to a real commit.
+    mockReadFile.mockResolvedValue(null);
+    mockFormSubmissionsInsert.mockReturnValue(undefined);
+    const retry = makeRequest({ body: 'hello', form_instance_id: 'fi-precommit' });
+    const retryRes = await saveContent(retry, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(retryRes.status).toBe(200);
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
   });
 });

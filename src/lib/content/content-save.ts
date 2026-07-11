@@ -85,6 +85,11 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
   const { user, update, formInstanceId, isNewRequest } = auth;
   let { contentId } = auth;
 
+  // Tracks whether the git commit landed. Git is the source of truth: once it
+  // lands, the claim maps to content that now exists and must NOT be released
+  // on a later error (see the outer catch).
+  let commitLanded = false;
+
   try {
     const baseBranch = env.GIT_BRANCH || 'main';
     const database = db();
@@ -139,6 +144,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     }
     const sha = await commitToContentRepo(message, files, authorInfo, git,
       deletePaths.length > 0 ? deletePaths : undefined);
+    commitLanded = true;
 
     const response = await updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
 
@@ -161,7 +167,14 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     return response;
   } catch (err: unknown) {
     console.error(`save ${contentType} error:`, err);
-    if (isNewRequest && formInstanceId) {
+    // Only release the claim when the commit did NOT land. If the commit
+    // succeeded but something after it still threw, the claim maps to content
+    // that now exists — releasing it would let the client's retry re-claim,
+    // find the just-committed file, and mint a duplicate (slug-2). Leave the
+    // claim in place and let its 7-day TTL reap it. With the best-effort cache
+    // guard in updateCacheAfterCommit, a post-commit throw here is near-
+    // impossible, but keep the 500 for genuinely unknown post-commit failures.
+    if (isNewRequest && formInstanceId && !commitLanded) {
       // Release the claim so the user can retry with the same form mount.
       // Best-effort: a failed release just leaves a stale row that the
       // 7-day TTL will clean up.
@@ -364,14 +377,26 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
   }
 
   const cacheData = handlers.buildFreshData(contentId, committedFiles);
+  // Hash is derived from the in-memory committed content, not from D1, so the
+  // response carries the correct contentHash even if the cache write below
+  // fails.
   const newContentHash = handlers.computeContentHash(committedFiles);
 
-  await upsertContentCache(database, {
-    contentType,
-    contentSlug: contentId,
-    data: cacheData,
-    githubSha: primaryBlobSha,
-  });
+  // The commit already landed — git is the source of truth. Treat the D1 cache
+  // refresh as best-effort: a failure here must NOT become a 500, because the
+  // client would retry an already-committed create and duplicate it. The stale
+  // D1 row self-heals on the next save, and admin reads fall back to build-time
+  // virtual-module data (fromCache) until then.
+  try {
+    await upsertContentCache(database, {
+      contentType,
+      contentSlug: contentId,
+      data: cacheData,
+      githubSha: primaryBlobSha,
+    });
+  } catch (err) {
+    console.error(`content cache update after commit failed (non-fatal) for ${contentType}/${contentId}:`, err);
+  }
 
   return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });
 }
