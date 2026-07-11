@@ -125,9 +125,11 @@ describe('readRouteDir', () => {
   });
 
   it('skips a route with invalid YAML frontmatter instead of throwing', () => {
-    // A tab cannot indent a YAML mapping — js-yaml (via gray-matter) throws.
+    // An unclosed flow sequence is a hard parse error in every js-yaml version.
+    // (Counterintuitively, gray-matter's js-yaml 3 ACCEPTS tab indentation, so
+    // a tab-based fixture parses fine and never exercises the guard.)
     const routePath = createRouteFixture('bad-frontmatter', {
-      frontmatter: 'name: Test Route\n\tbad: value',
+      frontmatter: 'name: [unclosed',
     });
     let result: ReturnType<typeof readRouteDir> = null;
     expect(() => { result = readRouteDir(routePath, 'bad-frontmatter'); }).not.toThrow();
@@ -145,7 +147,7 @@ describe('readRouteDir', () => {
   });
 
   it('still loads a valid sibling route in the same run as a malformed one', () => {
-    createRouteFixture('sibling-bad', { frontmatter: 'name: X\n\tbroken: y' });
+    createRouteFixture('sibling-bad', { frontmatter: 'name: [broken' });
     const goodPath = createRouteFixture('sibling-good');
 
     expect(readRouteDir(path.join(tmpDir, 'sibling-bad'), 'sibling-bad')).toBeNull();
