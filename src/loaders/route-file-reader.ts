@@ -67,7 +67,20 @@ export function readRouteDir(
 
   // Read index.md
   const indexMd = fs.readFileSync(indexPath, 'utf-8');
-  const { data: frontmatter, content: body } = matter(indexMd);
+  let frontmatter: Record<string, unknown>;
+  let body: string;
+  try {
+    const parsed = matter(indexMd);
+    frontmatter = parsed.data;
+    body = parsed.content;
+  } catch (err) {
+    // Malformed community-edited frontmatter (e.g. a YAML tab) must degrade to
+    // one skipped route, not a dead build. IO errors are not caught here.
+    console.error(
+      `[route-file-reader] Malformed frontmatter in route "${slug}" (${indexPath}): ${(err as Error).message} — skipping route`,
+    );
+    return null;
+  }
 
   // Read media.yml
   const mediaPath = path.join(routeAbsPath, 'media.yml');
@@ -75,7 +88,22 @@ export function readRouteDir(
   let mediaYml: string | undefined;
   if (fs.existsSync(mediaPath)) {
     mediaYml = fs.readFileSync(mediaPath, 'utf-8');
-    media = (yaml.load(mediaYml) as RouteMedia[]) || [];
+    try {
+      const parsedMedia = yaml.load(mediaYml);
+      // media.yml must be a list; a mapping or scalar is bad shape → ignore it
+      // rather than casting a non-array and corrupting downstream consumers.
+      media = Array.isArray(parsedMedia) ? (parsedMedia as RouteMedia[]) : [];
+      if (parsedMedia != null && !Array.isArray(parsedMedia)) {
+        console.error(
+          `[route-file-reader] media.yml for route "${slug}" (${mediaPath}) is not a list — ignoring media`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[route-file-reader] Malformed media.yml in route "${slug}" (${mediaPath}): ${(err as Error).message} — ignoring media`,
+      );
+      media = [];
+    }
   }
 
   // Parse GPX tracks referenced in frontmatter variants.
@@ -107,9 +135,21 @@ export function readRouteDir(
       const localePath = path.join(routeAbsPath, `index.${locale}.md`);
       if (!fs.existsSync(localePath)) continue;
       const raw = fs.readFileSync(localePath, 'utf-8');
-      const { data: fm, content: localeBody } = matter(raw);
+      let fm: Record<string, unknown>;
+      let localeBody: string;
+      try {
+        const parsed = matter(raw);
+        fm = parsed.data;
+        localeBody = parsed.content;
+      } catch (err) {
+        // A malformed translation degrades to base language only, not a dead build.
+        console.error(
+          `[route-file-reader] Malformed frontmatter in translation "${locale}" for route "${slug}" (${localePath}): ${(err as Error).message} — skipping translation`,
+        );
+        continue;
+      }
       translations[locale] = {
-        frontmatter: fm as Record<string, unknown>,
+        frontmatter: fm,
         body: localeBody.trim(),
       };
     }
