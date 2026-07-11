@@ -51,7 +51,7 @@ export interface SyncOptions {
 // ── Site-level sync (overview) ──────────────────────────────────────
 // Two Plausible queries fired IN PARALLEL, then batch upserts.
 
-export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<{ dailyRows: number; contentPages: number }> {
+export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<{ dailyRows: number; contentPages: number; syncFailed?: boolean }> {
   let fromDate: string;
   if (opts.full) {
     fromDate = '2020-01-01';
@@ -66,21 +66,26 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
 
   const today = new Date().toISOString().split('T')[0];
 
-  // Fire Plausible queries in parallel — page metrics + custom events
+  // Fire Plausible queries in parallel — page metrics + custom events.
+  // dailyRows/pageRows are load-bearing: below, we delete-then-rebuild content_totals
+  // and content_engagement from their output. If either failed, bail out before that
+  // rewrite (see primaryQueryFailed check) rather than let empty results wipe months
+  // of existing synced data — a broken key must degrade the dashboard, not blank it.
+  let primaryQueryFailed = false;
   const [dailyRows, pageRows, videoPlayRows, mapExpandRows] = await Promise.all([
     queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
       metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
       dateRange: [fromDate, today],
       dimensions: ['time:day'],
-    }),
+    }).catch(() => { primaryQueryFailed = true; return []; }),
     queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
       metrics: ['pageviews', 'visitors', 'visit_duration', 'bounce_rate'],
       dateRange: [fromDate, today],
       dimensions: ['event:page'],
       pagination: { limit: 10000 },
-    }),
+    }).catch(() => { primaryQueryFailed = true; return []; }),
     // Custom event: play video (per page)
     queryPlausible(opts.apiKey, {
       siteId: opts.siteId,
@@ -100,6 +105,10 @@ export async function syncSiteMetrics(db: Database, opts: SyncOptions): Promise<
       pagination: { limit: 10000 },
     }).catch(() => []),
   ]);
+
+  if (primaryQueryFailed) {
+    return { dailyRows: 0, contentPages: 0, syncFailed: true };
+  }
 
   const dailyMetrics = processDailyAggregate(dailyRows, opts.city);
 
@@ -665,7 +674,7 @@ export async function ensureGpxDownloadData(
 
 // ── Legacy runSync (sync API endpoint) ──────────────────────────────
 
-export async function runSync(db: Database, opts: SyncOptions): Promise<{ contentPages: number; skippedPaths: number; dailyRows: number }> {
+export async function runSync(db: Database, opts: SyncOptions): Promise<{ contentPages: number; skippedPaths: number; dailyRows: number; syncFailed?: boolean }> {
   const result = await syncSiteMetrics(db, opts);
-  return { contentPages: result.contentPages, skippedPaths: 0, dailyRows: result.dailyRows };
+  return { contentPages: result.contentPages, skippedPaths: 0, dailyRows: result.dailyRows, syncFailed: result.syncFailed };
 }
