@@ -115,6 +115,15 @@ export function buildSessionBatch(
   return { token, statements };
 }
 
+/**
+ * Build a statement that revokes every session for a user.
+ * Used to rotate sessions on privilege elevation: a token planted before the
+ * account gained editor rights must not survive the change (session fixation).
+ */
+export function buildRevokeAllSessionsStatement(db: DbClient, userId: string): unknown {
+  return db.delete(sessions).where(eq(sessions.userId, userId));
+}
+
 export function buildCredentialInsert(
   database: DbClient,
   userId: string,

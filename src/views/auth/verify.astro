@@ -3,55 +3,21 @@ export const prerender = false;
 
 import AuthCardLayout from '../../components/AuthCardLayout.astro';
 import { db } from '../../lib/get-db';
-import { emailTokens, users } from '../../db/schema';
-import { createSessionWithCookies } from '../../lib/auth/auth';
-import { eq, and, gt, isNull, sql } from 'drizzle-orm';
-import { withBatch } from '../../db/transaction';
+import { setSessionCookies } from '../../lib/auth/auth';
+import { consumeMagicLinkToken } from './verify.server';
 
 const token = Astro.url.searchParams.get('token');
 let error = '';
 
 if (token) {
-  const database = db();
-  const now = new Date().toISOString();
+  const result = await consumeMagicLinkToken(db(), token);
 
-  // Find valid, unused token
-  const result = await database
-    .select()
-    .from(emailTokens)
-    .where(
-      and(
-        eq(emailTokens.token, token),
-        gt(emailTokens.expiresAt, now),
-        isNull(emailTokens.usedAt),
-      ),
-    )
-    .limit(1);
-
-  const tokenRow = result[0];
-
-  if (tokenRow && tokenRow.userId) {
-    // Atomically: mark token as used + set emailVerified and upgrade guest to editor
-    await withBatch(database, (tx) => [
-      tx.update(emailTokens)
-        .set({ usedAt: now })
-        .where(eq(emailTokens.id, tokenRow.id)),
-      tx.update(users)
-        .set({
-          emailVerified: 1,
-          role: sql`CASE WHEN ${users.role} = 'guest' THEN 'editor' ELSE ${users.role} END`,
-        })
-        .where(eq(users.id, tokenRow.userId)),
-    ]);
-
-    // Create session
-    await createSessionWithCookies(database, tokenRow.userId, Astro.cookies);
-
-    // Redirect to admin
+  if (result.ok) {
+    setSessionCookies(Astro.cookies, result.token);
     return Astro.redirect('/admin');
-  } else {
-    error = 'This link is invalid or has expired. Please request a new one.';
   }
+
+  error = result.error;
 } else {
   error = 'No verification token provided.';
 }
