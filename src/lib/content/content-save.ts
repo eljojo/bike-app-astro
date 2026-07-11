@@ -258,6 +258,23 @@ export async function readCurrentState(
   return { primaryFile, auxiliaryFiles };
 }
 
+/**
+ * Resolve the file that actually holds the content. Directory-based content
+ * keeps it at the primary path (index.md); flat-format events keep it in an
+ * auxiliary `.md` sibling (year/slug.md), so primaryFile is null even though
+ * content exists. Returns null only when nothing exists yet (a genuine create,
+ * where there is nothing to conflict against).
+ */
+function resolveEffectivePrimary(currentFiles: CurrentFiles): GitFiles['primaryFile'] {
+  if (currentFiles.primaryFile) return currentFiles.primaryFile;
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  for (const p of Object.keys(auxFiles)) {
+    const f = auxFiles[p];
+    if (f && p.endsWith('.md')) return f;
+  }
+  return null;
+}
+
 async function detectConflict<T extends { contentHash?: string }, R extends BuildResult>(
   database: ReturnType<typeof db>,
   contentType: string,
@@ -267,7 +284,8 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
   handlers: SaveHandlers<T, R>,
   baseBranch: string,
 ): Promise<Response | null> {
-  if (!currentFiles.primaryFile) return null;
+  const effectivePrimary = resolveEffectivePrimary(currentFiles);
+  if (!effectivePrimary) return null;
 
   const cached = await database.select({ githubSha: contentEdits.githubSha }).from(contentEdits)
     .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
@@ -275,7 +293,7 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
 
   let hasConflict = false;
   if (cached) {
-    hasConflict = cached.githubSha !== currentFiles.primaryFile.sha;
+    hasConflict = cached.githubSha !== effectivePrimary.sha;
   } else if (update.contentHash) {
     const currentHash = handlers.computeContentHash(currentFiles);
     hasConflict = currentHash !== update.contentHash;
@@ -288,7 +306,7 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
     contentType,
     contentSlug: contentId,
     data: freshData,
-    githubSha: currentFiles.primaryFile.sha,
+    githubSha: effectivePrimary.sha,
   });
 
   return jsonResponse({
@@ -350,6 +368,12 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
     committedPrimary = files.find(f => filePaths.auxiliary!.includes(f.path) && f.path.endsWith('.md'));
   }
   if (!committedPrimary) {
+    // Invariant: a landed commit for content saved through this pipeline always
+    // touches the effective primary `.md` (directory index.md or flat sibling).
+    // Reaching here means we can neither refresh the D1 row nor return a real
+    // contentHash, so the client's compare-and-swap state goes stale and its
+    // next save may false-conflict. Log loudly rather than swallow it.
+    console.error(`updateCacheAfterCommit: committed primary not found for ${contentType}/${contentId} — D1 cache not refreshed and no contentHash returned`);
     return jsonResponse({ success: true, sha, id: contentId });
   }
 

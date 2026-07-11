@@ -322,6 +322,90 @@ describe('saveContent afterCommit isolation', () => {
   });
 });
 
+// --- Flat-format events get conflict detection like everything else ---
+//
+// Flat events live at `events/<year>/<slug>.md` (an auxiliary path) instead of
+// `events/<year>/<slug>/index.md` (the primary path), so `primaryFile` is null
+// even though content exists. The pipeline must resolve the effective primary
+// from that auxiliary `.md` and run conflict detection + cache refresh against
+// it — otherwise two editors silently last-write-wins.
+
+describe('saveContent flat-format events', () => {
+  // Effective primary = primaryFile if present, else the auxiliary `.md`.
+  function effective(files: import('../src/lib/models/content-model').GitFiles) {
+    if (files.primaryFile) return files.primaryFile;
+    for (const [p, f] of Object.entries(files.auxiliaryFiles || {})) {
+      if (f && p.endsWith('.md')) return f;
+    }
+    return null;
+  }
+
+  const flatEventHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
+    parseRequest: (b: unknown) => b as { body: string; contentHash?: string },
+    resolveContentId: (params) => params.slug!,
+    getFilePaths: (id) => ({
+      primary: `events/${id}/index.md`,
+      auxiliary: [`events/${id}.md`, `events/${id}/media.yml`],
+    }),
+    computeContentHash: (files) => `hash-${effective(files)?.content?.length || 0}`,
+    buildFreshData: (_id, files) => JSON.stringify({ body: effective(files)?.content }),
+    async buildFileChanges(update, id, files) {
+      return {
+        // Flat events commit to the sibling `.md`, never the directory index.md.
+        files: [{ path: `events/${id}.md`, content: update.body }],
+        deletePaths: [],
+        isNew: !effective(files),
+      };
+    },
+    buildCommitMessage: (_u, id, isNew) => isNew ? `Create ${id}` : `Update ${id}`,
+    buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/events/${id}.md`,
+  };
+
+  const eventId = '2026/audax-200';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // index.md (primary) does not exist; the flat sibling holds the content.
+    mockReadFile.mockImplementation((path: string) => {
+      if (path === `events/${eventId}.md`) {
+        return Promise.resolve({ content: 'old flat body', sha: 'sha-flat' });
+      }
+      return Promise.resolve(null); // index.md and media.yml
+    });
+    mockGetResult.mockReturnValue(null);
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('stale D1 githubSha → 409 conflict (no silent last-write-wins)', async () => {
+    // D1 remembers a SHA that no longer matches the flat file on git.
+    mockGetResult.mockReturnValue({ githubSha: 'sha-stale', data: '{}' });
+
+    const req = makeRequest({ body: 'my edit' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: eventId }, 'events', flatEventHandlers);
+
+    expect(res.status).toBe(409);
+    const data = await res.json();
+    expect(data.conflict).toBe(true);
+    expect(mockWriteFiles).not.toHaveBeenCalled();
+  });
+
+  it('save refreshes D1 cache and response carries a contentHash', async () => {
+    // D1 SHA matches the flat file → no conflict, commit proceeds.
+    mockGetResult.mockReturnValue({ githubSha: 'sha-flat', data: '{}' });
+
+    const req = makeRequest({ body: 'new flat body' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: eventId }, 'events', flatEventHandlers);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.contentHash).toBeDefined();
+    expect(mockWriteFiles).toHaveBeenCalledOnce();
+    // Cache upsert ran against the committed flat file, not skipped.
+    expect(mockOnConflictDoUpdate).toHaveBeenCalled();
+  });
+});
+
 describe('saveContent form_instance_id rejection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
