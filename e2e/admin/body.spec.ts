@@ -41,3 +41,19 @@ test.describe('Admin Route Editor', () => {
   });
 
 });
+
+// -------------------------------------------------------------------------
+// Guest/anonymous path — the route editor read view is a highest-traffic
+// guest-reachable page (BROWSABLE_ADMIN_PREFIXES includes '/admin/routes/').
+// No loginAs(): a brand-new visitor with no session cookie.
+// -------------------------------------------------------------------------
+test.describe('Admin Route Editor — anonymous visitor', () => {
+  test('anonymous visitor reaches the route editor, not bounced to /login', async ({ page }) => {
+    await page.goto('/admin/routes/carp');
+    await page.waitForLoadState('networkidle');
+
+    expect(page.url()).not.toContain('/login');
+
+    await expect(page.locator('#route-name')).toBeVisible({ timeout: 10000 });
+  });
+});
