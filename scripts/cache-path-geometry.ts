@@ -220,6 +220,13 @@ if (!dryRun && fs.existsSync(FIXTURE_DIR)) {
 
 let processed = 0;
 
+// Per-entry fetch failures — tile generation reads the manifest and silently
+// filters it down to files that exist on disk, so a failed fetch with no
+// cached fallback drops that path's geometry from the map with no signal.
+// Collected here so we can fail the build loudly once, after all passes run.
+type FetchFailure = { slug: string; name?: string; file: string; outPath: string };
+const failures: FetchFailure[] = [];
+
 // --- Pass 1: Relation-based entries ---
 for (const entry of relationEntries) {
   for (const relId of entry.osm_relations ?? []) {
@@ -234,6 +241,7 @@ for (const entry of relationEntries) {
 
     const query = `[out:json][timeout:60];relation(${relId});(._;>;);out geom;`;
     if (await fetchAndProcess(query, relId, outPath)) processed++;
+    else failures.push({ slug: entry.slug, name: entry.name, file, outPath });
   }
 }
 
@@ -252,6 +260,7 @@ if (wayIdEntries.length > 0) {
     const wayIds = entry.osm_way_ids!;
     const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
     if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
+    else failures.push({ slug: entry.slug, name: entry.name, file, outPath });
   }
 }
 
@@ -269,6 +278,7 @@ for (const entry of nameEntries) {
   const bbox = anchorBbox(entry.anchors!);
   const query = buildNameQuery(entry.osm_names!, bbox);
   if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
+  else failures.push({ slug: entry.slug, name: entry.name, file, outPath });
 }
 
 // --- Pass 3: Segment-based entries (query individual ways by ID) ---
@@ -285,6 +295,7 @@ for (const entry of segmentEntries) {
   const wayIds = entry.segments!.map(s => s.osm_way);
   const query = `[out:json][timeout:60];\n(\n${wayIds.map(id => `way(${id});`).join('\n')}\n);\nout geom;`;
   if (await fetchAndProcess(query, entry.slug, outPath)) processed++;
+  else failures.push({ slug: entry.slug, name: entry.name, file, outPath });
 }
 
 // --- Pass 4: Parallel-to entries — unnamed cycleways alongside named roads ---
@@ -317,10 +328,33 @@ way["highway"="cycleway"][!"name"](around.road:30);
 out geom;`;
 
     if (await fetchAndProcess(query, `parallel-${entry.slug}`, outPath)) processed++;
+    else failures.push({ slug: entry.slug, name: entry.name, file, outPath });
   }
 }
 
 console.log(`[path-geo] Done. Processed: ${processed}, Fixtured: ${fixturedFiles.size}`);
+
+// --- Failure summary: every failure above is for a file the manifest will list
+//     as active (geoFilesForEntry), but generate-path-tiles only reads files
+//     that actually exist on disk — so a failure with no prior cached file
+//     silently drops that path's geometry from the map. A failure that still
+//     has a stale file from a previous successful run is lower-severity
+//     (stale beats missing): warn and keep going.
+if (!dryRun && failures.length > 0) {
+  const stale = failures.filter(f => fs.existsSync(f.outPath));
+  const missing = failures.filter(f => !fs.existsSync(f.outPath));
+
+  if (stale.length > 0) {
+    console.warn(`[path-geo] ⚠ ${stale.length} fetch(es) failed but a stale cached file remains (will be used as-is):`);
+    for (const f of stale) console.warn(`    ${f.file} (${f.slug} — ${f.name ?? ''})`);
+  }
+
+  if (missing.length > 0) {
+    console.error(`[path-geo] ✗ ${missing.length} fetch(es) failed with no cached fallback — geometry will be silently dropped from the map:`);
+    for (const f of missing) console.error(`    ${f.file} (${f.slug} — ${f.name ?? ''})`);
+    process.exit(1);
+  }
+}
 
 // --- Verification pass: for entries whose Overpass query was bbox-filtered
 //     (name- and parallel- passes), the fetched geometry's centroid must
