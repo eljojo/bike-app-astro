@@ -1,3 +1,6 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Account-settings island: passkey/strava/settings writes are authenticated-only.
+   A 401 means the session lapsed — re-authenticate, don't mint a guest. */
 import { useState } from 'preact/hooks';
 import { useHydrated } from '../../lib/hooks';
 import { startRegistration } from '@simplewebauthn/browser';

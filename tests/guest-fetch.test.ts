@@ -91,8 +91,55 @@ describe('fetchWithGuest', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const onGuestCreated = vi.fn();
-    await fetchWithGuest('/api/media/presign', { method: 'POST' }, onGuestCreated);
+    await fetchWithGuest('/api/media/presign', { method: 'POST' }, { onGuestCreated });
 
+    expect(onGuestCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it('silent mode: mint failure returns null without navigating', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/auth/guest') return jsonResponse(404, { error: 'guests disabled' });
+      return jsonResponse(401, { error: 'Unauthorized' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const location = { pathname: '/routes/x', href: '/routes/x' };
+    vi.stubGlobal('window', { location });
+
+    const res = await fetchWithGuest('/api/reactions', { method: 'POST' }, { onAuthFail: 'silent' });
+
+    expect(res).toBeNull();
+    expect(location.href).toBe('/routes/x'); // stayed put, no redirect
+  });
+
+  it('redirect mode (default): mint failure navigates to /login', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/auth/guest') return jsonResponse(404, { error: 'guests disabled' });
+      return jsonResponse(401, { error: 'Unauthorized' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const location = { pathname: '/routes/x', href: '/routes/x' };
+    vi.stubGlobal('window', { location });
+
+    const res = await fetchWithGuest('/api/reactions', { method: 'POST' });
+
+    expect(res).toBeNull();
+    expect(location.href).toContain('/login');
+  });
+
+  it('silent mode: on successful mint it still retries and returns the response', async () => {
+    let targetCalls = 0;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/auth/guest') return jsonResponse(200, { success: true });
+      targetCalls++;
+      return targetCalls === 1 ? jsonResponse(401, { error: 'Unauthorized' }) : jsonResponse(200, { ok: true });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const onGuestCreated = vi.fn();
+    const res = await fetchWithGuest('/api/reactions', { method: 'POST' }, { onAuthFail: 'silent', onGuestCreated });
+
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(200);
     expect(onGuestCreated).toHaveBeenCalledTimes(1);
   });
 });

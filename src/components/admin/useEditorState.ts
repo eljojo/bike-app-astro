@@ -72,7 +72,7 @@ export function useEditorState(opts: EditorStateOptions) {
         body: JSON.stringify(payload),
       };
 
-      const res = await fetchWithGuest(url, fetchOptions, () => setGuestCreated(true));
+      const res = await fetchWithGuest(url, fetchOptions, { onGuestCreated: () => setGuestCreated(true) });
       // null = guest creation failed and fetchWithGuest already redirected to
       // /login. The page is navigating away, so leaving `saving` true is fine
       // (the component unmounts) — same rationale as the create path.

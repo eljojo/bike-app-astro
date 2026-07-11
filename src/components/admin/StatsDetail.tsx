@@ -1,3 +1,6 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Admin island: the stats-sync write is an authenticated-only endpoint. A 401
+   means the admin session lapsed, not that a guest should be minted. */
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { Chart, registerables } from 'chart.js';
 import { useHydrated } from '../../lib/hooks';

@@ -8,12 +8,24 @@
  * just after the in-flight creation settles can still mint a second guest —
  * harmless, since guest creation is idempotent and rate-limited per IP.
  *
- * Returns the final Response, or null if guest creation failed and the
- * caller was redirected to /login.
+ * Returns the final Response, or null if guest creation failed. On that failure
+ * the default behaviour (onAuthFail: 'redirect') sends the browser to /login;
+ * public widgets that must stay non-disruptive pass onAuthFail: 'silent', which
+ * returns null without touching the location so the caller can no-op.
  *
  * Browser-safe: no server-only imports. Guards `window` so it is unit-testable
  * under Vitest's node environment.
  */
+interface GuestFetchOptions {
+  /** Fired once after a guest is successfully minted (before the retry). */
+  onGuestCreated?: () => void;
+  /**
+   * What to do when guest creation fails. 'redirect' (default) sends the user
+   * to /login; 'silent' returns null and leaves the page untouched.
+   */
+  onAuthFail?: 'redirect' | 'silent';
+}
+
 let guestCreation: Promise<boolean> | null = null;
 
 function createGuest(): Promise<boolean> {
@@ -39,14 +51,16 @@ function createGuest(): Promise<boolean> {
 export async function fetchWithGuest(
   url: string,
   options: RequestInit,
-  onGuestCreated?: () => void,
+  guestOptions: GuestFetchOptions = {},
 ): Promise<Response | null> {
+  const { onGuestCreated, onAuthFail = 'redirect' } = guestOptions;
+
   const res = await fetch(url, options);
   if (res.status !== 401) return res;
 
   const created = await createGuest();
   if (!created) {
-    if (typeof window !== 'undefined') {
+    if (onAuthFail === 'redirect' && typeof window !== 'undefined') {
       const returnTo = encodeURIComponent(window.location.pathname);
       window.location.href = `/login?returnTo=${returnTo}`;
     }
