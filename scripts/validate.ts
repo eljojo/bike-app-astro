@@ -2,6 +2,7 @@ import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
 import { cityDir } from '../src/lib/config/config.server';
+import { loadBikePathEntries } from '../src/lib/bike-paths/bike-path-entries.server';
 
 // Cloudflare adapter outputs to dist/client/, plain Astro to dist/
 const base = path.resolve('dist');
@@ -74,9 +75,30 @@ if (fs.existsSync(guidesDir)) {
   }
 }
 
+// Check bike path detail pages exist for every standalone entry. `standalone` is
+// the single source of truth for "does this have a page" (see bike-path-entries.server.ts)
+// — it already encodes the isDestination rule (type, markdown overrides, network
+// aggregation eligibility), so we don't hand-roll type-based filtering here.
+// Members of a network live at /bike-paths/<network>/<slug>; everything else
+// (standalone paths and network pages themselves) is flat at /bike-paths/<slug>.
+const bikepathsYmlPath = path.join(cityDir, 'bikepaths.yml');
+let bikePathCount = 0;
+if (fs.existsSync(bikepathsYmlPath)) {
+  const { pages: bikePathPages } = loadBikePathEntries();
+  const standalonePages = bikePathPages.filter(p => p.standalone);
+  bikePathCount = standalonePages.length;
+  for (const page of standalonePages) {
+    const urlPath = page.memberOf ? `bike-paths/${page.memberOf}/${page.slug}` : `bike-paths/${page.slug}`;
+    if (!fs.existsSync(path.join(distDir, urlPath, 'index.html'))) {
+      console.error(`MISSING BIKE PATH: /${urlPath}`);
+      errors++;
+    }
+  }
+}
+
 const routeCount = fs.existsSync(routesDir) ? fs.readdirSync(routesDir).filter(s => fs.statSync(path.join(routesDir, s)).isDirectory() && fs.existsSync(path.join(routesDir, s, 'index.md'))).length : 0;
 const guideCount = fs.existsSync(guidesDir) ? fs.readdirSync(guidesDir).filter(f => f.endsWith('.md') && !/\.\w{2}\.md$/.test(f)).length : 0;
 const gpxCount = fs.existsSync(distDir) ? fs.readdirSync(path.join(distDir, 'routes'), { recursive: true }).filter(f => String(f).endsWith('.gpx')).length : 0;
-console.log(`Checked ${expectedPages.length} pages, ${routeCount} routes, ${guideCount} guides, ${gpxCount} GPX files`);
+console.log(`Checked ${expectedPages.length} pages, ${routeCount} routes, ${guideCount} guides, ${gpxCount} GPX files, ${bikePathCount} bike paths`);
 console.log(`\nValidation: ${errors === 0 ? 'PASS' : `FAIL — ${errors} errors`}`);
 process.exit(errors > 0 ? 1 : 0);
