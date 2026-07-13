@@ -239,7 +239,10 @@ for (const entry of relationEntries) {
       continue;
     }
 
-    const query = `[out:json][timeout:60];relation(${relId});(._;>;);out geom;`;
+    // `>>` (recurse down relations), not `>`: long-distance trails are modelled
+    // as superrelations whose members are other relations. `>` stops at the
+    // parent's direct way members — for a superrelation that is zero ways.
+    const query = `[out:json][timeout:60];relation(${relId});(._;>>;);out geom;`;
     if (await fetchAndProcess(query, relId, outPath)) processed++;
     else failures.push({ slug: entry.slug, name: entry.name, file, outPath });
   }
