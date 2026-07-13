@@ -16,6 +16,17 @@
             builtins.elem (pkgs.lib.getName pkg) [ "corefonts" "codeql" ];
         };
         pw = playwright.packages.${system};
+
+        # Every e2e project runs chromium (e2e/playwright.config.ts, e2e/*/fixture.ts),
+        # so drop firefox and webkit from the browser set. Not just weight: webkit's
+        # auto-patchelf step is broken upstream (missing libenchant-2), and building
+        # it is a prerequisite of entering the shell — one broken browser we never
+        # launch took `nix develop` down entirely. Chromium keeps its headless shell,
+        # which is what playwright actually spawns in headless mode.
+        pwBrowsers = pw.playwright-driver.browsers.override {
+          withFirefox = false;
+          withWebkit = false;
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -33,7 +44,7 @@
           shellHook = ''
             export NODE_ENV=development
             echo "bike-a-zine dev shell (node $(node -v))"
-            export PLAYWRIGHT_BROWSERS_PATH="${pw.playwright-driver.browsers}"
+            export PLAYWRIGHT_BROWSERS_PATH="${pwBrowsers}"
             export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
             export FONTCONFIG_FILE=${pkgs.makeFontsConf { fontDirectories = [ pkgs.noto-fonts-color-emoji pkgs.corefonts ]; }}
 
