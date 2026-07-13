@@ -5,19 +5,19 @@ import { isBlogInstance, isClubInstance } from '../lib/config/city-config';
 /** Resolve a view path relative to this file's location (works from node_modules too). */
 const view = (rel: string) => new URL(`../views/${rel}`, import.meta.url).pathname;
 
-interface LocalePage {
+export interface LocalePage {
   pattern: string;
   entrypoint: string;
 }
 
 /** Pages shared between both wiki and blog instance types. */
-const sharedPages: LocalePage[] = [
+export const sharedPages: LocalePage[] = [
   { pattern: '/', entrypoint: view('index.astro') },
   { pattern: '/about', entrypoint: view('about.astro') },
 ];
 
 /** Wiki-only pages. */
-const wikiPages: LocalePage[] = [
+export const wikiPages: LocalePage[] = [
   { pattern: '/calendar', entrypoint: view('calendar.astro') },
   { pattern: '/communities', entrypoint: view('communities-index.astro') },
   { pattern: '/communities/[slug]', entrypoint: view('community-detail.astro') },
@@ -49,7 +49,7 @@ const wikiPages: LocalePage[] = [
 ];
 
 /** Blog-only pages. */
-const blogPages: LocalePage[] = [
+export const blogPages: LocalePage[] = [
   { pattern: '/rides', entrypoint: view('rides/index.astro') },
   { pattern: '/rides/[slug]', entrypoint: view('rides/detail.astro') },
   { pattern: '/rides/[slug]/map', entrypoint: view('rides/map.astro') },
@@ -70,7 +70,7 @@ const blogStaticRoutes = [
 ];
 
 /** Club-only pages (randonneuring clubs, cycling organizations). */
-const clubPages: LocalePage[] = [
+export const clubPages: LocalePage[] = [
   { pattern: '/communities', entrypoint: view('communities-index.astro') },
   { pattern: '/communities/[slug]', entrypoint: view('community-detail.astro') },
   { pattern: '/events', entrypoint: view('events/index.astro') },

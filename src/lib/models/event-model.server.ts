@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';
 import { eventMediaItemSchema, eventDetailToCache } from './event-model';
@@ -91,6 +91,9 @@ export function eventDetailFromGit(
     past_slugs: (frontmatter.past_slugs as string[]) ?? [],
     previous_event: frontmatter.previous_event as string | undefined,
     edition: frontmatter.edition as string | undefined,
+    banner_text: frontmatter.banner_text as string | undefined,
+    ics_uid: frontmatter.ics_uid as string | undefined,
+    linked_routes: frontmatter.linked_routes as EventDetail['linked_routes'],
     event_url: frontmatter.event_url as string | undefined,
     map_url: frontmatter.map_url as string | undefined,
     meet_time: frontmatter.meet_time as string | undefined,

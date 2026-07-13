@@ -60,14 +60,18 @@ const tabLabel = contentNav.find(n => n.tab === currentTab)?.label
       <span class="admin-user-caret">&#9662;</span>
     </button>
     <div class="admin-user-dropdown" id="user-menu-dropdown" role="menu">
-      <a href="/admin/settings" class="admin-user-dropdown-item">
-        Settings
-        {!user.hasPasskey && user.role !== 'guest' && (
-          <span class="settings-nudge-dot" />
-        )}
-      </a>
-      {user.role === 'guest' && features.allowsRegistration && (
-        <a href="/login" class="admin-user-dropdown-item">Create account</a>
+      {user.role !== 'guest' && (
+        <a href="/admin/settings" class="admin-user-dropdown-item">
+          Settings
+          {!user.hasPasskey && (
+            <span class="settings-nudge-dot" />
+          )}
+        </a>
+      )}
+      {user.role === 'guest' && (
+        <a href="/admin/settings" class="admin-user-dropdown-item">
+          {features.allowsRegistration ? 'Create account' : 'Settings'}
+        </a>
       )}
       <form method="POST" action="/api/auth/logout" class="logout-form">
         <button type="submit" class="admin-user-dropdown-item">Sign out</button>

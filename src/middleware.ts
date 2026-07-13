@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { ANONYMOUS_USER, validateSession } from './lib/auth/auth';
+import { ANONYMOUS_USER, validateSession, type SessionUser } from './lib/auth/auth';
 import { jsonError } from './lib/api-response';
 import { db } from './lib/get-db';
 import { buildNonceCspHeader, createCspNonce } from './lib/csp';
@@ -12,8 +12,13 @@ import { supportedLocales, defaultLocale } from './lib/i18n/locale-utils';
 const NONCE_CSP_PATHS = new Set(['/login', '/register', '/setup', '/auth/verify']);
 
 /** Admin paths that can be browsed without authentication.
- * Exact match after stripping trailing slashes. */
-const BROWSABLE_ADMIN_PATHS = new Set([
+ * Exact match after stripping trailing slashes.
+ *
+ * Content-type list paths here MUST stay in sync with the content type registry
+ * (content-types.server.ts) — tests/middleware-allowlist-contract.test.ts fails
+ * the build if they drift. `/admin` and `/admin/history` are non-content-type
+ * browsable pages tracked in that test's exclusion list. */
+export const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin',
   '/admin/routes',
   '/admin/rides',
@@ -24,9 +29,12 @@ const BROWSABLE_ADMIN_PATHS = new Set([
   '/admin/history',
 ]);
 
-/** Admin path prefixes where any sub-path is browsable (editor pages). */
-const BROWSABLE_ADMIN_PREFIXES = [
+/** Admin path prefixes where any sub-path is browsable (editor pages).
+ * One `<list>/` prefix per content type — kept in sync with the registry by the
+ * allowlist contract test. */
+export const BROWSABLE_ADMIN_PREFIXES = [
   '/admin/routes/',
+  '/admin/rides/',
   '/admin/events/',
   '/admin/places/',
   '/admin/communities/',
@@ -50,6 +58,15 @@ function isBrowsableAdmin(pathname: string): boolean {
 
 function needsNonceCsp(pathname: string): boolean {
   return pathname.startsWith('/admin') || NONCE_CSP_PATHS.has(pathname);
+}
+
+/** Minimal 503 for page requests when the session store (D1) is unreachable. */
+function serviceUnavailablePage(): Response {
+  return new Response(
+    '<!doctype html><meta charset="utf-8"><title>Service unavailable</title>' +
+    '<p>The service is temporarily unavailable. Please try again in a moment.</p>',
+    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+  );
 }
 
 function isHtmlResponse(response: Response): boolean {
@@ -213,17 +230,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const database = db();
     const token = context.cookies.get('session_token')?.value;
     if (token) {
-      const user = await validateSession(database, token);
-      if (user && !user.bannedAt) {
-        context.locals.user = user;
-      } else if (!user) {
-        // Clear stale cookies but don't redirect — fall through to anonymous
-        context.cookies.delete('session_token', { path: '/' });
-        context.cookies.delete('logged_in', { path: '/' });
-      } else if (user.bannedAt) {
-        // Banned: clear cookies so we don't re-validate on every request
-        context.cookies.delete('session_token', { path: '/' });
-        context.cookies.delete('logged_in', { path: '/' });
+      try {
+        const user = await validateSession(database, token);
+        if (user && !user.bannedAt) {
+          context.locals.user = user;
+        } else if (!user) {
+          // Clear stale cookies but don't redirect — fall through to anonymous
+          context.cookies.delete('session_token', { path: '/' });
+          context.cookies.delete('logged_in', { path: '/' });
+        } else if (user.bannedAt) {
+          // Banned: clear cookies so we don't re-validate on every request
+          context.cookies.delete('session_token', { path: '/' });
+          context.cookies.delete('logged_in', { path: '/' });
+        }
+      } catch (err) {
+        // D1 outage: a browsable page must not 500. Serve it anonymously
+        // (falls through to ANONYMOUS_USER below) rather than block the reader.
+        console.error('validateSession failed on browsable admin path; serving anonymous:', err);
       }
     }
     if (!context.locals.user) {
@@ -244,7 +267,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`/login?returnTo=${returnTo}`);
   }
 
-  const user = await validateSession(database, token);
+  let user: SessionUser | null;
+  try {
+    user = await validateSession(database, token);
+  } catch (err) {
+    // D1 outage: fail closed with 503 rather than 500 or silently granting access.
+    console.error('validateSession failed on protected path:', err);
+    if (pathname.startsWith('/api/')) {
+      return jsonError('Service unavailable', 503);
+    }
+    return serviceUnavailablePage();
+  }
   if (!user) {
     // Clear stale cookies
     context.cookies.delete('session_token', { path: '/' });

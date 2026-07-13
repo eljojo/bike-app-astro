@@ -1,3 +1,7 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Account-upgrade island: the caller is already an authenticated (guest) session
+   promoting itself. A 401 means that session lapsed — re-authenticate, don't
+   silently mint another guest. */
 import { useState, useEffect } from 'preact/hooks';
 import { generateUsernameFromEmail, isValidUsername } from '../../lib/username';
 

@@ -18,6 +18,11 @@ vi.mock('../src/lib/env/env.service', () => ({
 // Mock D1 database with chainable methods
 const mockGetResult = vi.fn((): { githubSha: string; data: string } | null => null);
 const mockOnConflictDoUpdate = vi.fn();
+// Tracks db.delete(...) calls. Both the claim's stale-row cleanup and
+// releaseFormSubmission delete from form_submissions, so call count
+// distinguishes "claim released" (cleanup + release) from "claim kept" (cleanup
+// only) in the post-commit-failure tests.
+const mockDelete = vi.fn(() => ({ where: () => undefined }));
 // formSubmissions inserts throw on PK conflict; tests reach into this fn
 // to simulate either a successful claim or a duplicate-rejection.
 const mockFormSubmissionsInsert = vi.fn(() => undefined as unknown);
@@ -42,7 +47,7 @@ vi.mock('../src/lib/get-db', () => ({
       };
     },
     update: () => ({ set: () => ({ where: () => undefined }) }),
-    delete: () => ({ where: () => undefined }),
+    delete: () => mockDelete(),
   }),
 }));
 
@@ -317,6 +322,90 @@ describe('saveContent afterCommit isolation', () => {
   });
 });
 
+// --- Flat-format events get conflict detection like everything else ---
+//
+// Flat events live at `events/<year>/<slug>.md` (an auxiliary path) instead of
+// `events/<year>/<slug>/index.md` (the primary path), so `primaryFile` is null
+// even though content exists. The pipeline must resolve the effective primary
+// from that auxiliary `.md` and run conflict detection + cache refresh against
+// it — otherwise two editors silently last-write-wins.
+
+describe('saveContent flat-format events', () => {
+  // Effective primary = primaryFile if present, else the auxiliary `.md`.
+  function effective(files: import('../src/lib/models/content-model').GitFiles) {
+    if (files.primaryFile) return files.primaryFile;
+    for (const [p, f] of Object.entries(files.auxiliaryFiles || {})) {
+      if (f && p.endsWith('.md')) return f;
+    }
+    return null;
+  }
+
+  const flatEventHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
+    parseRequest: (b: unknown) => b as { body: string; contentHash?: string },
+    resolveContentId: (params) => params.slug!,
+    getFilePaths: (id) => ({
+      primary: `events/${id}/index.md`,
+      auxiliary: [`events/${id}.md`, `events/${id}/media.yml`],
+    }),
+    computeContentHash: (files) => `hash-${effective(files)?.content?.length || 0}`,
+    buildFreshData: (_id, files) => JSON.stringify({ body: effective(files)?.content }),
+    async buildFileChanges(update, id, files) {
+      return {
+        // Flat events commit to the sibling `.md`, never the directory index.md.
+        files: [{ path: `events/${id}.md`, content: update.body }],
+        deletePaths: [],
+        isNew: !effective(files),
+      };
+    },
+    buildCommitMessage: (_u, id, isNew) => isNew ? `Create ${id}` : `Update ${id}`,
+    buildGitHubUrl: (id, branch) => `https://github.com/test/repo/blob/${branch}/events/${id}.md`,
+  };
+
+  const eventId = '2026/audax-200';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // index.md (primary) does not exist; the flat sibling holds the content.
+    mockReadFile.mockImplementation((path: string) => {
+      if (path === `events/${eventId}.md`) {
+        return Promise.resolve({ content: 'old flat body', sha: 'sha-flat' });
+      }
+      return Promise.resolve(null); // index.md and media.yml
+    });
+    mockGetResult.mockReturnValue(null);
+    mockWriteFiles.mockResolvedValue('sha-new');
+  });
+
+  it('stale D1 githubSha → 409 conflict (no silent last-write-wins)', async () => {
+    // D1 remembers a SHA that no longer matches the flat file on git.
+    mockGetResult.mockReturnValue({ githubSha: 'sha-stale', data: '{}' });
+
+    const req = makeRequest({ body: 'my edit' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: eventId }, 'events', flatEventHandlers);
+
+    expect(res.status).toBe(409);
+    const data = await res.json();
+    expect(data.conflict).toBe(true);
+    expect(mockWriteFiles).not.toHaveBeenCalled();
+  });
+
+  it('save refreshes D1 cache and response carries a contentHash', async () => {
+    // D1 SHA matches the flat file → no conflict, commit proceeds.
+    mockGetResult.mockReturnValue({ githubSha: 'sha-flat', data: '{}' });
+
+    const req = makeRequest({ body: 'new flat body' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: eventId }, 'events', flatEventHandlers);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.contentHash).toBeDefined();
+    expect(mockWriteFiles).toHaveBeenCalledOnce();
+    // Cache upsert ran against the committed flat file, not skipped.
+    expect(mockOnConflictDoUpdate).toHaveBeenCalled();
+  });
+});
+
 describe('saveContent form_instance_id rejection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -378,5 +467,81 @@ describe('saveContent form_instance_id rejection', () => {
 
     expect(res.status).toBe(200);
     expect(mockFormSubmissionsInsert).not.toHaveBeenCalled();
+  });
+});
+
+// --- Commit landed → never a client-visible 500 that invites a duplicating retry ---
+
+describe('saveContent post-commit durability', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadFile.mockResolvedValue(null); // new content (create flow)
+    mockGetResult.mockReturnValue(null);
+    mockFormSubmissionsInsert.mockReturnValue(undefined);
+    mockWriteFiles.mockResolvedValue('sha-new');
+    // clearAllMocks leaves implementations in place, so reset the throwing
+    // seams other tests install back to no-ops.
+    mockOnConflictDoUpdate.mockReset();
+    mockDelete.mockReset();
+    mockDelete.mockImplementation(() => ({ where: () => undefined }));
+  });
+
+  it('D1 cache write throws AFTER the commit lands: 200 with hash, claim kept, commit once even on retry', async () => {
+    // The git commit has already landed when the post-commit cache upsert blows
+    // up. The response must stay 200 (git is the source of truth) and the claim
+    // must NOT be released.
+    mockOnConflictDoUpdate.mockImplementation(() => {
+      throw new Error('D1 unavailable');
+    });
+
+    const req = makeRequest({ body: 'hello', form_instance_id: 'fi-cache-down' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.contentHash).toBeDefined();
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
+    // Claim NOT released: the only delete is the claim's stale-row cleanup.
+    // (A release would add a second delete.)
+    expect(mockDelete).toHaveBeenCalledTimes(1);
+
+    // The client retries with the SAME form_instance_id. Because the claim was
+    // kept, the re-claim conflicts → 409, and no second commit happens: one
+    // logical create stays one committed file (no slug-2).
+    mockFormSubmissionsInsert.mockImplementation(() => {
+      throw new Error('UNIQUE constraint failed: form_submissions.form_instance_id');
+    });
+    const retry = makeRequest({ body: 'hello', form_instance_id: 'fi-cache-down' });
+    const retryRes = await saveContent(retry, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(retryRes.status).toBe(409);
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('pre-commit failure: 500, claim released, and a retry with the same id succeeds', async () => {
+    const explodingHandlers: SaveHandlers<{ body: string; contentHash?: string }> = {
+      ...stubHandlers,
+      async buildFileChanges() {
+        throw new Error('build blew up before commit');
+      },
+    };
+
+    const req = makeRequest({ body: 'hello', form_instance_id: 'fi-precommit' });
+    const res = await saveContent(req, { user: adminUser } as any, { slug: 'new' }, 'events', explodingHandlers);
+
+    expect(res.status).toBe(500);
+    expect(mockWriteFiles).not.toHaveBeenCalled();
+    // Claim released: claim cleanup delete + release delete = 2 delete calls.
+    expect(mockDelete).toHaveBeenCalledTimes(2);
+
+    // The freed claim lets a retry with the same id proceed to a real commit.
+    mockReadFile.mockResolvedValue(null);
+    mockFormSubmissionsInsert.mockReturnValue(undefined);
+    const retry = makeRequest({ body: 'hello', form_instance_id: 'fi-precommit' });
+    const retryRes = await saveContent(retry, { user: adminUser } as any, { slug: 'new' }, 'events', stubHandlers);
+
+    expect(retryRes.status).toBe(200);
+    expect(mockWriteFiles).toHaveBeenCalledTimes(1);
   });
 });

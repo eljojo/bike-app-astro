@@ -1,3 +1,7 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Admin island: every /api/ write here is an authenticated-only endpoint. A 401
+   means the admin session lapsed, so the user must re-authenticate — minting an
+   anonymous guest would be wrong. */
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Fragment } from 'preact';
 import { showToast } from '../../lib/toast';

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { FIXTURE_DIR } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, deleteFixtureFile, waitForHydration } from './helpers.ts';
 

@@ -27,6 +27,14 @@ prepareFixture();
 const port = 4323;
 const baseURL = `http://localhost:${port}`;
 
+// Blank secret-shaped env vars so a developer's local .env can't leak into the
+// test server (see PLAUSIBLE_API_KEY incident) — fixtures set their own
+// non-secret vars explicitly and never rely on ambient credentials.
+const BLANK_SECRETS =
+  'STRAVA_CLIENT_SECRET= WEBHOOK_SECRET= GITHUB_TOKEN= R2_ACCESS_KEY_ID= R2_SECRET_ACCESS_KEY= ' +
+  'RWGPS_API_KEY= RWGPS_AUTH_TOKEN= THUNDERFOREST_API_KEY= GOOGLE_PLACES_API_KEY= GOOGLE_MAPS_STATIC_API_KEY= ' +
+  'PLAUSIBLE_API_KEY=';
+
 export default defineConfig({
   testDir: '.',
   fullyParallel: false,
@@ -40,7 +48,7 @@ export default defineConfig({
     browserName: 'chromium',
   },
   webServer: {
-    command: `RUNTIME=local CITY=demo CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro build && RUNTIME=local CITY=demo MOCK_DIRECTIONS_API=true CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro preview --port ${port}`,
+    command: `RUNTIME=local CITY=demo CONTENT_DIR="${FIXTURE_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro build && RUNTIME=local CITY=demo MOCK_DIRECTIONS_API=true ${BLANK_SECRETS} CONTENT_DIR="${FIXTURE_DIR}" LOCAL_DB_PATH="${DB_PATH}" LOCAL_UPLOADS_DIR="${UPLOADS_DIR}" R2_PUBLIC_URL="${baseURL}/dev-uploads" npx astro preview --port ${port}`,
     port,
     cwd: '../..',
     reuseExistingServer: false,

@@ -85,6 +85,11 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
   const { user, update, formInstanceId, isNewRequest } = auth;
   let { contentId } = auth;
 
+  // Tracks whether the git commit landed. Git is the source of truth: once it
+  // lands, the claim maps to content that now exists and must NOT be released
+  // on a later error (see the outer catch).
+  let commitLanded = false;
+
   try {
     const baseBranch = env.GIT_BRANCH || 'main';
     const database = db();
@@ -139,6 +144,7 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     }
     const sha = await commitToContentRepo(message, files, authorInfo, git,
       deletePaths.length > 0 ? deletePaths : undefined);
+    commitLanded = true;
 
     const response = await updateCacheAfterCommit(database, contentType, contentId, filePaths, files, deletePaths, currentFiles, handlers, sha);
 
@@ -161,7 +167,14 @@ export async function saveContent<T extends { contentHash?: string }, R extends 
     return response;
   } catch (err: unknown) {
     console.error(`save ${contentType} error:`, err);
-    if (isNewRequest && formInstanceId) {
+    // Only release the claim when the commit did NOT land. If the commit
+    // succeeded but something after it still threw, the claim maps to content
+    // that now exists — releasing it would let the client's retry re-claim,
+    // find the just-committed file, and mint a duplicate (slug-2). Leave the
+    // claim in place and let its 7-day TTL reap it. With the best-effort cache
+    // guard in updateCacheAfterCommit, a post-commit throw here is near-
+    // impossible, but keep the 500 for genuinely unknown post-commit failures.
+    if (isNewRequest && formInstanceId && !commitLanded) {
       // Release the claim so the user can retry with the same form mount.
       // Best-effort: a failed release just leaves a stale row that the
       // 7-day TTL will clean up.
@@ -245,6 +258,23 @@ export async function readCurrentState(
   return { primaryFile, auxiliaryFiles };
 }
 
+/**
+ * Resolve the file that actually holds the content. Directory-based content
+ * keeps it at the primary path (index.md); flat-format events keep it in an
+ * auxiliary `.md` sibling (year/slug.md), so primaryFile is null even though
+ * content exists. Returns null only when nothing exists yet (a genuine create,
+ * where there is nothing to conflict against).
+ */
+function resolveEffectivePrimary(currentFiles: CurrentFiles): GitFiles['primaryFile'] {
+  if (currentFiles.primaryFile) return currentFiles.primaryFile;
+  const auxFiles = currentFiles.auxiliaryFiles || {};
+  for (const p of Object.keys(auxFiles)) {
+    const f = auxFiles[p];
+    if (f && p.endsWith('.md')) return f;
+  }
+  return null;
+}
+
 async function detectConflict<T extends { contentHash?: string }, R extends BuildResult>(
   database: ReturnType<typeof db>,
   contentType: string,
@@ -254,7 +284,8 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
   handlers: SaveHandlers<T, R>,
   baseBranch: string,
 ): Promise<Response | null> {
-  if (!currentFiles.primaryFile) return null;
+  const effectivePrimary = resolveEffectivePrimary(currentFiles);
+  if (!effectivePrimary) return null;
 
   const cached = await database.select({ githubSha: contentEdits.githubSha }).from(contentEdits)
     .where(and(eq(contentEdits.city, CITY), eq(contentEdits.contentType, contentType), eq(contentEdits.contentSlug, contentId)))
@@ -262,7 +293,7 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
 
   let hasConflict = false;
   if (cached) {
-    hasConflict = cached.githubSha !== currentFiles.primaryFile.sha;
+    hasConflict = cached.githubSha !== effectivePrimary.sha;
   } else if (update.contentHash) {
     const currentHash = handlers.computeContentHash(currentFiles);
     hasConflict = currentHash !== update.contentHash;
@@ -275,7 +306,7 @@ async function detectConflict<T extends { contentHash?: string }, R extends Buil
     contentType,
     contentSlug: contentId,
     data: freshData,
-    githubSha: currentFiles.primaryFile.sha,
+    githubSha: effectivePrimary.sha,
   });
 
   return jsonResponse({
@@ -337,6 +368,12 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
     committedPrimary = files.find(f => filePaths.auxiliary!.includes(f.path) && f.path.endsWith('.md'));
   }
   if (!committedPrimary) {
+    // Invariant: a landed commit for content saved through this pipeline always
+    // touches the effective primary `.md` (directory index.md or flat sibling).
+    // Reaching here means we can neither refresh the D1 row nor return a real
+    // contentHash, so the client's compare-and-swap state goes stale and its
+    // next save may false-conflict. Log loudly rather than swallow it.
+    console.error(`updateCacheAfterCommit: committed primary not found for ${contentType}/${contentId} — D1 cache not refreshed and no contentHash returned`);
     return jsonResponse({ success: true, sha, id: contentId });
   }
 
@@ -364,14 +401,26 @@ async function updateCacheAfterCommit<T extends { contentHash?: string }, R exte
   }
 
   const cacheData = handlers.buildFreshData(contentId, committedFiles);
+  // Hash is derived from the in-memory committed content, not from D1, so the
+  // response carries the correct contentHash even if the cache write below
+  // fails.
   const newContentHash = handlers.computeContentHash(committedFiles);
 
-  await upsertContentCache(database, {
-    contentType,
-    contentSlug: contentId,
-    data: cacheData,
-    githubSha: primaryBlobSha,
-  });
+  // The commit already landed — git is the source of truth. Treat the D1 cache
+  // refresh as best-effort: a failure here must NOT become a 500, because the
+  // client would retry an already-committed create and duplicate it. The stale
+  // D1 row self-heals on the next save, and admin reads fall back to build-time
+  // virtual-module data (fromCache) until then.
+  try {
+    await upsertContentCache(database, {
+      contentType,
+      contentSlug: contentId,
+      data: cacheData,
+      githubSha: primaryBlobSha,
+    });
+  } catch (err) {
+    console.error(`content cache update after commit failed (non-fatal) for ${contentType}/${contentId}:`, err);
+  }
 
   return jsonResponse({ success: true, sha, id: contentId, contentHash: newContentHash });
 }

@@ -16,7 +16,7 @@
 // Detail module names strip trailing 's': admin-routes → admin-route-detail.
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import matter from 'gray-matter';
 import type { Plugin } from 'vite';
 import { CITY } from './lib/config/config';

@@ -305,3 +305,122 @@ describe('findUserByIdentifier', () => {
     expect(user).toBeNull();
   });
 });
+
+describe('consumeMagicLinkToken (session-fixation hardening)', () => {
+  const dbPath = path.join(import.meta.dirname, '.test-auth-verify.db');
+  let database: any;
+
+  beforeEach(async () => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+    const { createLocalDb } = await import('../src/db/local');
+    database = createLocalDb(dbPath);
+
+    const { users, sessions, emailTokens } = await import('../src/db/schema');
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    // Guest account that will be elevated to editor.
+    await database.insert(users).values({
+      id: 'user-1', email: 'guest@test.com', username: 'guestuser', role: 'guest',
+      emailVerified: 0, createdAt: new Date().toISOString(),
+    });
+
+    // Two pre-existing sessions planted before elevation.
+    await database.insert(sessions).values([
+      { id: 'sess-a', userId: 'user-1', token: 'planted-token-a', expiresAt: future, createdAt: new Date().toISOString() },
+      { id: 'sess-b', userId: 'user-1', token: 'planted-token-b', expiresAt: future, createdAt: new Date().toISOString() },
+    ]);
+
+    // Valid, unused magic-link token for this user.
+    await database.insert(emailTokens).values({
+      id: 'tok-1', userId: 'user-1', email: 'guest@test.com', token: 'magic-token',
+      expiresAt: future, createdAt: new Date().toISOString(),
+    });
+  });
+
+  afterAll(() => {
+    for (const ext of ['', '-wal', '-shm']) {
+      const f = dbPath + ext;
+      if (fs.existsSync(f)) fs.unlinkSync(f);
+    }
+  });
+
+  it('revokes all pre-existing sessions and mints a fresh editor session', async () => {
+    const { consumeMagicLinkToken } = await import('../src/views/auth/verify.server');
+    const { validateSession } = await import('../src/lib/auth/auth');
+
+    const result = await consumeMagicLinkToken(database, 'magic-token');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.userId).toBe('user-1');
+    expect(result.token).toMatch(/^[0-9a-f]{64}$/);
+
+    // Pre-existing (planted) sessions no longer validate.
+    expect(await validateSession(database, 'planted-token-a')).toBeNull();
+    expect(await validateSession(database, 'planted-token-b')).toBeNull();
+
+    // Fresh session validates as the now-elevated editor.
+    const user = await validateSession(database, result.token);
+    expect(user).not.toBeNull();
+    expect(user!.id).toBe('user-1');
+    expect(user!.role).toBe('editor');
+    expect(user!.emailVerified).toBe(true);
+  });
+
+  it('marks the magic-link token as used', async () => {
+    const { consumeMagicLinkToken } = await import('../src/views/auth/verify.server');
+    const { emailTokens } = await import('../src/db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    await consumeMagicLinkToken(database, 'magic-token');
+
+    const rows = await database.select().from(emailTokens).where(eq(emailTokens.id, 'tok-1'));
+    expect(rows[0].usedAt).not.toBeNull();
+  });
+
+  it('leaves exactly one session for the user after elevation', async () => {
+    const { consumeMagicLinkToken } = await import('../src/views/auth/verify.server');
+    const { sessions } = await import('../src/db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    const result = await consumeMagicLinkToken(database, 'magic-token');
+    expect(result.ok).toBe(true);
+
+    const rows = await database.select().from(sessions).where(eq(sessions.userId, 'user-1'));
+    expect(rows).toHaveLength(1);
+    if (result.ok) expect(rows[0].token).toBe(result.token);
+  });
+
+  it('rejects an invalid token without rotating sessions', async () => {
+    const { consumeMagicLinkToken, } = await import('../src/views/auth/verify.server');
+    const { validateSession } = await import('../src/lib/auth/auth');
+
+    const result = await consumeMagicLinkToken(database, 'nonexistent-token');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/invalid or has expired/);
+
+    // Existing sessions untouched.
+    expect(await validateSession(database, 'planted-token-a')).not.toBeNull();
+    expect(await validateSession(database, 'planted-token-b')).not.toBeNull();
+  });
+
+  it('preserves a non-guest role while still rotating sessions', async () => {
+    const { consumeMagicLinkToken } = await import('../src/views/auth/verify.server');
+    const { validateSession } = await import('../src/lib/auth/auth');
+    const { users } = await import('../src/db/schema');
+    const { eq } = await import('drizzle-orm');
+
+    await database.update(users).set({ role: 'admin' }).where(eq(users.id, 'user-1'));
+
+    const result = await consumeMagicLinkToken(database, 'magic-token');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(await validateSession(database, 'planted-token-a')).toBeNull();
+    const user = await validateSession(database, result.token);
+    expect(user!.role).toBe('admin');
+  });
+});

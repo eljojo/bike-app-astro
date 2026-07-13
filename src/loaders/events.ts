@@ -8,7 +8,7 @@ import type { Loader } from 'astro/loaders';
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { cityDir } from '../lib/config/config.server';
 
 export interface EventMediaItem {
@@ -49,16 +49,41 @@ export function eventLoader(): Loader {
 
       for (const { id, filePath } of files) {
         const raw = fs.readFileSync(filePath, 'utf-8');
-        const { data: frontmatter, content: body } = matter(raw);
+        let frontmatter: Record<string, unknown>;
+        let body: string;
+        try {
+          const parsed = matter(raw);
+          frontmatter = parsed.data;
+          body = parsed.content;
+        } catch (err) {
+          // Malformed community-edited frontmatter degrades to one skipped
+          // event, not a dead build. IO errors are not caught here.
+          console.error(
+            `[event-loader] Malformed frontmatter in event "${id}" (${filePath}): ${(err as Error).message} — skipping event`,
+          );
+          continue;
+        }
 
         // Read sidecar media.yml for directory-based events
         let media: EventMediaItem[] | undefined;
         const dir = path.dirname(filePath);
         const mediaPath = path.join(dir, 'media.yml');
         if (fs.existsSync(mediaPath)) {
+          const mediaRaw = fs.readFileSync(mediaPath, 'utf-8');
           try {
-            media = yaml.load(fs.readFileSync(mediaPath, 'utf-8')) as EventMediaItem[];
-          } catch { /* ignore malformed media.yml */ }
+            const parsedMedia = yaml.load(mediaRaw);
+            // media.yml must be a list; a mapping or scalar is bad shape → ignore.
+            media = Array.isArray(parsedMedia) ? (parsedMedia as EventMediaItem[]) : undefined;
+            if (parsedMedia != null && !Array.isArray(parsedMedia)) {
+              console.error(
+                `[event-loader] media.yml for event "${id}" (${mediaPath}) is not a list — ignoring media`,
+              );
+            }
+          } catch (err) {
+            console.error(
+              `[event-loader] Malformed media.yml in event "${id}" (${mediaPath}): ${(err as Error).message} — ignoring media`,
+            );
+          }
         }
 
         store.set({

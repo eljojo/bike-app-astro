@@ -11,6 +11,7 @@ export function parseOrganizerFile(slug: string, content: string): OrganizerDeta
     tagline: data.tagline,
     tags: data.tags || [],
     featured: data.featured || false,
+    hidden: data.hidden || false,
     website: data.website,
     instagram: data.instagram,
     ics_url: data.ics_url,

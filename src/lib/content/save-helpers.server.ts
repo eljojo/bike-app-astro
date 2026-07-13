@@ -1,5 +1,5 @@
 import matter from 'gray-matter';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import type { MediaUsage } from '../media/media-registry';
 import type { Database } from '../../db/index';
 import { deleteConsumedVideoJobs, enrichMediaFromVideoJobs } from '../media/video-enrichment';

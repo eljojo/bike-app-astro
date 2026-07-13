@@ -49,42 +49,52 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
     const baseUrl = url.origin;
 
     // Incremental sync — backfill what's missing
+    let syncFailed = false;
     const ctx = await buildSyncContext(baseUrl);
     if (!ctx) {
       // No API key — seed from fixtures in local dev
       await seedFromFixtures(database, CITY);
     } else {
-      // Check if engagement data exists — if not, we need a full site sync
-      // (page breakdown + engagement rebuild), not just daily aggregates
-      const engagementCount = await queryEngagementCount(database, CITY);
+      try {
+        // Check if engagement data exists — if not, we need a full site sync
+        // (page breakdown + engagement rebuild), not just daily aggregates
+        const engagementCount = await queryEngagementCount(database, CITY);
 
-      const needsFullSync = forceSync || engagementCount === 0;
+        const needsFullSync = forceSync || engagementCount === 0;
 
-      if (needsFullSync) {
-        if (forceSync) {
-          // Force re-sync: clear ALL analytics data for this city, then rebuild
-          await deleteAllAnalyticsForCity(database, CITY);
+        if (needsFullSync) {
+          if (forceSync) {
+            // Force re-sync: clear ALL analytics data for this city, then rebuild
+            await deleteAllAnalyticsForCity(database, CITY);
+          }
+          // Full site sync: daily aggregates + page breakdown + engagement rebuild
+          const result = await syncSiteMetrics(database, { ...ctx, full: forceSync });
+          if (result.syncFailed) syncFailed = true;
+        } else {
+          // Incremental: just backfill missing daily rows
+          await ensureSiteDailyData(database, ctx, startStr, endStr);
+
+          // Check if content_totals are stale (>24h old) — if so, refresh
+          // totals + engagement so they don't go permanently stale after first sync
+          const totalsAge = await queryTotalsAge(database, CITY);
+
+          const totalsStale = totalsAge === null ||
+            (Date.now() - new Date(totalsAge).getTime()) > 24 * 60 * 60 * 1000;
+
+          if (totalsStale) {
+            const result = await syncSiteMetrics(database, ctx);
+            if (result.syncFailed) syncFailed = true;
+          }
         }
-        // Full site sync: daily aggregates + page breakdown + engagement rebuild
-        await syncSiteMetrics(database, { ...ctx, full: forceSync });
-      } else {
-        // Incremental: just backfill missing daily rows
-        await ensureSiteDailyData(database, ctx, startStr, endStr);
 
-        // Check if content_totals are stale (>24h old) — if so, refresh
-        // totals + engagement so they don't go permanently stale after first sync
-        const totalsAge = await queryTotalsAge(database, CITY);
-
-        const totalsStale = totalsAge === null ||
-          (Date.now() - new Date(totalsAge).getTime()) > 24 * 60 * 60 * 1000;
-
-        if (totalsStale) {
-          await syncSiteMetrics(database, ctx);
-        }
+        // Ensure event metrics (repeat visits, social referrals) are synced
+        await ensureSiteEventData(database, ctx, startStr, endStr);
+      } catch (err: unknown) {
+        // Plausible outage/rotated key — serve the existing D1 data below rather
+        // than 500 a dashboard that already has months of synced history.
+        console.error('stats sync failed, serving existing D1 data:', err);
+        syncFailed = true;
       }
-
-      // Ensure event metrics (repeat visits, social referrals) are synced
-      await ensureSiteEventData(database, ctx, startStr, endStr);
     }
 
     const [
@@ -252,6 +262,7 @@ async function handleRequest(locals: APIContext['locals'], url: URL, forceSync: 
       visitorInsights,
       cdnUrl: getCityConfig().cdn_url,
       lastSynced,
+      syncFailed,
     } as Record<string, unknown>);
   } catch (err: unknown) {
     console.error('stats overview error:', err);

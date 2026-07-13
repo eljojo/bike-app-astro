@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { CITY } from '../config/config';
 import { getMediaUsages, updateSharedKeys, serializeSharedKeys, type MediaUsage } from './media-registry';
 import { loadSharedKeysMap } from '../content/load-admin-content.server';

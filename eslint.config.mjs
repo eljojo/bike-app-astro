@@ -8,6 +8,7 @@ import enforceModelLayer from './eslint-rules/enforce-model-layer.js';
 import noCityDefaultParam from './eslint-rules/no-city-default-param.js';
 import requireCommitWrapper from './eslint-rules/require-commit-wrapper.js';
 import noServerImportInBrowser from './eslint-rules/no-server-import-in-browser.js';
+import requireGuestFetch from './eslint-rules/require-guest-fetch.js';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -36,6 +37,7 @@ export default [
           'no-city-default-param': noCityDefaultParam,
           'require-commit-wrapper': requireCommitWrapper,
           'no-server-import-in-browser': noServerImportInBrowser,
+          'require-guest-fetch': requireGuestFetch,
         },
       },
     },
@@ -126,6 +128,16 @@ export default [
     ],
     rules: {
       'bike-app/no-server-import-in-browser': 'off',
+    },
+  },
+  {
+    // Client islands: contribution writes must bootstrap a guest on 401 instead
+    // of dead-ending anonymous visitors. Only enabled here (not on server
+    // endpoints, which own the auth boundary). Plugin inherited from the src/**
+    // block above. See eslint-rules/require-guest-fetch.js.
+    files: ['src/components/**/*.ts', 'src/components/**/*.tsx', 'src/lib/hooks.ts'],
+    rules: {
+      'bike-app/require-guest-fetch': 'error',
     },
   },
 ];

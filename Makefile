@@ -51,7 +51,7 @@ test-update: prebuild ## Update screenshot baselines
 	CITY=demo npx astro build
 	npx playwright test --config e2e/playwright.config.ts --update-snapshots
 
-full: test test-lambda typecheck lint test-e2e test-admin test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, club e2e)
+full: test test-lambda typecheck lint test-e2e test-admin test-blog test-club ## Run full CI pipeline (unit tests, typecheck, lint, e2e screenshots, admin e2e, blog e2e, club e2e)
 
 test-admin: ## Run admin E2E tests (hydration, save flow, community editing)
 	npx playwright test --config e2e/admin/fixture.ts $(if $(CI),,--ignore-snapshots)

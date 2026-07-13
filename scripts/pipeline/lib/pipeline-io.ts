@@ -4,7 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 // Note: do NOT import slugify here — none of the extracted functions use it.
 
 export function loadManualEntries(dataDir: string) {

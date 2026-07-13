@@ -92,6 +92,33 @@ test.describe('Community Admin — Detail', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 2b. Guest/anonymous path — list + detail browse. Both are guest-reachable
+// (BROWSABLE_ADMIN_PATHS has '/admin/communities', BROWSABLE_ADMIN_PREFIXES
+// has '/admin/communities/'). No loginAs(): a brand-new visitor.
+// ---------------------------------------------------------------------------
+
+test.describe('Community Admin — Anonymous browse', () => {
+  test.beforeEach(() => {
+    restoreFixtureFiles(['demo/organizers/community-admin-test.md']);
+  });
+
+  test('anonymous visitor can browse the communities list and a community detail', async ({ page }) => {
+    await page.goto('/admin/communities');
+    await page.waitForLoadState('networkidle');
+
+    expect(page.url()).not.toContain('/login');
+    const items = page.locator('.community-list-item');
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+
+    await page.goto('/admin/communities/community-admin-test');
+    await page.waitForLoadState('networkidle');
+
+    expect(page.url()).not.toContain('/login');
+    await expect(page.locator('#community-name')).toBeVisible({ timeout: 10000 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 3. Edit community fields (name, tagline), save, verify file updated
 // ---------------------------------------------------------------------------
 

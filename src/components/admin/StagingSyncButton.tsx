@@ -1,3 +1,6 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Admin island: the deploy/sync write is an authenticated-only endpoint. A 401
+   means the admin session lapsed, not that a guest should be minted. */
 import { useState } from 'preact/hooks';
 
 export default function StagingSyncButton() {

@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { computeHashFromParts } from './content-hash.server';
 import { routeDetailToCache } from './route-model';

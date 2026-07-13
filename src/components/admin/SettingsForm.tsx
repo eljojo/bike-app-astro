@@ -1,6 +1,10 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Account-settings island: passkey/strava/settings writes are authenticated-only.
+   A 401 means the session lapsed — re-authenticate, don't mint a guest. */
 import { useState } from 'preact/hooks';
 import { useHydrated } from '../../lib/hooks';
 import { startRegistration } from '@simplewebauthn/browser';
+import InlineUpgradeForm from './InlineUpgradeForm';
 
 interface Passkey {
   id: string;
@@ -21,12 +25,15 @@ interface Props {
   emailInCommits: boolean;
   analyticsOptOut: boolean;
   role: 'admin' | 'editor' | 'guest';
+  /** Whether this instance allows account registration/upgrade. Gates the
+   *  guest upgrade form so it mirrors the header "Create account" link. */
+  allowsRegistration: boolean;
   isBlog?: boolean;
   stravaStatus?: StravaStatusData | null;
   passkeys?: Passkey[];
 }
 
-export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, isBlog: _isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
+export default function SettingsForm({ username: initialUsername, email: initialEmail, emailHash, emailInCommits: initialEmailInCommits, analyticsOptOut: initialAnalyticsOptOut, role, allowsRegistration, isBlog: _isBlog, stravaStatus: initialStravaStatus, passkeys: initialPasskeys }: Props) {
   const hydratedRef = useHydrated<HTMLDivElement>();
   const isGuest = role === 'guest';
   const isAdmin = role === 'admin';
@@ -178,10 +185,20 @@ export default function SettingsForm({ username: initialUsername, email: initial
         <div class="settings-card-header">Profile</div>
         <div class="settings-card-body">
           {isGuest ? (
-            <p class="settings-help" style={{ margin: 0 }}>
-              You're browsing as <strong>{initialUsername}</strong>.{' '}
-              <a href="/login">Create an account</a> to choose a username, set an email, and get credit for your contributions.
-            </p>
+            <div class="settings-help" style={{ margin: 0 }}>
+              {allowsRegistration ? (
+                <>
+                  <p style={{ marginTop: 0 }}>
+                    You're browsing as <strong>{initialUsername}</strong>. Create an account to choose a username, set an email, and get credit for your contributions.
+                  </p>
+                  <InlineUpgradeForm />
+                </>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  You're browsing as <strong>{initialUsername}</strong>.
+                </p>
+              )}
+            </div>
           ) : (
             <div class="settings-profile-row">
               <div class="settings-avatar-col">

@@ -16,7 +16,7 @@ import type { AstroIntegration } from 'astro';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { getCityConfig } from './lib/config/city-config';
 import { CITY } from './lib/config/config';
 import { CONTENT_DIR } from './lib/config/config.server';
@@ -169,10 +169,13 @@ export function wheretoBike(options?: WheretoBikeOptions): AstroIntegration[] {
             },
             // Ensure Preact JSX transform works for components inside node_modules.
             // @preact/preset-vite excludes node_modules by default; this fallback
-            // makes Vite's esbuild transform use Preact for any files the plugin skips.
-            esbuild: {
-              jsx: 'automatic',
-              jsxImportSource: 'preact',
+            // makes Vite's own transform use Preact for any files the plugin skips.
+            // Vite 8 replaced the esbuild transform with oxc — `esbuild.jsx` is gone.
+            oxc: {
+              jsx: {
+                runtime: 'automatic',
+                importSource: 'preact',
+              },
             },
           },
         });
