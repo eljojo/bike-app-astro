@@ -354,6 +354,24 @@ A rich event used to verify duplicate-flow field forwarding.
 `
   );
 
+  // calendar-review-test: owned by calendar-updates.spec.ts
+  // A one-off event already imported from e2e-calendar-club, with ics_uid set
+  // so the review-update workflow can diff against its snapshot.
+  fs.writeFileSync(
+    path.join(eventDir, 'calendar-review-test.md'),
+    `---
+name: E2E Review Test Ride
+start_date: "2099-08-20"
+start_time: "09:00"
+location: Location A
+organizer: e2e-calendar-club
+ics_uid: e2e-review-oneoff@example.com
+---
+
+A ride imported from the calendar feed, used for review-update E2E tests.
+`
+  );
+
   // event-edit: owned by events.spec.ts (edit test)
   fs.writeFileSync(
     path.join(eventDir, 'event-edit.md'),

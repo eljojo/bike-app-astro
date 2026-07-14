@@ -30,6 +30,8 @@ export interface AdminEvent {
   previous_event?: string;
   edition?: string;
   ics_uid?: string;
+  location?: string;
+  registration_url?: string;
   event_url?: string;
   map_url?: string;
   is_series?: boolean;

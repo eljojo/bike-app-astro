@@ -120,6 +120,13 @@
       "when": 1777730000000,
       "tag": "0016_dismissals_valid_until",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1778093068194,
+      "tag": "0019_calendar_event_snapshots",
+      "breakpoints": true
     }
   ]
 }

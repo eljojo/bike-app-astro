@@ -261,3 +261,15 @@ export const calendarSuggestionDismissals = sqliteTable('calendar_suggestion_dis
   primaryKey({ columns: [table.city, table.organizerSlug, table.uid] }),
   index('csd_city_valid_until_idx').on(table.city, table.validUntil),
 ]);
+
+export const calendarEventSnapshots = sqliteTable('calendar_event_snapshots', {
+  city:           text('city').notNull(),
+  organizerSlug:  text('organizer_slug').notNull(),
+  uid:            text('uid').notNull(),
+  snapshotJson:   text('snapshot_json').notNull(),
+  snapshottedAt:  text('snapshotted_at').notNull(),
+  expiresAt:      text('expires_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.city, table.organizerSlug, table.uid] }),
+  index('ces_city_expires_idx').on(table.city, table.expiresAt),
+]);
