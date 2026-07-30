@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { finalizeWritePhase } from '../../../scripts/pipeline/phases/finalize-write.ts';
 import { Trace } from '../../../scripts/pipeline/engine/trace.ts';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 const ADAPTER = { relationNamePattern: '', namedWayQueries: () => [] };
 

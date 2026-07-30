@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { routeDetailFromGit } from '../../src/lib/models/route-model.server';
 
 describe('routeDetailFromGit', () => {

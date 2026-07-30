@@ -16,7 +16,7 @@ import type { AstroIntegration } from 'astro';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { getCityConfig } from './lib/config/city-config';
 import { CITY } from './lib/config/config';
 import { CONTENT_DIR } from './lib/config/config.server';

@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 /** A single entry from bikepaths.yml */
 export const bikePathYmlEntrySchema = z.looseObject({

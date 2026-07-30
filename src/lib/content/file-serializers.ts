@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 const FRONTMATTER_OPTIONS = { lineWidth: -1, quotingType: '"' as const, forceQuotes: false };
 const YAML_LIST_OPTIONS = { flowLevel: -1, lineWidth: -1 };

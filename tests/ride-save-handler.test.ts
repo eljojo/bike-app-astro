@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CITY } from '../src/lib/config/config';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 // --- Mocks ---
 

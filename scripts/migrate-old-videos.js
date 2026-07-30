@@ -29,7 +29,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 const SRC_BUCKET = 'bike-app-video-originals';
 const DST_BUCKET = 'bike-video-originals';
