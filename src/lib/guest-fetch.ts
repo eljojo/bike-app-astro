@@ -5,8 +5,10 @@
  * (POST /api/auth/guest) and retries once. Concurrent callers that all
  * hit 401 share a single guest creation (single-flight), collapsing a burst
  * to one mint. This is best-effort, not a hard guarantee: a 401 that arrives
- * just after the in-flight creation settles can still mint a second guest —
- * harmless, since guest creation is idempotent and rate-limited per IP.
+ * just after the in-flight creation settles can still mint a second guest.
+ * POST /api/auth/guest is NOT idempotent — each call inserts a fresh user row
+ * and overwrites the session cookie — so the cost is an orphaned guest and a
+ * write attributed to the earlier identity. Bounded by the per-IP rate limit.
  *
  * Returns the final Response, or null if guest creation failed. On that failure
  * the default behaviour (onAuthFail: 'redirect') sends the browser to /login;
@@ -41,8 +43,8 @@ function createGuest(): Promise<boolean> {
       .catch(() => false)
       // Reset once settled so a later, genuinely new 401 can mint again. A
       // concurrent burst shares this one promise (single-flight); a 401 that
-      // lands just after the reset may mint a second guest, which is harmless
-      // (idempotent + rate-limited) and cannot happen for sequential uploads.
+      // lands just after the reset mints a second, distinct guest — bounded by
+      // the per-IP rate limit, and cannot happen for sequential uploads.
       .finally(() => { guestCreation = null; });
   }
   return guestCreation;

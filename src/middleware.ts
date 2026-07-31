@@ -192,9 +192,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
       const token = context.cookies.get('session_token')?.value;
       if (token) {
         const database = db();
-        const optionalUser = await validateSession(database, token);
-        if (optionalUser && !optionalUser.bannedAt) {
-          context.locals.user = optionalUser;
+        try {
+          const optionalUser = await validateSession(database, token);
+          if (optionalUser && !optionalUser.bannedAt) {
+            context.locals.user = optionalUser;
+          }
+        } catch (err) {
+          // D1 outage: reactions are a public read that only personalizes when
+          // a session resolves. Losing the personalization beats 500ing a page
+          // the reader could otherwise see.
+          console.error('validateSession failed on reactions path; serving anonymous:', err);
         }
       }
     }
