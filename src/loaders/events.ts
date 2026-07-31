@@ -52,7 +52,10 @@ export function eventLoader(): Loader {
         let frontmatter: Record<string, unknown>;
         let body: string;
         try {
-          const parsed = matter(raw);
+          // `{}` bypasses gray-matter's cache: it caches the file object BEFORE
+          // parsing, so a string that threw once later returns an empty shell
+          // instead of re-throwing — which would silently defeat this catch.
+          const parsed = matter(raw, {});
           frontmatter = parsed.data;
           body = parsed.content;
         } catch (err) {

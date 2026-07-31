@@ -70,7 +70,10 @@ export function readRouteDir(
   let frontmatter: Record<string, unknown>;
   let body: string;
   try {
-    const parsed = matter(indexMd);
+    // `{}` bypasses gray-matter's cache: it caches the file object BEFORE
+    // parsing, so a string that threw once later returns an empty shell
+    // instead of re-throwing — which would silently defeat this catch.
+    const parsed = matter(indexMd, {});
     frontmatter = parsed.data;
     body = parsed.content;
   } catch (err) {
@@ -138,7 +141,10 @@ export function readRouteDir(
       let fm: Record<string, unknown>;
       let localeBody: string;
       try {
-        const parsed = matter(raw);
+        // `{}` bypasses gray-matter's cache: it caches the file object BEFORE
+        // parsing, so a string that threw once later returns an empty shell
+        // instead of re-throwing — which would silently defeat this catch.
+        const parsed = matter(raw, {});
         fm = parsed.data;
         localeBody = parsed.content;
       } catch (err) {

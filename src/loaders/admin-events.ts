@@ -45,15 +45,31 @@ interface AdminEventData {
 
 let cachedEventData: AdminEventData | null = null;
 
-/** Load a flat .md event file. */
+/** Load a flat .md event file. Returns null when the frontmatter is unparseable. */
 function loadFlatEvent(yearDir: string, slug: string, filePath: string): {
   event: AdminEvent;
   detail: EventDetail & { contentHash: string };
-} {
+} | null {
   const id = `${yearDir}/${slug}`;
   const raw = fs.readFileSync(filePath, 'utf-8');
   const contentHash = computeEventContentHash(raw);
-  const { data: fm, content: body } = matter(raw);
+  let fm: Record<string, unknown>;
+  let body: string;
+  try {
+    // `{}` bypasses gray-matter's cache: it caches the file object BEFORE
+    // parsing, so a string that threw once later returns an empty shell
+    // instead of re-throwing — which would silently defeat this catch.
+    const parsed = matter(raw, {});
+    fm = parsed.data;
+    body = parsed.content;
+  } catch (err) {
+    // Malformed community-edited frontmatter degrades to one skipped event,
+    // not a dead build. IO errors are not caught here.
+    console.error(
+      `[admin-event-loader] Malformed frontmatter in event "${id}" (${filePath}): ${(err as Error).message} — skipping event`,
+    );
+    return null;
+  }
 
   const event: AdminEvent = {
     id,
@@ -89,26 +105,54 @@ function loadFlatEvent(yearDir: string, slug: string, filePath: string): {
   return { event, detail: { ...detail, contentHash } };
 }
 
-/** Load a directory-based event (slug/ with index.md + optional media.yml). */
+/**
+ * Load a directory-based event (slug/ with index.md + optional media.yml).
+ * Returns null when index.md's frontmatter is unparseable.
+ */
 function loadDirectoryEvent(yearDir: string, slug: string, eventDir: string): {
   event: AdminEvent;
   detail: EventDetail & { contentHash: string };
-} {
+} | null {
   const id = `${yearDir}/${slug}`;
   const indexPath = path.join(eventDir, 'index.md');
   const raw = fs.readFileSync(indexPath, 'utf-8');
 
   const mediaPath = path.join(eventDir, 'media.yml');
   let mediaYml: string | undefined;
+  // Withheld from eventDetailFromGit when unparseable — it would throw there
+  // too. The raw text still feeds the hash, so conflict detection keeps
+  // matching what the save pipeline computes off the same bytes.
+  let parseableMediaYml: string | undefined;
   let mediaCount = 0;
   if (fs.existsSync(mediaPath)) {
     mediaYml = fs.readFileSync(mediaPath, 'utf-8');
-    const parsed = yaml.load(mediaYml);
-    if (Array.isArray(parsed)) mediaCount = parsed.length;
+    try {
+      const parsed = yaml.load(mediaYml);
+      if (Array.isArray(parsed)) mediaCount = parsed.length;
+      parseableMediaYml = mediaYml;
+    } catch (err) {
+      console.error(
+        `[admin-event-loader] Malformed media.yml in event "${id}" (${mediaPath}): ${(err as Error).message} — ignoring media`,
+      );
+    }
   }
 
   const contentHash = computeEventContentHash(raw, mediaYml);
-  const { data: fm, content: body } = matter(raw);
+  let fm: Record<string, unknown>;
+  let body: string;
+  try {
+    // `{}` bypasses gray-matter's cache: it caches the file object BEFORE
+    // parsing, so a string that threw once later returns an empty shell
+    // instead of re-throwing — which would silently defeat this catch.
+    const parsed = matter(raw, {});
+    fm = parsed.data;
+    body = parsed.content;
+  } catch (err) {
+    console.error(
+      `[admin-event-loader] Malformed frontmatter in event "${id}" (${indexPath}): ${(err as Error).message} — skipping event`,
+    );
+    return null;
+  }
 
   const event: AdminEvent = {
     id,
@@ -140,7 +184,7 @@ function loadDirectoryEvent(yearDir: string, slug: string, eventDir: string): {
     series: fm.series as EventSeries | undefined,
   };
 
-  const detail = eventDetailFromGit(id, fm, body.trim(), mediaYml);
+  const detail = eventDetailFromGit(id, fm, body.trim(), parseableMediaYml);
   return { event, detail: { ...detail, contentHash } };
 }
 
@@ -169,24 +213,28 @@ export async function loadAdminEventData(): Promise<AdminEventData> {
         const indexPath = path.join(entryPath, 'index.md');
         if (!fs.existsSync(indexPath)) continue;
 
-        const { event, detail } = loadDirectoryEvent(yearDir, entry, entryPath);
-        events.push(event);
-        details[event.id] = detail;
+        const loaded = loadDirectoryEvent(yearDir, entry, entryPath);
+        if (!loaded) continue;
+        events.push(loaded.event);
+        details[loaded.event.id] = loaded.detail;
       } else if (entry.endsWith('.md')) {
         // Flat .md event — skip translation files like event.fr.md
         const parts = entry.replace('.md', '').split('.');
         if (parts.length > 1) continue;
 
         const slug = entry.replace('.md', '');
-        const { event, detail } = loadFlatEvent(yearDir, slug, entryPath);
-        events.push(event);
-        details[event.id] = detail;
+        const loaded = loadFlatEvent(yearDir, slug, entryPath);
+        if (!loaded) continue;
+        events.push(loaded.event);
+        details[loaded.event.id] = loaded.detail;
       }
     }
   }
 
-  // Sort by start_date descending (newest first)
-  events.sort((a, b) => b.start_date.localeCompare(a.start_date));
+  // Sort by start_date descending (newest first). Coerced because an unquoted
+  // `start_date: 2026-05-01` parses as a Date, not a string — one such file
+  // would otherwise take down the whole build here.
+  events.sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
   cachedEventData = { events, details };
   return cachedEventData;
 }
