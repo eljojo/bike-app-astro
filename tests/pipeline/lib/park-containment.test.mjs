@@ -482,7 +482,8 @@ describe('pipeline park containment — real Ottawa data', () => {
     const net = entries.find(e =>
       e.type === 'network' && e.name === 'South March Highlands Conservation Forest'
     );
-    const knownTrails = ['Klondike', 'Porcupine', 'Coconut Tree', 'Beartree', 'Staycation'];
+    // Names carry OSM's trail-difficulty markers (🟢 easy, 🟦 intermediate).
+    const knownTrails = ['Klondike 🟢', 'Porcupine 🟦', 'Coconut Tree 🟢', 'Beartree 🟢', 'Staycation 🟦'];
     for (const name of knownTrails) {
       const member = entries.find(e => e.name === name && e.member_of);
       expect(member, `${name} should exist as a member`).toBeDefined();
