@@ -1,3 +1,6 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Strava import requires a connected Strava account, i.e. an authenticated user.
+   A 401 means re-authenticate, not mint an anonymous guest. */
 // AGENTS.md: See src/components/admin/AGENTS.md for editor rules.
 // Shared Strava activity browser used by RideEditor (inline) and StravaImport (standalone).
 import { useState, useEffect } from 'preact/hooks';

@@ -150,6 +150,33 @@ describe('enriched event fields', () => {
   });
 });
 
+describe('eventDetailFromGit — cache-dropped fields regression', () => {
+  it('parses and round-trips ics_uid, banner_text, and linked_routes through the cache', () => {
+    const frontmatter = {
+      name: 'BRM 400', start_date: '2024-02-10',
+      banner_text: 'Registration closes soon',
+      ics_uid: 'https://obcrides.ca/events/999',
+      linked_routes: [
+        { route: 'vuelta-rocas-400', variant: 'gravel', label: 'Main route' },
+      ],
+    };
+    const detail = eventDetailFromGit('2024/brm-400', frontmatter, 'body');
+    expect(detail.banner_text).toBe('Registration closes soon');
+    expect(detail.ics_uid).toBe('https://obcrides.ca/events/999');
+    expect(detail.linked_routes).toEqual([
+      { route: 'vuelta-rocas-400', variant: 'gravel', label: 'Main route' },
+    ]);
+
+    const cached = eventDetailToCache(detail);
+    const parsed = eventDetailFromCache(cached);
+    expect(parsed.banner_text).toBe('Registration closes soon');
+    expect(parsed.ics_uid).toBe('https://obcrides.ca/events/999');
+    expect(parsed.linked_routes).toEqual([
+      { route: 'vuelta-rocas-400', variant: 'gravel', label: 'Main route' },
+    ]);
+  });
+});
+
 describe('eventDetailToCache / eventDetailFromCache', () => {
   it('round-trips correctly', () => {
     const detail = eventDetailFromGit(

@@ -241,7 +241,18 @@ function loadAdminEventsForRedirects(): Array<{ id: string; past_slugs?: string[
       }
       if (!mdPath || !slug) continue;
       const raw = fs.readFileSync(mdPath, 'utf-8');
-      const fm = matter(raw).data as { past_slugs?: unknown };
+      let fm: { past_slugs?: unknown };
+      try {
+        // `{}` bypasses gray-matter's cache — see src/loaders/events.ts.
+        fm = matter(raw, {}).data as { past_slugs?: unknown };
+      } catch (err) {
+        // The event loaders already skip this file; losing its redirects too
+        // beats failing the build here.
+        console.error(
+          `[content-redirects] Malformed frontmatter in event "${year}/${slug}" (${mdPath}): ${(err as Error).message} — skipping redirects`,
+        );
+        continue;
+      }
       const past = Array.isArray(fm.past_slugs) ? fm.past_slugs.filter((s): s is string => typeof s === 'string') : undefined;
       out.push({ id: `${year}/${slug}`, past_slugs: past });
     }

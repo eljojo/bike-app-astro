@@ -177,6 +177,28 @@ describe('onRequest middleware', () => {
     expect(deletedCookies).toContain('session_token');
     expect(deletedCookies).toContain('logged_in');
   });
+
+  it('session store outage on protected API → 503 JSON', async () => {
+    mockValidateSession.mockRejectedValue(new Error('D1 unreachable'));
+    const { context } = makeContext('/api/routes/test', { cookie: 'valid-token' });
+    const next = vi.fn();
+    const res = await onRequest(context as any, next) as Response;
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Content-Type')).toContain('application/json');
+    const body = await res.json();
+    expect(body.error).toBe('Service unavailable');
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('session store outage on protected page → 503 HTML', async () => {
+    mockValidateSession.mockRejectedValue(new Error('D1 unreachable'));
+    const { context } = makeContext('/admin/settings', { cookie: 'valid-token' });
+    const next = vi.fn();
+    const res = await onRequest(context as any, next) as Response;
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Content-Type')).toContain('text/html');
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
 describe('browsable admin paths', () => {
@@ -266,5 +288,17 @@ describe('browsable admin paths', () => {
     expect(context.locals.user.id).toBe('');
     expect(deletedCookies).toContain('session_token');
     expect(deletedCookies).toContain('logged_in');
+  });
+
+  it('serves browsable page anonymously when the session store is down', async () => {
+    // D1 outage while validating a cookie must not 500 a public-browsable page.
+    mockValidateSession.mockRejectedValue(new Error('D1 unreachable'));
+    const { context } = makeContext('/admin/routes', { cookie: 'valid-token' });
+    const next = vi.fn(async () => htmlResponse());
+    const res = await onRequest(context as any, next) as Response;
+    expect(next).toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(context.locals.user.id).toBe('');
+    expect(context.locals.user.role).toBe('guest');
   });
 });

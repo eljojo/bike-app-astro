@@ -11,6 +11,7 @@ import MarkdownEditor from './MarkdownEditor';
 import MapPinPicker from './MapPinPicker';
 import { useWizardSkips, buildCelebrateUrl } from './wizard-helpers';
 import { isGoogleMapsUrl } from '../../lib/google-maps-url';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 import { SOCIAL_PLATFORMS, type SocialLink } from '@/lib/social-links';
 import { slugify } from '../../lib/slug';
 import type { OrganizerUpdate } from '../../views/api/organizer-save';
@@ -86,11 +87,12 @@ export default function CommunityWizard({
     setPrefilling(true);
     editor.setError('');
     try {
-      const res = await fetch('/api/places/prefill', {
+      const res = await fetchWithGuest('/api/places/prefill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       });
+      if (!res) return;
       const data = await res.json();
       if (!res.ok) {
         editor.setError(data.error || 'Prefill failed');

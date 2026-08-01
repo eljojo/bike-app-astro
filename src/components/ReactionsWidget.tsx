@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
+import { fetchWithGuest } from '../lib/guest-fetch';
 import TrustReceipt from './TrustReceipt';
 import Icon from './Icon';
 
@@ -58,43 +59,24 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
     setTimeout(() => setAnimating(null), 600);
   };
 
-  const createSilentGuest = useCallback(async (): Promise<boolean> => {
-    try {
-      const res = await fetch('/api/auth/guest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  }, []);
-
   const toggleReaction = useCallback(async (reactionType: string) => {
-    let res = await fetch('/api/reactions', {
+    // Silent mode: if guest minting fails, no-op rather than redirecting to
+    // /login — a reaction tap must never yank the reader off the page.
+    const res = await fetchWithGuest('/api/reactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contentType, contentSlug, reactionType }),
+    }, {
+      onAuthFail: 'silent',
+      // Show the trust receipt once, on first successful guest creation.
+      onGuestCreated: () => {
+        if (!hasShownReceipt.current) {
+          hasShownReceipt.current = true;
+          setShowReceipt(true);
+        }
+      },
     });
-
-    // Silent guest creation on 401
-    if (res.status === 401) {
-      const created = await createSilentGuest();
-      if (!created) return;
-
-      // Retry the reaction with the new session cookie
-      res = await fetch('/api/reactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType, contentSlug, reactionType }),
-      });
-
-      // Show trust receipt on first silent guest creation
-      if (res.ok && !hasShownReceipt.current) {
-        hasShownReceipt.current = true;
-        setShowReceipt(true);
-      }
-    }
+    if (!res) return; // guest minting failed — silent no-op
 
     if (res.ok) {
       const data = await res.json();
@@ -116,7 +98,7 @@ export default function ReactionsWidget({ contentType, contentSlug, labels, book
         if (reactionType === 'ridden') setRiddenCount(null);
       }
     }
-  }, [contentType, contentSlug, createSilentGuest, fetchReactions]);
+  }, [contentType, contentSlug, fetchReactions]);
 
   if (loading) return null;
 

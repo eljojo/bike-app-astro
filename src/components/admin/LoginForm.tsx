@@ -1,3 +1,6 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Auth island: these are the login/signup endpoints themselves. Bootstrapping a
+   guest on 401 would defeat the explicit authentication the user is performing. */
 import { useState, useEffect } from 'preact/hooks';
 import { startAuthentication, browserSupportsWebAuthnAutofill } from '@simplewebauthn/browser';
 import { useHydrated } from '../../lib/hooks';

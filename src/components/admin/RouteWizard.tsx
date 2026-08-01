@@ -19,6 +19,7 @@ import TagEditor from './TagEditor';
 import RoutePreview from './RoutePreview';
 import { useEditorForm } from './useEditorForm';
 import type { RouteUpdate } from '../../views/api/route-save';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 
 const STOPS = ['Route', 'Story', 'Photos', 'Go Live'];
 
@@ -156,11 +157,12 @@ export default function RouteWizard({
     setUploadError('');
     setImporting(true);
     try {
-      const res = await fetch('/api/gpx/import', {
+      const res = await fetchWithGuest('/api/gpx/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: importUrl }),
       });
+      if (!res) return;
       if (!res.ok) { const data = await res.json(); throw new Error(data.error || 'Import failed'); }
       const { gpxContent: content, name: routeName, sourceUrl: resolvedUrl } = await res.json();
       setGpxContent(content);

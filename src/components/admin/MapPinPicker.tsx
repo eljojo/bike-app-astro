@@ -11,6 +11,12 @@ interface Props {
   onChange: (lat: number, lng: number) => void;
   /** Called after reverse geocoding a placed pin */
   onAddressChange?: (address: string) => void;
+  /** Field label; defaults to "Pin location" */
+  label?: string;
+  /** Parenthetical hint after the label; defaults to "(click map to place)" */
+  hint?: string;
+  /** Called once the map instance exists, e.g. to draw overlays on it */
+  onMapReady?: (map: import('maplibre-gl').Map) => void;
 }
 
 function round6(n: number): number {
@@ -23,7 +29,16 @@ function round6(n: number): number {
  *
  * Used by PlaceWizard, CommunityWizard (bike-shop path), and PlaceEditor.
  */
-export default function MapPinPicker({ center, lat, lng, onChange, onAddressChange }: Props) {
+export default function MapPinPicker({
+  center,
+  lat,
+  lng,
+  onChange,
+  onAddressChange,
+  label = 'Pin location',
+  hint = '(click map to place)',
+  onMapReady,
+}: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
   const markerRef = useRef<import('maplibre-gl').Marker | null>(null);
@@ -135,6 +150,7 @@ export default function MapPinPicker({ center, lat, lng, onChange, onAddressChan
       });
 
       mapInstanceRef.current = map;
+      onMapReady?.(map);
     });
 
     return () => {
@@ -147,7 +163,7 @@ export default function MapPinPicker({ center, lat, lng, onChange, onAddressChan
 
   return (
     <div class="form-field">
-      <label>Pin location <span class="field-hint">(click map to place)</span></label>
+      <label>{label} <span class="field-hint">{hint}</span></label>
       <div ref={mapContainerRef} class="place-map-picker" />
       {(lat !== 0 || lng !== 0) && (
         <div class="place-coords">

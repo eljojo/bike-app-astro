@@ -191,3 +191,21 @@ test.describe('Event Wizard', () => {
     await expect(page.locator('.wizard-nav-skip')).not.toBeVisible();
   });
 });
+
+// -------------------------------------------------------------------------
+// Guest/anonymous path — highest-traffic entry point for a first-time
+// contributor. No loginAs(): a brand-new visitor with no session cookie.
+// -------------------------------------------------------------------------
+test.describe('Event Wizard — anonymous visitor', () => {
+  test('anonymous visitor reaches the event wizard, not bounced to /login', async ({ page }) => {
+    await page.goto('/admin/events/new');
+    await page.waitForLoadState('networkidle');
+    await waitForHydration(page);
+
+    expect(page.url()).not.toContain('/login');
+
+    const heading = page.locator('.wizard-welcome-heading');
+    await expect(heading).toBeVisible();
+    await expect(heading).toContainText('Add an event');
+  });
+});

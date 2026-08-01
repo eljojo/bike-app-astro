@@ -11,6 +11,7 @@ import InteractiveElevation from '../InteractiveElevation';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
 import { findNearbyMedia } from '../../lib/geo/media-proximity';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 
 interface Props {
   cdnUrl: string;
@@ -102,11 +103,12 @@ export default function RouteCreator({ cdnUrl, videosCdnUrl, videoPrefix, mediaL
     setImporting(true);
 
     try {
-      const res = await fetch('/api/gpx/import', {
+      const res = await fetchWithGuest('/api/gpx/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: importUrl }),
       });
+      if (!res) return;
 
       if (!res.ok) {
         const data = await res.json();

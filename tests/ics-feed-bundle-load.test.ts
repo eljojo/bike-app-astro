@@ -33,7 +33,7 @@ const distExists = existsSync(chunksDir);
  * single letter. Walk both shapes so a future bundler change doesn't break
  * this smoke test.
  */
-function findExportedFn(mod: Record<string, unknown>, name: string): ((...args: unknown[]) => unknown) | undefined {
+function findExportedFn(mod: Record<string, unknown>, name: string, source: string): ((...args: unknown[]) => unknown) | undefined {
   const direct = mod[name];
   if (typeof direct === 'function') return direct as (...args: unknown[]) => unknown;
   for (const v of Object.values(mod)) {
@@ -42,17 +42,33 @@ function findExportedFn(mod: Record<string, unknown>, name: string): ((...args: 
       if (typeof nested === 'function') return nested as (...args: unknown[]) => unknown;
     }
   }
-  return undefined;
+  // Rolldown renames the chunk's public exports to single letters (`export {
+  // parseIcs as n }`), so there is no `parseIcs` key to look up. The chunk's own
+  // export statement is the name map — read the alias back out of it.
+  const exportList = source.match(/export\s*\{([^}]*)\}/)?.[1];
+  const alias = exportList
+    ?.split(',')
+    .map(entry => entry.trim().split(/\s+as\s+/))
+    .find(([local]) => local === name)?.[1];
+  const aliased = alias ? mod[alias] : undefined;
+  return typeof aliased === 'function' ? (aliased as (...args: unknown[]) => unknown) : undefined;
 }
 
 describe.skipIf(!distExists)('built ics-feed chunk loads on a Node-like runtime', () => {
   test('parseIcs in the bundled chunk does not throw on module init', async () => {
     const matches = readdirSync(chunksDir).filter(f => /^ics-feed\.server_.*\.mjs$/.test(f));
-    expect(matches, 'expected exactly one ics-feed.server chunk').toHaveLength(1);
+    expect(matches.length, 'expected at least one ics-feed.server chunk').toBeGreaterThan(0);
 
-    const chunkPath = path.join(chunksDir, matches[0]);
-    const mod = await import(chunkPath);
-    const parseIcs = findExportedFn(mod as Record<string, unknown>, 'parseIcs');
+    // Rolldown (Vite 8) splits this into the implementation chunk plus a thin
+    // re-export facade, so don't assume a single match. Importing every one of
+    // them is the module-init check this test exists for; parseIcs lives in
+    // whichever chunk holds the implementation.
+    let parseIcs: ((...args: unknown[]) => unknown) | undefined;
+    for (const match of matches) {
+      const chunkPath = path.join(chunksDir, match);
+      const mod = await import(chunkPath);
+      parseIcs ??= findExportedFn(mod as Record<string, unknown>, 'parseIcs', readFileSync(chunkPath, 'utf-8'));
+    }
     expect(parseIcs, 'bundle must export parseIcs (directly or via namespace)').toBeTypeOf('function');
 
     // Any RRULE-bearing fixture exercises the parse path end-to-end. If the

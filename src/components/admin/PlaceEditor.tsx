@@ -11,9 +11,9 @@ import { categoryEmoji } from '../../lib/geo/place-categories';
 import { goodForEnum } from '../../schemas/index';
 import { buildMediaThumbnailUrl } from '../../lib/media/image-service';
 import type { MediaThumbnailConfig } from '../../lib/media/image-service';
-import { throttle } from '../../lib/throttle';
 import { isGoogleMapsUrl } from '../../lib/google-maps-url';
-import { getStyleUrl, loadStylePreference } from '../../lib/maps/map-style-switch';
+import { fetchWithGuest } from '../../lib/guest-fetch';
+import MapPinPicker from './MapPinPicker';
 import polyline from '@mapbox/polyline';
 import { haversineM, PHOTO_NEAR_PLACE_M } from '../../lib/geo/proximity';
 import type { PlaceDetail } from '../../lib/models/place-model';
@@ -74,10 +74,8 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
   const [prefilling, setPrefilling] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(!initialData.isNew);
 
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  // Held so the near-route reference overlay can draw onto MapPinPicker's map.
   const mapInstanceRef = useRef<import('maplibre-gl').Map | null>(null);
-  const markerRef = useRef<import('maplibre-gl').Marker | null>(null);
-  const createMarkerRef = useRef<((position: [number, number]) => import('maplibre-gl').Marker) | null>(null);
   const lastPrefillQuery = useRef<string>('');
 
   const { validate } = useFormValidation([
@@ -125,36 +123,9 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     },
   });
 
-  // Reverse geocode on map click (throttled to 1 req/sec per Nominatim policy)
-  const reverseGeocode = useRef(throttle(async (latitude: number, longitude: number) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18`,
-        { headers: { 'User-Agent': 'OttawaByBike/1.0' } }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.display_name) {
-        setAddress(data.display_name);
-      }
-    } catch {
-      // Geocoding is best-effort
-    }
-  }, 1100));
-
   function updateLocation(latitude: number, longitude: number) {
     setLat(Math.round(latitude * 1000000) / 1000000);
     setLng(Math.round(longitude * 1000000) / 1000000);
-    reverseGeocode.current(latitude, longitude);
-
-    // Update or create marker on existing map
-    if (mapInstanceRef.current) {
-      if (markerRef.current) {
-        markerRef.current.setLngLat([longitude, latitude]);
-      } else if (createMarkerRef.current) {
-        markerRef.current = createMarkerRef.current([latitude, longitude]);
-      }
-    }
   }
 
   // Filter photos near the current location
@@ -173,11 +144,12 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
     setPrefilling(true);
     editor.setError('');
     try {
-      const res = await fetch('/api/places/prefill', {
+      const res = await fetchWithGuest('/api/places/prefill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       });
+      if (!res) return;
       const data = await res.json();
       if (!res.ok) {
         editor.setError(data.error || 'Prefill failed');
@@ -193,9 +165,6 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       }
       if (data.lat && data.lng) {
         updateLocation(data.lat, data.lng);
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo({ center: [data.lng, data.lat], zoom: 15 });
-        }
       }
     } catch {
       editor.setError('Prefill request failed');
@@ -231,66 +200,6 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
       i === index ? { ...link, [field]: value } : link,
     ));
   }
-
-  // Initialize map
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-
-    import('maplibre-gl').then(async (maplibregl) => {
-      const { initMap } = await import('../../lib/maps/map-init');
-
-      const defaultCenter: [number, number] = lat && lng ? [lat, lng] : (mapCenter || [45.4215, -75.6972]);
-      const defaultZoom = lat && lng ? 15 : 11;
-
-      const map = initMap({
-        el: mapContainerRef.current!,
-        center: defaultCenter,
-        zoom: defaultZoom,
-        styleUrl: getStyleUrl(loadStylePreference()),
-      });
-
-      function createDraggableMarker(position: [number, number]) {
-        const el = document.createElement('div');
-        el.className = 'place-picker-marker';
-
-        const marker = new maplibregl.default.Marker({ element: el, draggable: true })
-          .setLngLat([position[1], position[0]]) // position is [lat, lng], MapLibre wants [lng, lat]
-          .addTo(map);
-        marker.on('dragend', () => {
-          const lngLat = marker.getLngLat();
-          updateLocation(lngLat.lat, lngLat.lng);
-        });
-        return marker;
-      }
-
-      createMarkerRef.current = createDraggableMarker;
-
-      // Add marker at current position
-      if (lat && lng) {
-        markerRef.current = createDraggableMarker([lat, lng]);
-      }
-
-      // Click to place/move marker
-      map.on('click', (e) => {
-        const { lat: clickLat, lng: clickLng } = e.lngLat;
-        if (markerRef.current) {
-          markerRef.current.setLngLat([clickLng, clickLat]);
-        } else {
-          markerRef.current = createDraggableMarker([clickLat, clickLng]);
-        }
-        updateLocation(clickLat, clickLng);
-      });
-
-      mapInstanceRef.current = map;
-    });
-
-    return () => {
-      mapInstanceRef.current?.remove();
-      mapInstanceRef.current = null;
-      markerRef.current = null;
-      createMarkerRef.current = null;
-    };
-  }, []);
 
   // Draw reference route polyline when creating a place near a route
   useEffect(() => {
@@ -400,15 +309,16 @@ export default function PlaceEditor({ initialData, cdnUrl, videosCdnUrl, videoPr
           </select>
         </div>
 
-        <div class="form-field">
-          <label>Location <span class="field-hint">(click map to set)</span></label>
-          <div ref={mapContainerRef} class="place-map-picker" />
-          {(lat !== 0 || lng !== 0) && (
-            <div class="place-coords">
-              {lat.toFixed(6)}, {lng.toFixed(6)}
-            </div>
-          )}
-        </div>
+        <MapPinPicker
+          center={mapCenter || [45.4215, -75.6972]}
+          lat={lat}
+          lng={lng}
+          onChange={updateLocation}
+          onAddressChange={setAddress}
+          label="Location"
+          hint="(click map to set)"
+          onMapReady={(map) => { mapInstanceRef.current = map; }}
+        />
 
         {initialData.isNew && !detailsExpanded && (
           <button type="button" class="btn-secondary details-toggle"

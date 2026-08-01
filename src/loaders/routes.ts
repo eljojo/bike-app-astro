@@ -55,7 +55,16 @@ export function routeLoader(): Loader {
         const renderedBody = await renderMarkdownHtml(parsed.body);
 
         const nonDefaultLocales = supportedLocales().filter(l => l !== defaultLocale());
-        const translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);
+        // A malformed translation sidecar must degrade this route to base
+        // language only, not kill the whole build. Guards the parse, not IO.
+        let translations: Awaited<ReturnType<typeof loadLocaleTranslations>> = {};
+        try {
+          translations = await loadLocaleTranslations(routeDir, nonDefaultLocales);
+        } catch (err) {
+          console.error(
+            `[route-loader] Malformed translation content for route "${slug}": ${(err as Error).message} — loading base language only`,
+          );
+        }
 
         // Compute per-variant GPX content hashes (keyed by GPX filename)
         const gpxHashes: Record<string, string> = {};

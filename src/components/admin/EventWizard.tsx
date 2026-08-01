@@ -17,6 +17,7 @@ import { slugify } from '../../lib/slug';
 import type { EventDetail, EventSeries } from '../../lib/models/event-model';
 import type { EventUpdate } from '../../views/api/event-save';
 import type { AdminOrganizer } from '../../types/admin';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 
 const STOPS = ['Poster', 'When & Where', 'Story', 'Details', 'Organizer', 'Go Live'];
 
@@ -260,11 +261,12 @@ export default function EventWizard({
     setPosterError('');
 
     try {
-      const res = await fetch('/api/admin/event-draft', {
+      const res = await fetchWithGuest('/api/admin/event-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ poster_key: key }),
       });
+      if (!res) return;
 
       if (!res.ok) {
         setDraftReviewed(true);
@@ -315,11 +317,12 @@ export default function EventWizard({
     setPosterError('');
     setFetchingUrl(true);
     try {
-      const res = await fetch('/api/admin/event-draft', {
+      const res = await fetchWithGuest('/api/admin/event-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: pasteUrl }),
       });
+      if (!res) return;
       if (!res.ok) {
         setEventDraft({ draft: { event_url: pasteUrl }, uncertain: [] });
         setEventUrl(pasteUrl);

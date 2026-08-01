@@ -84,9 +84,21 @@ export function readRideFile(
   let sidecarMd: string | undefined;
   if (fs.existsSync(sidecarPath)) {
     sidecarMd = fs.readFileSync(sidecarPath, 'utf-8');
-    const parsed = matter(sidecarMd);
-    frontmatter = parsed.data;
-    body = parsed.content.trim();
+    try {
+      // `{}` bypasses gray-matter's cache: it caches the file object BEFORE
+      // parsing, so a string that threw once later returns an empty shell
+      // instead of re-throwing — which would silently defeat this catch.
+      const parsed = matter(sidecarMd, {});
+      frontmatter = parsed.data;
+      body = parsed.content.trim();
+    } catch (err) {
+      // Malformed sidecar frontmatter degrades to one skipped ride, not a
+      // dead build — the GPX alone can't stand in for the ride's metadata.
+      console.error(
+        `[ride-file-reader] Malformed frontmatter in sidecar ${sidecarPath}: ${(err as Error).message} — skipping ride`,
+      );
+      return null;
+    }
   }
 
   // Load optional -media.yml
@@ -95,7 +107,14 @@ export function readRideFile(
   let mediaYml: string | undefined;
   if (fs.existsSync(mediaYmlPath)) {
     mediaYml = fs.readFileSync(mediaYmlPath, 'utf-8');
-    media = (yaml.load(mediaYml) as RouteMedia[]) || [];
+    try {
+      media = (yaml.load(mediaYml) as RouteMedia[]) || [];
+    } catch (err) {
+      // Bad media costs the photos, not the ride itself.
+      console.error(
+        `[ride-file-reader] Malformed ${mediaYmlPath}: ${(err as Error).message} — ignoring media`,
+      );
+    }
   }
 
   const slug = buildSlug(date, gpxFilename, !!tourSlug);

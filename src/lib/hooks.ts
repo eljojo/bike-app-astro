@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
+import { fetchWithGuest } from './guest-fetch';
 
 /**
  * Signal to E2E tests that this Preact island has hydrated.
@@ -251,7 +252,7 @@ export function useVideoUpload(
     setError('');
 
     try {
-      const presignRes = await fetch('/api/video/presign', {
+      const presignRes = await fetchWithGuest('/api/video/presign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -262,6 +263,7 @@ export function useVideoUpload(
           filename: file.name,
         }),
       });
+      if (!presignRes) return null; // redirected to login
       if (!presignRes.ok) {
         const data = await presignRes.json();
         throw new Error(data.error || 'Failed to get video upload URL');
@@ -360,11 +362,12 @@ export function useFileUpload() {
           throw new Error(`File too large (${sizeMB}MB). Maximum size is 25MB.`);
         }
 
-        const presignRes = await fetch('/api/media/presign', {
+        const presignRes = await fetchWithGuest('/api/media/presign', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contentType: file.type, contentLength: file.size }),
         });
+        if (!presignRes) return []; // redirected to login
         if (!presignRes.ok) {
           const data = await presignRes.json();
           throw new Error(data.error || 'Failed to get upload URL');
@@ -377,11 +380,12 @@ export function useFileUpload() {
           headers: { 'Content-Type': file.type },
         });
 
-        const confirmRes = await fetch('/api/media/confirm', {
+        const confirmRes = await fetchWithGuest('/api/media/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key }),
         });
+        if (!confirmRes) return []; // redirected to login
         if (!confirmRes.ok) {
           const data = await confirmRes.json();
           throw new Error(data.error || 'Upload confirmation failed');

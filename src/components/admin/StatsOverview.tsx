@@ -1,3 +1,6 @@
+/* eslint-disable bike-app/require-guest-fetch --
+   Admin island: the stats-sync write is an authenticated-only endpoint. A 401
+   means the admin session lapsed, not that a guest should be minted. */
 import { useRef, useEffect, useState } from 'preact/hooks';
 import { Chart, registerables } from 'chart.js';
 import { useHydrated } from '../../lib/hooks';
@@ -37,6 +40,7 @@ interface StatsData {
   };
   cdnUrl?: string;
   lastSynced?: string;
+  syncFailed?: boolean;
 }
 
 const THUMB_OPTS = { width: 32, height: 32, fit: 'cover' as const };
@@ -389,6 +393,7 @@ export default function StatsOverview() {
       {/* Toolbar */}
       <div class="stats-toolbar">
         {data.lastSynced && <span class="stats-last-synced">Data through {data.lastSynced}</span>}
+        {data.syncFailed && <span class="stats-last-synced">Showing saved data — last sync failed</span>}
         <button type="button" class="stats-sync-btn" disabled={syncing} onClick={triggerSync}>{syncing ? 'Syncing\u2026' : 'Sync now'}</button>
       </div>
 

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import sharp from 'sharp';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import matter from 'gray-matter';
 import { FIXTURE_DIR } from './fixture-setup.ts';
 import { seedSession, cleanupSession, loginAs, clearContentEdits, restoreFixtureFiles, waitForHydration } from './helpers.ts';

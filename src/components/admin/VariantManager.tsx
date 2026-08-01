@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { useDragReorder } from '../../lib/hooks';
 import { extractRwgpsUrl } from '../../lib/gpx/parse';
 import { routeVariantGpxPath } from '../../lib/gpx/filenames';
+import { fetchWithGuest } from '../../lib/guest-fetch';
 
 export interface VariantItem {
   name: string;
@@ -92,11 +93,12 @@ export default function VariantManager({ variants, onChange, pendingFiles, onPen
     setImporting(true);
 
     try {
-      const res = await fetch('/api/gpx/import', {
+      const res = await fetchWithGuest('/api/gpx/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: importUrl }),
       });
+      if (!res) return;
 
       if (!res.ok) {
         const data = await res.json();
